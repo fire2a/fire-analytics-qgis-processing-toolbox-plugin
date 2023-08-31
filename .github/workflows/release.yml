@@ -33,7 +33,7 @@ jobs:
 
     - name: git archive
       run: |
-         rm fireanalyticstoolbox/cbc*w64-msvc17*.zip
+         rm fireanalyticstoolbox/cbc/*w64-msvc17*.zip
          git add fireanalyticstoolbox/cbc
          lestash=`git stash create`
          git archive --output "fireanalyticstoolbox_${{ github.ref_name }}.zip" $lestash fireanalyticstoolbox
