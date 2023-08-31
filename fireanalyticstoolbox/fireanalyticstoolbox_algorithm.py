@@ -129,7 +129,7 @@ class FireToolboxAlgorithm(QgsProcessingAlgorithm):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'SampleAlgorithm'
+        return 'PluginBuilderBaseAlgorithm'
 
     def displayName(self):
         """
@@ -153,7 +153,7 @@ class FireToolboxAlgorithm(QgsProcessingAlgorithm):
         contain lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'SampleGrop'
+        return "experimental"
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)

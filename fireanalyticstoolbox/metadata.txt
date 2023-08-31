@@ -5,12 +5,12 @@
 [general]
 name=Fire Analytics Processing-Toolbox
 qgisMinimumVersion=3.0
-description=A collection of fire insights related algorithms
+description=A collection of wild/forest fires insights related algorithms. Includes prescriptive analytics via mathematical programming optimization to generate management recommendations
 version=0.0.1
 author=Fernando Badilla Veliz - Fire2a.com
 email=fbadilla@ing.uchile.cl
 
-about=This Processing-ToolBox-Plugin gathers and implements multiple algorithms needed by landscape planners, fire risk managers, biologists, geographers, and so on. Looking for insights into large forest fires in a data-oriented pipelined way. One of the main goals is being interoperable with other tools, and being able to be used in various ways and contexts. Developed by the Fire2a(.com), under the GNU GPL v3 license. We are eager to help! Contact Us!
+about=This Processing-ToolBox-Plugin gathers and implements multiple algorithms needed by landscape planners, fire risk managers, biologists, geographers, and so on. Looking for insights into large forest fires in a data-oriented pipelined way. One of the main goals is being interoperable with other tools, and being able to be used in various ways and contexts. Developed by the Fire2a(.com) research group, under the GNU GPL v3 license. We are eager to help! Contact Us!
 
 tracker=http://bugs
 repository=http://repo
@@ -23,7 +23,7 @@ hasProcessingProvider=yes
 # changelog=
 
 # Tags are comma separated with spaces allowed
-tags=python forest fires wildfires fire simulator
+tags=python,fire,forest fires,wildfires,fire simulator,prescriptive analytics
 
 homepage=http://homepage
 category=Analysis

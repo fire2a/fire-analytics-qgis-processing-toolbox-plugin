@@ -32,7 +32,9 @@ __revision__ = '$Format:%H$'
 
 from qgis.core import QgsProcessingProvider
 from .fireanalyticstoolbox_algorithm import FireToolboxAlgorithm
-
+from .algorithm_sandbox import SandboxAlgorithm
+from .algorithm_raster_knapsack import RasterKnapsackAlgorithm
+# algorithm_raster_knapsack
 
 class FireToolboxProvider(QgsProcessingProvider):
 
@@ -54,6 +56,9 @@ class FireToolboxProvider(QgsProcessingProvider):
         Loads all algorithms belonging to this provider.
         """
         self.addAlgorithm(FireToolboxAlgorithm())
+        self.addAlgorithm(SandboxAlgorithm())
+        self.addAlgorithm(RasterKnapsackAlgorithm())
+
         # add additional algorithms here
         # self.addAlgorithm(MyOtherAlgorithm())
 
@@ -63,7 +68,7 @@ class FireToolboxProvider(QgsProcessingProvider):
         string should be a unique, short, character only string, eg "qgis" or
         "gdal". This string should not be localised.
         """
-        return 'Fire2aProvider'
+        return 'Fire2a'
 
     def name(self):
         """
@@ -72,7 +77,7 @@ class FireToolboxProvider(QgsProcessingProvider):
 
         This string should be short (e.g. "Lastools") and localised.
         """
-        return self.tr('Fire2aProvider')
+        return self.tr('Fire Analytics')
 
     def icon(self):
         """
