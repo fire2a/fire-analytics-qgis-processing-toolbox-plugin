@@ -1,0 +1,33 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write
+
+jobs:
+  build-n-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+
+    - name: version bump
+      run: |
+         VERSION=${GITHUB_REF_NAME#v}
+         echo "version is ${VERSION}"
+         sed -i -e "s/version=0.0.1/version=${VERSION}/" fireanalyticstoolbox/metadata.txt
+
+    - name: git archive
+      run: |
+         git archive --add-file=fireanalyticstoolbox/metadata.txt --output "fireanalyticstoolbox_${{ github.ref_name }}.zip" fireanalyticstoolbox HEAD
+         
+    - name: Create Release
+      uses: ncipollo/release-action@v1.12.0
+      with:
+        artifacts: "fireanalyticstoolbox_${{ github.ref_name }}.zip"
+        token: ${{ secrets.GITHUB_TOKEN }}
