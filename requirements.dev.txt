@@ -3,4 +3,4 @@ python-lsp-server[pylint]
 pylsp-mypy
 python-lsp-black
 pylsp-rope
-qgis-stubs
+qgis-stubs @ git+https://github.com/leonhard-s/qgis-stubs.git
