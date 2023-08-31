@@ -1,32 +1,37 @@
 # FireAnalyticsToolbox 
 
-This repo sources Fire2a(.com research group)'s QGIS-Processing-Toolbox plugin "FireAnalyticsToolbox"
+This repo sources Fire2a(.com research group)'s QGIS-Processing-Toolbox plugin: _"FireAnalyticsToolbox"_
+
 User tutorials are at [fire2a/docs](https://fire2a.github.io/docs/)
 
 ## Quickstart
 
-### install
+### Install
+[comprehensive tutorial here](https://fire2a.github.io/docs/docs/qgis/README.html#installation)  
 1. Install QGIS
-2. Install the custom repo source
-3. Install python requirements
-3. Install "Fire Analytics Toolbox" plugin
-[more info](https://fire2a.github.io/docs/docs/qgis/README.html#installation)
+1. Install the custom repo source
+1. Install python requirements
+1. Install "Fire Analytics Toolbox" plugin  
 
-### usage
-A. As a window dialog on the [processing toolbox](https://docs.qgis.org/latest/en/docs/user_manual/processing/toolbox.html) interface  
-B. As a [model (designer graphic interface)](https://docs.qgis.org/latest/en/docs/user_manual/processing/modeler.html) component  
-C. Via [command line interface](https://docs.qgis.org/latest/en/docs/user_manual/processing/standalone) using `$ qgis_process`  
-D. Python script, either:  
-    on [QGIS Python console](https://docs.qgis.org/latest/en/docs/user_manual/plugins/python_console.html)  
-    or as a [standalone](https://raw.githubusercontent.com/fdobad/fire-analytics-qgis-processing-toolbox-plugin/main/standalone.py) script  
 
-### developer
-fork, clone, symlink `fireanalyticstoolbox` into your qgis-plugins directory, contribute!
+### Usage options
+1. As a window dialog on the [processing toolbox](https://docs.qgis.org/latest/en/docs/user_manual/processing/toolbox.html) interface  
+1. As a [model (designer graphic interface)](https://docs.qgis.org/latest/en/docs/user_manual/processing/modeler.html) component  
+1. Via [command line interface](https://docs.qgis.org/latest/en/docs/user_manual/processing/standalone) using `$ qgis_process`  
+1. Python script, either:  
+ - on [QGIS Python console](https://docs.qgis.org/latest/en/docs/user_manual/plugins/python_console.html)  
+ - or as a [standalone](https://raw.githubusercontent.com/fdobad/fire-analytics-qgis-processing-toolbox-plugin/main/script_samples/standalone.py) script  
+
+### Development
+Fork, clone, symlink `fireanalyticstoolbox` into your qgis-plugins directory, pull requests welcome!  
+Also checkout our [algorithms library](https://fire2a.github.io/docs/docs/fire2a-lib.html)
 
 ## Structure
-* Plugin files at fireanalyticstoolbox
-* Samples of standalone and 
-
+- Plugin files at `fireanalyticstoolbox` directory  
+  - includes python requirements.txt  
+- `script_samples` contains standalone and qgis-console python scripts  
+- `pyproject.toml` defines black coding style  
+-  requirements.dev.txt lists dev tools  
 
 ## Code of Conduct
 
