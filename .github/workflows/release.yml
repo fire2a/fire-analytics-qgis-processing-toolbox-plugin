@@ -24,7 +24,7 @@ jobs:
 
     - name: git archive
       run: |
-         git archive --prefix=fireanalyticstoolbox --add-file=fireanalyticstoolbox/metadata.txt --prefix= --output "fireanalyticstoolbox_${{ github.ref_name }}.zip" HEAD fireanalyticstoolbox
+         git archive --prefix=fireanalyticstoolbox --add-file=fireanalyticstoolbox/metadata.txt --prefix= --output "fireanalyticstoolbox_${{ github.ref_name }}.zip" HEAD fireanalyticstoolbox/*
 
     - name: Create Release
       uses: ncipollo/release-action@v1.12.0
