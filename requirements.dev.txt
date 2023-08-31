@@ -1,4 +1,4 @@
--r requirements.txt
+-r fireanalyticstoolbox/requirements.txt
 python-lsp-server[pylint]
 pylsp-mypy
 python-lsp-black
