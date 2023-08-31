@@ -1,0 +1,6 @@
+-r requirements.txt
+python-lsp-server[pylint]
+pylsp-mypy
+python-lsp-black
+pylsp-rope
+qgis-stubs

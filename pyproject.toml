@@ -1,0 +1,26 @@
+# https://black.readthedocs.io/en/stable/usage_and_configuration/the_basics.html
+[tool.black]
+enabled = true
+line-length = 120
+preview = true
+
+[tool.pylint.BASIC]
+good-names = ["i",
+              "j",
+              "k",
+              "e",
+              "W",
+              "H",
+              "dt",
+              "df",
+              "dx",
+              "dy",
+              "ok",
+              "_",
+]
+
+[tool.pylint.FORMAT]
+max-line-length = 120
+
+[tool.pylsp-mypy]
+enabled = true
