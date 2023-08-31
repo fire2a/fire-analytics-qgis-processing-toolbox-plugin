@@ -29,7 +29,7 @@ Also checkout our [algorithms library](https://fire2a.github.io/docs/docs/fire2a
   - includes python requirements.txt  
 - `script_samples` contains standalone and qgis-console python scripts  
 - `pyproject.toml` defines black coding style  
--  requirements.dev.txt lists dev tools  
+-  `requirements.dev.txt` lists dev tools  
 
 ## Code of Conduct
 Everyone interacting in the project's codebases, issue trackers, etc. is expected to follow the [PSF Code of Conduct](https://www.python.org/psf/conduct/).

@@ -21,12 +21,11 @@ jobs:
          VERSION=${GITHUB_REF_NAME#v}
          echo "version is ${VERSION}"
          sed -i -e "s/version=0.0.1/version=${VERSION}/" fireanalyticstoolbox/metadata.txt
-         git commit -am "metadata"
 
     - name: git archive
       run: |
-         git archive --output "fireanalyticstoolbox_${{ github.ref_name }}.zip" HEAD fireanalyticstoolbox
-         
+         git archive --prefix=fireanalyticstoolbox --add-file=fireanalyticstoolbox/metadata.txt --prefix= --output "fireanalyticstoolbox_${{ github.ref_name }}.zip" HEAD fireanalyticstoolbox
+
     - name: Create Release
       uses: ncipollo/release-action@v1.12.0
       with:
