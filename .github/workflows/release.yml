@@ -22,9 +22,7 @@ jobs:
          echo "version is ${VERSION}"
          sed -i -e "s/version=0.0.1/version=${VERSION}/" fireanalyticstoolbox/metadata.txt
 
-    - name: 
-
-
+    - name: download cbc
     - uses: robinraju/release-downloader@v1.8
       with:
         repository: "coin-or/Cbc"
