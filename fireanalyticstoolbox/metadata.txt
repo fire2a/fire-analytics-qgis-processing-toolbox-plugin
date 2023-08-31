@@ -6,7 +6,7 @@
 name=Fire Analytics Processing-Toolbox
 qgisMinimumVersion=3.0
 description=A collection of fire insights related algorithms
-version=0.1
+version=0.0.1
 author=Fernando Badilla Veliz - Fire2a.com
 email=fbadilla@ing.uchile.cl
 
