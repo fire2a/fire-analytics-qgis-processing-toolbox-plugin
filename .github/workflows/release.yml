@@ -22,9 +22,22 @@ jobs:
          echo "version is ${VERSION}"
          sed -i -e "s/version=0.0.1/version=${VERSION}/" fireanalyticstoolbox/metadata.txt
 
+    - name: 
+
+
+    - uses: robinraju/release-downloader@v1.8
+      with:
+        repository: "coin-or/Cbc"
+        latest: true
+        fileName: "*w64-msvc17*.zip"
+        out-file-path: "fireanalyticstoolbox/cbc"
+        extract: true
+
     - name: git archive
       run: |
-         git archive --prefix=fireanalyticstoolbox/ --add-file=fireanalyticstoolbox/metadata.txt --prefix= --output "fireanalyticstoolbox_${{ github.ref_name }}.zip" HEAD fireanalyticstoolbox
+         ls fireanalyticstoolbox
+         ls fireanalyticstoolbox/cbc
+         git archive --prefix=fireanalyticstoolbox/ --add-file=fireanalyticstoolbox/cbc --add-file=fireanalyticstoolbox/metadata.txt --prefix= --output "fireanalyticstoolbox_${{ github.ref_name }}.zip" HEAD fireanalyticstoolbox
 
     - name: Create Release
       uses: ncipollo/release-action@v1.12.0
