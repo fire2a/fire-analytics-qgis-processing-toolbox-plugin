@@ -34,6 +34,8 @@ from qgis.core import QgsProcessingProvider
 from .fireanalyticstoolbox_algorithm import FireToolboxAlgorithm
 from .algorithm_sandbox import SandboxAlgorithm
 from .algorithm_raster_knapsack import RasterKnapsackAlgorithm
+from .algorithm_widgetwrapperdemo import AddLayoutTable
+from .algorithm_firesimulator import FireSimulatorAlgorithm
 # algorithm_raster_knapsack
 
 class FireToolboxProvider(QgsProcessingProvider):
@@ -58,6 +60,8 @@ class FireToolboxProvider(QgsProcessingProvider):
         self.addAlgorithm(FireToolboxAlgorithm())
         self.addAlgorithm(SandboxAlgorithm())
         self.addAlgorithm(RasterKnapsackAlgorithm())
+        self.addAlgorithm(AddLayoutTable())
+        self.addAlgorithm(FireSimulatorAlgorithm())
 
         # add additional algorithms here
         # self.addAlgorithm(MyOtherAlgorithm())
@@ -68,7 +72,7 @@ class FireToolboxProvider(QgsProcessingProvider):
         string should be a unique, short, character only string, eg "qgis" or
         "gdal". This string should not be localised.
         """
-        return 'Fire2a'
+        return 'fire2a'
 
     def name(self):
         """

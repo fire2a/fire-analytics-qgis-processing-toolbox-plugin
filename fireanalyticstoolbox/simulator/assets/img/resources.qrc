@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/plugins/cell2fire2asimulator/assets/img" >
+        <file>icon_dlg.png</file>
+        <file>icon_arg.png</file>
+    </qresource>
+</RCC>
