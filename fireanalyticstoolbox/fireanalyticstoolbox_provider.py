@@ -34,7 +34,7 @@ from qgis.core import QgsProcessingProvider
 from .fireanalyticstoolbox_algorithm import FireToolboxAlgorithm
 from .algorithm_sandbox import SandboxAlgorithm
 from .algorithm_raster_knapsack import RasterKnapsackAlgorithm
-# algorithm_raster_knapsack
+from .algorithm_clusterize import ClusterizeAlgorithm
 
 class FireToolboxProvider(QgsProcessingProvider):
 
@@ -58,9 +58,7 @@ class FireToolboxProvider(QgsProcessingProvider):
         self.addAlgorithm(FireToolboxAlgorithm())
         self.addAlgorithm(SandboxAlgorithm())
         self.addAlgorithm(RasterKnapsackAlgorithm())
-
-        # add additional algorithms here
-        # self.addAlgorithm(MyOtherAlgorithm())
+        self.addAlgorithm(ClusterizeAlgorithm())
 
     def id(self):
         """

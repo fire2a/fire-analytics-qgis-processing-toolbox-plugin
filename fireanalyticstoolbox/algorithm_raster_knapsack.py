@@ -198,7 +198,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
                 name=self.INPUT_executable,
                 description=self.tr("Set solver executable file [REQUIRED if STATUS]"),
                 behavior=QgsProcessingParameterFile.File,
-                extension="exe" if platform_system() else '',
+                extension="exe" if platform_system() == 'Windows' else '',
                 optional=True,
         )
         qppf.setFlags(qppf.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
