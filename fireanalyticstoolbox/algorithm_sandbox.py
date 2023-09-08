@@ -30,19 +30,21 @@ __copyright__ = "(C) 2023 by fdo"
 
 __version__ = "$Format:%H$"
 
-from time import sleep
 from os import sep
+from time import sleep
 
-from qgis.core import (QgsFeatureSink, QgsProcessing, QgsProcessingAlgorithm,
-                       QgsProcessingLayerPostProcessorInterface, QgsProject,
+from qgis.core import (QgsFeatureSink, QgsProcessing,
+                       QgsProcessingAlgorithm,
+                       QgsProcessingLayerPostProcessorInterface,
                        QgsProcessingParameterBoolean,
                        QgsProcessingParameterEnum,
                        QgsProcessingParameterFeatureSink,
-                       QgsProcessingParameterFileDestination,
                        QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterFile,
-                       QgsProcessingParameterNumber)
+                       QgsProcessingParameterFileDestination,
+                       QgsProcessingParameterNumber, QgsProject)
 from qgis.PyQt.QtCore import QCoreApplication
+from qgis.gui import QgsCollapsibleGroupBox
 
 
 class SandboxAlgorithm(QgsProcessingAlgorithm):
@@ -73,11 +75,15 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
     INPUT_enum = "INPUT_enum"
     OUTPUT_csv = "OUTPUT_csv"
 
+    collapsible_group_box = QgsCollapsibleGroupBox()
+    collapsible_group_box.setTitle("Collapsible")
+
     def initAlgorithm(self, config):
         """
         Here we define the inputs and output of the algorithm, along
         with some other properties.
         """
+
         qplppi = QPLPPI()
         # add parameter
         # self.addParameter(
@@ -92,6 +98,31 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
                 [QgsProcessing.TypeVectorAnyGeometry],
             )
         )
+        # bool
+        abool = QgsProcessingParameterBoolean(
+            name=self.INPUT_bool,
+            description=self.tr("Input Boolean"),
+            defaultValue=False,
+            optional=False,
+        )
+        abool.setMetadata({"widget_wrapper": {"class": self.collapsible_group_box}})
+        self.addParameter(abool)
+
+        # number
+        # QgsProcessingParameterNumber(name: str, description: str = '', type: QgsProcessingParameterNumber.Type = QgsProcessingParameterNumber.Integer, defaultValue: Any = None, optional: bool = False, minValue: float = -DBL_MAX+1, maxValue: float = DBL_MAX)
+        # integer
+        ainteger = QgsProcessingParameterNumber(
+            name=self.INPUT_integer,
+            description=self.tr("Input Integer"),
+            type=QgsProcessingParameterNumber.Integer,
+            # defaultValue = 0,
+            optional=False,
+            minValue=-7,
+            maxValue=13,
+        )
+        ainteger.setMetadata({"widget_wrapper": {"class": self.collapsible_group_box}})
+        self.addParameter(ainteger)
+        """
         # bool
         self.addParameter(
             QgsProcessingParameterBoolean(
@@ -115,6 +146,7 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
                 maxValue=13,
             )
         )
+        """
         # double
         qppn = QgsProcessingParameterNumber(
             name=self.INPUT_double,
@@ -165,9 +197,7 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         # We add a feature sink in which to store our processed features (this
         # usually takes the form of a newly created vector layer when the
         # algorithm is run in QGIS).
-        self.addParameter(
-            QgsProcessingParameterFeatureSink(self.OUTPUT, self.tr("Output layer"))
-        )
+        self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUT, self.tr("Output layer")))
 
         # QgsProcessingParameterFileDestination(name: str, description: str = '', fileFilter: str = '', defaultValue: Any = None, optional: bool = False, createByDefault: bool = True)
         defaultValue = QgsProject().instance().absolutePath()
@@ -240,7 +270,7 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
             feedback.setProgress(int(current * total))
 
         # TODO test:
-        #context.addLayerToLoadOnCompletion()
+        # context.addLayerToLoadOnCompletion()
         # .addLayerToLoadOnCompletion(self, layer: str, details: QgsProcessingContext.LayerDetails)
         #       QgsProcessingContext.LayerDetails(name: str, project: QgsProject, outputName: str = '', layerTypeHint: QgsProcessingUtils.LayerHint = QgsProcessingUtils.LayerHint.UnknownType)
         # .setLayersToLoadOnCompletion()
@@ -323,20 +353,16 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         should provide a basic description about what the algorithm does and the
         parameters and outputs associated with it..
         """
-        return self.tr(
-            "This is an example algorithm that takes a vector layer and creates a new identical one."
-        )
+        return self.tr("This is an example algorithm that takes a vector layer and creates a new identical one.")
 
     def helpString(self):
         """
         Returns a localised help string for the algorithm. This string should
         provide more detailed help and usage information for the algorithm.
         """
-        return self.tr(
-            """This is an example algorithm that takes a vector layer and creates a new identical one.
+        return self.tr("""This is an example algorithm that takes a vector layer and creates a new identical one.
         It is meant to be used as an example of how to create your own algorithms and explain methods and variables used to do it. An algorithm like this will be available in all elements, and there is not need for additional work.
-        All Processing algorithms should extend the QgsProcessingAlgorithm class."""
-        )
+        All Processing algorithms should extend the QgsProcessingAlgorithm class.""")
 
     def helpUrl(self):
         """
@@ -346,8 +372,8 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
 
 
 class QPLPPI(QgsProcessingLayerPostProcessorInterface):
-    """ https://qgis.org/pyqgis/3.28/core/QgsProcessingLayerPostProcessorInterface.html
-    """
+    """https://qgis.org/pyqgis/3.28/core/QgsProcessingLayerPostProcessorInterface.html"""
+
     def __init__(self):
         super().__init__()
 
