@@ -35,6 +35,7 @@ from .fireanalyticstoolbox_algorithm import FireToolboxAlgorithm
 from .algorithm_sandbox import SandboxAlgorithm
 from .algorithm_raster_knapsack import RasterKnapsackAlgorithm
 from .algorithm_clusterize import ClusterizeAlgorithm
+from .algorithm_simulator import FireSimulatorAlgorithm
 
 class FireToolboxProvider(QgsProcessingProvider):
 
@@ -59,6 +60,8 @@ class FireToolboxProvider(QgsProcessingProvider):
         self.addAlgorithm(SandboxAlgorithm())
         self.addAlgorithm(RasterKnapsackAlgorithm())
         self.addAlgorithm(ClusterizeAlgorithm())
+        self.addAlgorithm(FireSimulatorAlgorithm())
+
 
     def id(self):
         """
