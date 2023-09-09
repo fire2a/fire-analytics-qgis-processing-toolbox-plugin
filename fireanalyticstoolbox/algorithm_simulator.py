@@ -30,30 +30,40 @@ __copyright__ = "(C) 2023 by Fernando Badilla Veliz - Fire2a.com"
 
 __revision__ = "$Format:%H$"
 
-from collections import OrderedDict
+from shutil import copy
+from pathlib import Path
+from datetime import datetime
+from multiprocessing import cpu_count
+from os import sep
 
+from osgeo import gdal
+
+from numpy import array
 from qgis.core import (QgsFeatureSink, QgsProcessing, QgsProcessingAlgorithm,
                        QgsProcessingParameterBoolean,
+                       QgsProcessingParameterDefinition,
                        QgsProcessingParameterEnum, QgsProcessingParameterFile,
+                       QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterNumber,
                        QgsProcessingParameterRasterLayer,
-                       QgsProcessingParameterVectorLayer)
+                       QgsProcessingParameterVectorLayer, QgsProject)
 from qgis.gui import QgsProcessingMultipleSelectionDialog
 from qgis.PyQt.QtCore import QCoreApplication
 
 
 class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
-    """ Cell2Fire
-    """
-    fuel_models = ["Scott & Burgan", "Kitral"]
+    """Cell2Fire"""
+
+    fuel_models = ["0. Scott & Burgan", "1. Kitral"]
     ignition_modes = [
-        "A. Uniformly distributed random ignition point(s)",
-        "B. Probability map distributed random ignition point(s)",
-        "C. Single point on a (Vector)Layer",
+        "0. Uniformly distributed random ignition point(s)",
+        "1. Probability map distributed random ignition point(s)",
+        "2. Single point on a (Vector)Layer",
     ]
     weather_modes = [
-        "A. Single weather file scenario",
-        "B. Draw from multiple weathers in a directory",
+        "0. Single weather file scenario",
+        "1. Random draw from multiple weathers in a directory",
+        "2. Sequential draw from multiple weathers in a directory",
     ]
     output_options = [
         "Burn Probability",
@@ -65,6 +75,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         "Downstream Protection Value",
     ]
     OUTPUTS = "OutputLayers"
+    OUTPUT_FOLDER = "OutputFolder"
     FUEL_MODEL = "FuelModel"
     FUEL = "FuelRaster"
     ELEVATION = "ElevationRaster"
@@ -83,7 +94,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     WEADIR = "WeatherDirectory"
     FMC = "FoliarMoistureContent"
     LDFMCS = "LiveAndDeadFuelMoistureContentScenario"
-    STATS = "OutputStatistics"
+    CPU_THREADS = "CpuThreads"
 
     def initAlgorithm(self, config):
         """
@@ -220,7 +231,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.WEAFILE,
-                description="Single weather file scenario (requires source A)",
+                description="Single weather file scenario (requires source 0)",
                 behavior=QgsProcessingParameterFile.File,
                 extension="csv",
                 defaultValue=None,
@@ -231,7 +242,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.WEADIR,
-                description="Draw from multiple weathers in a directory (requires source B)",
+                description="From multiple weathers in a directory (requires source 1 or 2)",
                 behavior=QgsProcessingParameterFile.Folder,
                 extension="",
                 defaultValue=None,
@@ -273,22 +284,64 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 defaultValue=0,
             )
         )
+        project_path = QgsProject().instance().absolutePath()
+        dirname = "firesim_" + datetime.now().strftime("%y%m%d_%H%M%S")
+        self.addParameter(
+            QgsProcessingParameterFolderDestination(
+                name=self.OUTPUT_FOLDER,
+                description="Results directory (destructive action: cleans up if already exists)",
+                defaultValue=None if project_path == "" else project_path + sep + dirname,
+                optional=True,
+                createByDefault=True,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterNumber(
+                name=self.CPU_THREADS,
+                description=(
+                    "cpu threads (controls overall load to the computer by controlling number of simultaneous"
+                    " simulations)"
+                ),
+                type=QgsProcessingParameterNumber.Integer,
+                defaultValue=cpu_count() - 1,
+                optional=False,
+                minValue=1,
+                maxValue=cpu_count(),
+            )
+        )
 
     def processAlgorithm(self, parameters, context, feedback):
         """
         Here is where the processing itself takes place.
         """
-        fuel_model = self.parameterAsString(parameters, self.FUEL_MODEL, context)
-        feedback.pushCommandInfo(f"fuel_model: {fuel_model}")
+        fuel_model = self.parameterAsInt(parameters, self.FUEL_MODEL, context)
+        feedback.pushCommandInfo(f"fuel_model: {self.fuel_models[fuel_model]}")
 
-        ignition_mode = self.parameterAsString(parameters, self.IGNITION_MODE, context)
-        feedback.pushCommandInfo(f"ignition_mode: {ignition_mode}")
+        ignition_mode = self.parameterAsInt(parameters, self.IGNITION_MODE, context)
+        feedback.pushCommandInfo(f"ignition_mode: {self.ignition_modes[ignition_mode]}")
 
-        weather_mode = self.parameterAsString(parameters, self.WEATHER_MODE, context)
-        feedback.pushCommandInfo(f"weather_mode: {weather_mode}")
+        weather_mode = self.parameterAsInt(parameters, self.WEATHER_MODE, context)
+        feedback.pushCommandInfo(f"weather_mode: {self.weather_modes[weather_mode]}")
 
         output_options = self.parameterAsEnums(parameters, self.OUTPUTS, context)
-        feedback.pushCommandInfo(f"output_options: {output_options}")
+        feedback.pushCommandInfo(f"output_options: {array(self.output_options)[output_options]}")
+
+        output_folder = Path(self.parameterAsString(parameters, self.OUTPUT_FOLDER, context))
+        feedback.pushCommandInfo(f"output_folder: {str(output_folder)} {output_folder.exists()}")
+
+        output_folder.mkdir(parents=True, exist_ok=True)
+        for afile in output_folder.glob('*'):
+            afile.unlink(missing_ok=True)
+        # if fuel_model
+        # copy('fuel_model.csv', output_folder)
+
+        layer = self.parameterAsRasterLayer(parameters, self.FUEL, context)
+        layer.bandCount()
+        layer.width()
+        layer.height()
+            
+        if not gdal.Open(layer.publicSource(), gdal.GA_ReadOnly).GetDriver().ShortName == 'AAIGrid':
+            raise QgsProcessingException(self.tr("Input raster {layer.name()} must be in AAIGrid format, use gdal_translate!"))
 
         return {self.OUTPUTS: fuel_model}
 
@@ -339,3 +392,4 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
 
     def createInstance(self):
         return FireSimulatorAlgorithm()
+
