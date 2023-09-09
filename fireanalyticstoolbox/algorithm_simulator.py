@@ -30,23 +30,23 @@ __copyright__ = "(C) 2023 by Fernando Badilla Veliz - Fire2a.com"
 
 __revision__ = "$Format:%H$"
 
-from shutil import copy
-from pathlib import Path
 from datetime import datetime
 from multiprocessing import cpu_count
 from os import sep
-
-from osgeo import gdal
+from pathlib import Path
+from shutil import copy
 
 from numpy import array
+from osgeo import gdal
 from qgis.core import (QgsFeatureSink, QgsProcessing, QgsProcessingAlgorithm,
-                       QgsProcessingParameterBoolean,
+                       QgsProcessingException, QgsProcessingParameterBoolean,
                        QgsProcessingParameterDefinition,
                        QgsProcessingParameterEnum, QgsProcessingParameterFile,
                        QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterNumber,
                        QgsProcessingParameterRasterLayer,
-                       QgsProcessingParameterVectorLayer, QgsProject)
+                       QgsProcessingParameterVectorLayer, QgsProject,
+                       QgsRasterLayer)
 from qgis.gui import QgsProcessingMultipleSelectionDialog
 from qgis.PyQt.QtCore import QCoreApplication
 
@@ -76,6 +76,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     ]
     OUTPUTS = "OutputLayers"
     OUTPUT_FOLDER = "OutputFolder"
+    OUTPUT_FOLDER_IN_CURRENT_PROJECT = "CreateOutputFolderInCurrentProject"
     FUEL_MODEL = "FuelModel"
     FUEL = "FuelRaster"
     ELEVATION = "ElevationRaster"
@@ -94,7 +95,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     WEADIR = "WeatherDirectory"
     FMC = "FoliarMoistureContent"
     LDFMCS = "LiveAndDeadFuelMoistureContentScenario"
-    CPU_THREADS = "CpuThreads"
+    SIM_THREADS = "SimulationThreads"
 
     def initAlgorithm(self, config):
         """
@@ -191,7 +192,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.IGNIPROBMAP,
-                description=self.tr("Probability map (requires generation mode B)"),
+                description=self.tr("Probability map (requires generation mode 1)"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=True,
             )
@@ -199,7 +200,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 name=self.IGNIPOINT,
-                description="Single point vector layer (requires generation mode C)",
+                description="Single point vector layer (requires generation mode 2)",
                 types=[QgsProcessing.TypeVectorPoint],
                 defaultValue=None,
                 optional=True,
@@ -208,9 +209,9 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterNumber(
                 name=self.IGNIRADIUS,
-                description="Radius around single point layer (requires generation mode C)",
+                description="Radius around single point layer (requires generation mode 2)",
                 type=QgsProcessingParameterNumber.Integer,
-                defaultValue=0,
+                defaultValue=None,
                 optional=True,
                 minValue=0,
                 maxValue=11,
@@ -221,7 +222,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterEnum(
                 name=self.WEATHER_MODE,
                 description=self.tr(
-                    "\nWEATHER SECTION\nsource (use the weather builder tool if missing, must match Fuel Model)"
+                    "\nWEATHER SECTION\nsource (use the weather builder algorithm if missing, must match Fuel Model)"
                 ),
                 options=self.weather_modes,
                 allowMultiple=False,
@@ -274,33 +275,13 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 maxValue=4,
             )
         )
-        # OUTPUTS
-        self.addParameter(
-            QgsProcessingParameterEnum(
-                name=self.OUTPUTS,
-                description=self.tr("\nOUTPUTS SECTION"),
-                options=self.output_options,
-                allowMultiple=True,
-                defaultValue=0,
-            )
-        )
-        project_path = QgsProject().instance().absolutePath()
-        dirname = "firesim_" + datetime.now().strftime("%y%m%d_%H%M%S")
-        self.addParameter(
-            QgsProcessingParameterFolderDestination(
-                name=self.OUTPUT_FOLDER,
-                description="Results directory (destructive action: cleans up if already exists)",
-                defaultValue=None if project_path == "" else project_path + sep + dirname,
-                optional=True,
-                createByDefault=True,
-            )
-        )
+        # RUN CONFIGURATION
         self.addParameter(
             QgsProcessingParameterNumber(
-                name=self.CPU_THREADS,
+                name=self.SIM_THREADS,
                 description=(
-                    "cpu threads (controls overall load to the computer by controlling number of simultaneous"
-                    " simulations)"
+                    "\nRUN CONFIGURATION\nsimulation cpu threads (controls overall load to the computer by controlling"
+                    " number of simultaneous simulations [check Advanced>Algorithm Settings alternative settings])"
                 ),
                 type=QgsProcessingParameterNumber.Integer,
                 defaultValue=cpu_count() - 1,
@@ -309,41 +290,122 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 maxValue=cpu_count(),
             )
         )
+        # OUTPUTS
+        self.addParameter(
+            QgsProcessingParameterEnum(
+                name=self.OUTPUTS,
+                description=self.tr("\nOUTPUTS SECTION\nOutput layers (TODO: separar en varios algoritmos)"),
+                options=self.output_options,
+                allowMultiple=True,
+                defaultValue=0,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterBoolean(
+                name=self.OUTPUT_FOLDER_IN_CURRENT_PROJECT,
+                description=(
+                    "Override output directory to 'project home/firesim_yymmdd_HHMMSS' (project must be saved locally)"
+                ),
+                defaultValue=False,
+                optional=False,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterFolderDestination(
+                name=self.OUTPUT_FOLDER,
+                description="Output directory (destructive action warning: empties contents if already exists)",
+                defaultValue=None,
+                optional=True,
+                createByDefault=True,
+            )
+        )
 
     def processAlgorithm(self, parameters, context, feedback):
         """
         Here is where the processing itself takes place.
         """
+        args = []
+        feedback.pushDebugInfo(f"parameters {parameters}")
+        feedback.pushDebugInfo(f"context args: {context.asQgisProcessArguments()}")
+        # GET OPTIONS
         fuel_model = self.parameterAsInt(parameters, self.FUEL_MODEL, context)
-        feedback.pushCommandInfo(f"fuel_model: {self.fuel_models[fuel_model]}")
-
         ignition_mode = self.parameterAsInt(parameters, self.IGNITION_MODE, context)
-        feedback.pushCommandInfo(f"ignition_mode: {self.ignition_modes[ignition_mode]}")
-
         weather_mode = self.parameterAsInt(parameters, self.WEATHER_MODE, context)
-        feedback.pushCommandInfo(f"weather_mode: {self.weather_modes[weather_mode]}")
-
         output_options = self.parameterAsEnums(parameters, self.OUTPUTS, context)
-        feedback.pushCommandInfo(f"output_options: {array(self.output_options)[output_options]}")
-
-        output_folder = Path(self.parameterAsString(parameters, self.OUTPUT_FOLDER, context))
-        feedback.pushCommandInfo(f"output_folder: {str(output_folder)} {output_folder.exists()}")
-
+        feedback.pushDebugInfo(
+            f"fuel_model: {self.fuel_models[fuel_model]}\n"
+            f"ignition_mode: {self.ignition_modes[ignition_mode]}\n"
+            f"weather_mode: {self.weather_modes[weather_mode]}\n"
+            f"output_options: {array(self.output_options)[output_options]}\n"
+        )
+        args += [ '--sim '+ 'S' if fuel_mode == 0 else 'K' ]
+        is_crown = self.parameterAsBool(parameters, self.CROWN, context)
+        args += [ '--cros' if is_crown None ]
+        # HANDLE OUTPUT FOLDER
+        project_path = QgsProject().instance().absolutePath()
+        if self.parameterAsBool(parameters, self.OUTPUT_FOLDER_IN_CURRENT_PROJECT, context) and project_path != "":
+            output_folder = Path(project_path, "firesim_" + datetime.now().strftime("%y%m%d_%H%M%S"))
+        else:
+            output_folder = Path(self.parameterAsString(parameters, self.OUTPUT_FOLDER, context))
         output_folder.mkdir(parents=True, exist_ok=True)
-        for afile in output_folder.glob('*'):
+        for afile in output_folder.glob("*"):
             afile.unlink(missing_ok=True)
-        # if fuel_model
-        # copy('fuel_model.csv', output_folder)
+        feedback.pushDebugInfo(
+            f"output_folder: {str(output_folder)}\n"
+            f"\texists: {output_folder.exists()}\n"
+            f"\tis_dir: {output_folder.is_dir()}\n"
+            f"\t    contents: {list(output_folder.glob('*'))}\n"
+        )
+        # GET LAYERS
+        raster = dict(
+            zip(
+                ["fuels", "elevation", "pv", "cbh", "cbd", "ccf", "igniprobmap"],
+                map(
+                    lambda x: self.parameterAsRasterLayer(parameters, x, context),
+                    [
+                        self.FUEL,
+                        self.ELEVATION,
+                        self.PV,
+                        self.CBH,
+                        self.CBD,
+                        self.CCF,
+                        self.IGNIPROBMAP,
+                        self.IGNIPOINT,
+                    ],
+                ),
+            )
+        )
+        feedback.pushDebugInfo(f"rasters all: {raster}")
+        for k, v in raster.items():
+            if v is None:
+                feedback.pushDebugInfo(f"is None: {k}:{v}")
+                continue
+            if (
+                (k in ["fuels", "elevation", "pv"])
+                or (k in ["cbh", "cbd", "ccf"] and is_crown)
+                or (k == "igniprobmap" and ignition_mode == 1)
+            ):
+                copy(v.publicSource(), Path(output_folder, f"{k}.asc"))
+                feedback.pushDebugInfo(f"copy: {k}:{v}")
+            else:
+                feedback.pushDebugInfo(f"NO copy: {k}:{v}")
 
-        layer = self.parameterAsRasterLayer(parameters, self.FUEL, context)
-        layer.bandCount()
-        layer.width()
-        layer.height()
-            
-        if not gdal.Open(layer.publicSource(), gdal.GA_ReadOnly).GetDriver().ShortName == 'AAIGrid':
-            raise QgsProcessingException(self.tr("Input raster {layer.name()} must be in AAIGrid format, use gdal_translate!"))
+        # WEATHER
+        # TODO check weathers
+        if weather_mode == 0:
+            wfilein = self.parameterAsFile(parameters, self.WEAFILE, context)
+            wfileout = Path(output_folder, "Weather.csv")
+            copy(wfilein, wfileout)
+            feedback.pushDebugInfo(f"copy: {wfilein} to {wfileout}")
+        else:
+            wdirin = Path(self.parameterAsFile(parameters, self.WEADIR, context))
+            wdirout = Path(output_folder, "Weathers")
+            wdirout.mkdir(parents=True, exist_ok=True)
+            for wfile in wdirin.glob("Weather[0-9]*.csv"):
+                copy(wfile, wdirout)
+            feedback.pushDebugInfo(f"copy: {wdirin} to {wdirout}")
 
-        return {self.OUTPUTS: fuel_model}
+        return {self.OUTPUT_FOLDER: output_folder}
 
     def name(self):
         """
@@ -362,30 +424,24 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         return self.tr(self.name())
         """
         return self.tr("Cell2 Fire Simulator")
+        '''
+        def group(self):
+            """
+            Returns the name of the group this algorithm belongs to. This string
+            should be localised.
+            """
+            return self.tr(self.groupId())
 
-    def group(self):
-        """
-        Returns the name of the group this algorithm belongs to. This string
-        should be localised.
-        """
-        return self.tr(self.groupId())
-
-    def groupId(self):
-        """
-        Returns the unique ID of the group this algorithm belongs to. This
-        string should be fixed for the algorithm, and must not be localised.
-        The group id should be unique within each provider. Group id should
-        contain lowercase alphanumeric characters only and no spaces or other
-        formatting characters.
-        """
-        return "experimental"
-
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
-
-    def createInstance(self):
-        return FireSimulatorAlgorithm()
-        return FireSimulatorAlgorithm()
+        def groupId(self):
+            """
+            Returns the unique ID of the group this algorithm belongs to. This
+            string should be fixed for the algorithm, and must not be localised.
+            The group id should be unique within each provider. Group id should
+            contain lowercase alphanumeric characters only and no spaces or other
+            formatting characters.
+            """
+            return "experimental"
+        '''
 
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)
@@ -393,3 +449,59 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     def createInstance(self):
         return FireSimulatorAlgorithm()
 
+
+def get_gdal_driver_shortname(raster: QgsRasterLayer):
+    if hasattr(raster, "publicSource"):
+        raster_filename = raster.publicSource()
+    else:
+        raise FileNotFoundError("raster {raster.name()} does not have a public source!")
+    filepath = Path(raster_filename)
+    if not filepath.is_file() or filepath.stat().st_size == 0:
+        raise FileNotFoundError("raster {raster.name()} file does not exist os is empty!")
+    return (gdal.Open(raster_filename, gdal.GA_ReadOnly).GetDriver().ShortName,)  # AAIGrid
+
+
+def get_qgs_raster_properties(raster: QgsRasterLayer, feedback):
+    output = {
+        "bandCount": raster.bandCount(),  # 1
+        "width": raster.width(),
+        "height": raster.height(),
+        "crs": raster.crs().authid(),
+        "extent": raster.extent(),
+        "rasterUnitsPerPixelX": raster.rasterUnitsPerPixelX(),
+        "rasterUnitsPerPixelY": raster.rasterUnitsPerPixelY(),
+    }
+    feedback.pushDebugInfo(f"output: {output}")
+    return output
+
+
+def ensure_same_properties(base: dict, incumbent: dict):
+    if base != incumbent:
+        raise QgsProcessingException(self.tr("Input raster {v.name()} must have the same properties as fuels!"))
+    return True
+
+
+def check_rasters_congruence(rasters, feedback):
+    base = get_qgs_raster_properties(raster["fuels"], feedback)
+    for k, v in raster.items():
+        feedback.pushDebugInfo(f"k-{k}: v-{v}")
+        if v is None or k == "fuels":
+            pass
+        incumbent = get_qgs_raster_properties(v, feedback)
+        if k in ["cbh", "cbd", "ccf"] and is_crown:
+            ensure_same_properties(base, incumbent)
+            continue
+        if k in ["elevation", "pv"]:
+            ensure_same_properties(base, incumbent)
+            continue
+        if k == "igniprobmap" and ignition_mode == 1:
+            ensure_same_properties(base, incumbent)
+            continue
+    """
+    if ignipoint := self.parameterAsVectorLayer(parameters, self.IGNIPOINT, context):
+        layer["ignipoint"] := ignipoint
+        if layer['ignipoint'].crs().authid() != layer['fuels'].crs().authid():
+            raise QgsProcessingException(
+                self.tr("Input raster {layer.name()} must have the same CRS as fuel!")
+            )
+    """
