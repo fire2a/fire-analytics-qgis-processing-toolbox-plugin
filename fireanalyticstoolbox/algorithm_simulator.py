@@ -31,30 +31,37 @@ __copyright__ = "(C) 2023 by Fernando Badilla Veliz - Fire2a.com"
 __revision__ = "$Format:%H$"
 
 from datetime import datetime
+from math import isclose
 from multiprocessing import cpu_count
-from os import sep
 from pathlib import Path
 from shutil import copy
+from typing import Any
 
 from numpy import array
 from osgeo import gdal
-from qgis.core import (QgsFeatureSink, QgsProcessing, QgsProcessingAlgorithm,
-                       QgsProcessingException, QgsProcessingParameterBoolean,
-                       QgsProcessingParameterDefinition,
+from qgis.core import (QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm,
+                       QgsProcessingContext, QgsProcessingException,
+                       QgsProcessingParameterBoolean,
                        QgsProcessingParameterEnum, QgsProcessingParameterFile,
                        QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterNumber,
                        QgsProcessingParameterRasterLayer,
                        QgsProcessingParameterVectorLayer, QgsProject,
                        QgsRasterLayer)
-from qgis.gui import QgsProcessingMultipleSelectionDialog
 from qgis.PyQt.QtCore import QCoreApplication
+
+from .simulator.c2fqprocess import C2F
 
 
 class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     """Cell2Fire"""
 
+    plugin_dir = Path(__file__).parent
+    # c2f_path = Path(plugin_dir, "simulator")
+    c2f_path = Path("/home/fdo/source/C2F-W")
+
     fuel_models = ["0. Scott & Burgan", "1. Kitral"]
+    fuel_tables = ["spain_lookup_table.csv", "kitral_lookup_table.csv"]
     ignition_modes = [
         "0. Uniformly distributed random ignition point(s)",
         "1. Probability map distributed random ignition point(s)",
@@ -65,16 +72,32 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         "1. Random draw from multiple weathers in a directory",
         "2. Sequential draw from multiple weathers in a directory",
     ]
+    argparse_options = [
+        "final-grid",
+        "grids",
+        "output-messages",
+        "out-ros",
+        "out-fl",
+        "out-intensity",
+        "out-crown",
+        "out-cfb",
+        # "Betweenness Centrality",
+        # "Downstream Protection Value",
+    ]
     output_options = [
-        "Burn Probability",
-        "Hit ROS",
+        "Final fire scar",
+        "Propagation fire scars",
+        "Propagation directed-graph",
+        "Hit rate of spread",
         "Flame Length",
+        "Byram Intensity",
         "Crown Fire Scar",
         "Crown Fire Fuel Consumption",
-        "Betweenness Centrality",
-        "Downstream Protection Value",
+        # "Betweenness Centrality",
+        # "Downstream Protection Value",
     ]
-    OUTPUTS = "OutputLayers"
+    args = {key: None for key in argparse_options}
+    OUTPUTS = "OutputOptions"
     OUTPUT_FOLDER = "OutputFolder"
     OUTPUT_FOLDER_IN_CURRENT_PROJECT = "CreateOutputFolderInCurrentProject"
     FUEL_MODEL = "FuelModel"
@@ -96,12 +119,14 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     FMC = "FoliarMoistureContent"
     LDFMCS = "LiveAndDeadFuelMoistureContentScenario"
     SIM_THREADS = "SimulationThreads"
+    RNG_SEED = "RandomNumberGeneratorSeed"
 
     def initAlgorithm(self, config):
         """
         Here we define the inputs and output of the algorithm, along
         with some other properties.
         """
+        project_path = QgsProject().instance().absolutePath()
         # LANDSCAPE
         self.addParameter(
             QgsProcessingParameterEnum(
@@ -211,7 +236,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 name=self.IGNIRADIUS,
                 description="Radius around single point layer (requires generation mode 2)",
                 type=QgsProcessingParameterNumber.Integer,
-                defaultValue=None,
+                defaultValue=0,
                 optional=True,
                 minValue=0,
                 maxValue=11,
@@ -229,13 +254,14 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 defaultValue=0,
             )
         )
+        weafile = Path(project_path, "Weather.csv")
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.WEAFILE,
                 description="Single weather file scenario (requires source 0)",
                 behavior=QgsProcessingParameterFile.File,
                 extension="csv",
-                defaultValue=None,
+                defaultValue=str(weafile) if weafile.is_file() else None,
                 optional=True,
                 fileFilter="",
             )
@@ -290,11 +316,24 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 maxValue=cpu_count(),
             )
         )
+        self.addParameter(
+            QgsProcessingParameterNumber(
+                name=self.RNG_SEED,
+                description="Seed for the random number generator",
+                type=QgsProcessingParameterNumber.Integer,
+                defaultValue=123,
+                optional=False,
+                minValue=1,
+                maxValue=2450003,
+            )
+        )
         # OUTPUTS
         self.addParameter(
             QgsProcessingParameterEnum(
                 name=self.OUTPUTS,
-                description=self.tr("\nOUTPUTS SECTION\nOutput layers (TODO: separar en varios algoritmos)"),
+                description=self.tr(
+                    "\nOUTPUTS SECTION\nOptions (TODO: separar output de procesamiento en varios algoritmos)"
+                ),
                 options=self.output_options,
                 allowMultiple=True,
                 defaultValue=0,
@@ -320,28 +359,82 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
+    def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
+        if parameters[self.IGNITION_MODE] == 1 and parameters[self.IGNIPROBMAP] is None:
+            return False, "{self.IGNIPROBMAP} cant be None if {self.IGNITION_MODE} generation is 1"
+        if parameters[self.IGNITION_MODE] == 2 and parameters[self.IGNIPOINT] is None:
+            return False, "{self.IGNIPOINT} cant be None if {self.IGNITION_MODE} generation is 2"
+
+        weafile = self.parameterAsFile(parameters, self.WEAFILE, context)
+        if parameters[self.WEATHER_MODE] == 0 and weafile == "":
+            return False, f"{self.WEAFILE} cant be None if {self.WEATHER_MODE} source is 0"
+
+        weadir = self.parameterAsFile(parameters, self.WEADIR, context)
+        if parameters[self.WEATHER_MODE] in [1, 2] and weadir == "":
+            return False, f"{self.WEADIR} cant be None if {self.WEATHER_MODE} source is 1 or 2"
+
+        rasters = get_rasters(self, parameters, context)
+        fuels = rasters.pop("fuels")
+        fuels_props = get_qgs_raster_properties(fuels)
+        fuel_driver = get_gdal_driver_shortname(fuels)
+        if fuel_driver != "AAIGrid":
+            return False, f"fuel raster is not AAIGrid, got {fuel_driver}"
+        for k, v in rasters.items():
+            if v is None:
+                continue
+            driver = get_gdal_driver_shortname(v)
+            if driver != "AAIGrid":
+                return False, f"{k} is not AAIGrid, got {driver}"
+            raster_props = get_qgs_raster_properties(v)
+            ok, msg = compare_raster_properties(fuels_props, raster_props)
+            if not ok:
+                return False, msg
+        return True, "all ok"
+
     def processAlgorithm(self, parameters, context, feedback):
         """
         Here is where the processing itself takes place.
         """
-        args = []
-        feedback.pushDebugInfo(f"parameters {parameters}")
-        feedback.pushDebugInfo(f"context args: {context.asQgisProcessArguments()}")
+        # feedback.pushDebugInfo(f"parameters {parameters}")
+        # feedback.pushDebugInfo(f"context args: {context.asQgisProcessArguments()}")
         # GET OPTIONS
         fuel_model = self.parameterAsInt(parameters, self.FUEL_MODEL, context)
         ignition_mode = self.parameterAsInt(parameters, self.IGNITION_MODE, context)
         weather_mode = self.parameterAsInt(parameters, self.WEATHER_MODE, context)
         output_options = self.parameterAsEnums(parameters, self.OUTPUTS, context)
+        output_options_strings = array(self.output_options)[output_options]
         feedback.pushDebugInfo(
             f"fuel_model: {self.fuel_models[fuel_model]}\n"
             f"ignition_mode: {self.ignition_modes[ignition_mode]}\n"
             f"weather_mode: {self.weather_modes[weather_mode]}\n"
-            f"output_options: {array(self.output_options)[output_options]}\n"
+            f"output_options: {output_options_strings}\n"
         )
-        args += [ '--sim '+ 'S' if fuel_mode == 0 else 'K' ]
         is_crown = self.parameterAsBool(parameters, self.CROWN, context)
-        args += [ '--cros' if is_crown None ]
-        # HANDLE OUTPUT FOLDER
+        # ARGS
+        self.args["sim"] = "S" if fuel_model == 0 else "K"
+        self.args["nsims"] = self.parameterAsInt(parameters, self.NSIM, context)
+        self.args["seed"] = self.parameterAsInt(parameters, self.RNG_SEED, context)
+        self.args["nthreads"] = self.parameterAsInt(parameters, self.SIM_THREADS, context)
+        self.args["fmc"] = self.parameterAsInt(parameters, self.FMC, context)
+        self.args["scenario"] = self.parameterAsInt(parameters, self.LDFMCS, context)
+        self.args["cros"] = is_crown
+        match ignition_mode:
+            case 0:
+                self.args["ignitions"] = False
+            case 1:
+                self.args["ignitions"] = True
+            case 2:
+                self.args["ignitions"] = True
+                self.args["IgnitionRad"] = self.parameterAsInt(parameters, self.IGNIRADIUS, context)
+        match weather_mode:
+            case 0:
+                self.args["weather"] = "constant"
+            case 1:
+                self.args["weather"] = "random"
+            case 2:
+                self.args["weather"] = "rows"
+
+        # OUTPUT FOLDER
         project_path = QgsProject().instance().absolutePath()
         if self.parameterAsBool(parameters, self.OUTPUT_FOLDER_IN_CURRENT_PROJECT, context) and project_path != "":
             output_folder = Path(project_path, "firesim_" + datetime.now().strftime("%y%m%d_%H%M%S"))
@@ -352,30 +445,13 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             afile.unlink(missing_ok=True)
         feedback.pushDebugInfo(
             f"output_folder: {str(output_folder)}\n"
-            f"\texists: {output_folder.exists()}\n"
-            f"\tis_dir: {output_folder.is_dir()}\n"
-            f"\t    contents: {list(output_folder.glob('*'))}\n"
+            f"_exists: {output_folder.exists()}\n"
+            f"_is_dir: {output_folder.is_dir()}\n"
+            f"_contents: {list(output_folder.glob('*'))}\n"
         )
-        # GET LAYERS
-        raster = dict(
-            zip(
-                ["fuels", "elevation", "pv", "cbh", "cbd", "ccf", "igniprobmap"],
-                map(
-                    lambda x: self.parameterAsRasterLayer(parameters, x, context),
-                    [
-                        self.FUEL,
-                        self.ELEVATION,
-                        self.PV,
-                        self.CBH,
-                        self.CBD,
-                        self.CCF,
-                        self.IGNIPROBMAP,
-                        self.IGNIPOINT,
-                    ],
-                ),
-            )
-        )
-        feedback.pushDebugInfo(f"rasters all: {raster}")
+        copy(Path(self.plugin_dir, "simulator", self.fuel_tables[fuel_model]), output_folder)
+        # LAYERS
+        raster = get_rasters(self, parameters, context)
         for k, v in raster.items():
             if v is None:
                 feedback.pushDebugInfo(f"is None: {k}:{v}")
@@ -383,29 +459,56 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             if (
                 (k in ["fuels", "elevation", "pv"])
                 or (k in ["cbh", "cbd", "ccf"] and is_crown)
-                or (k == "igniprobmap" and ignition_mode == 1)
+                or (k == "py" and ignition_mode == 1)
             ):
-                copy(v.publicSource(), Path(output_folder, f"{k}.asc"))
                 feedback.pushDebugInfo(f"copy: {k}:{v}")
+                copy(v.publicSource(), Path(output_folder, f"{k}.asc"))
             else:
                 feedback.pushDebugInfo(f"NO copy: {k}:{v}")
 
         # WEATHER
-        # TODO check weathers
+        # TODO move checks to checkParameterValues
         if weather_mode == 0:
-            wfilein = self.parameterAsFile(parameters, self.WEAFILE, context)
-            wfileout = Path(output_folder, "Weather.csv")
-            copy(wfilein, wfileout)
-            feedback.pushDebugInfo(f"copy: {wfilein} to {wfileout}")
+            weafile = self.parameterAsFile(parameters, self.WEAFILE, context)
+            if weafile == "":
+                # feedback.reportError("Single weather file scenario requires a file!")
+                raise QgsProcessingException(self.tr("Single weather file scenario requires a file!"))
+            weafileout = Path(output_folder, "Weather.csv")
+            copy(weafile, weafileout)
+            feedback.pushDebugInfo(f"copy: {weafile} to {weafileout}")
         else:
-            wdirin = Path(self.parameterAsFile(parameters, self.WEADIR, context))
-            wdirout = Path(output_folder, "Weathers")
-            wdirout.mkdir(parents=True, exist_ok=True)
-            for wfile in wdirin.glob("Weather[0-9]*.csv"):
-                copy(wfile, wdirout)
-            feedback.pushDebugInfo(f"copy: {wdirin} to {wdirout}")
+            weadir = Path(self.parameterAsFile(parameters, self.WEADIR, context))
+            weadirout = Path(output_folder, "Weathers")
+            weadirout.mkdir(parents=True, exist_ok=True)
+            c = 0
+            for wfile in weadir.glob("Weather[0-9]*.csv"):
+                copy(wfile, weadirout)
+                c += 1
+            if c == 0:
+                # feedback.reportError("Multiple weathers requires a directory with Weather[0-9]*.csv files!")
+                raise QgsProcessingException(
+                    self.tr("Multiple weathers requires a directory with Weather[0-9]*.csv files!")
+                )
+            feedback.pushDebugInfo(f"copy: {weadir} to {weadirout}\n\t{c} files copied")
+        # BUILD COMMAND
+        for opt in output_options:
+            self.args[self.argparse_options[opt]] = True
+        feedback.pushDebugInfo(f"args: {self.args}")
+        cmd = "python main.py"
+        for k, v in self.args.items():
+            if v is False or v is None:
+                continue
+            cmd += f" --{k} {v if v is not True else ''}"
+        cmd += f" --input-instance-folder {output_folder}"
+        cmd += f" --output-folder {output_folder/'results'}"
+        feedback.pushDebugInfo(f"command: {cmd}\n")
 
-        return {self.OUTPUT_FOLDER: output_folder}
+        # RUN
+        c2f = C2F(proc_dir=self.c2f_path, feedback=feedback)
+        c2f.start(cmd)
+        c2f.waitForFinished(-1)
+        #
+        return {self.OUTPUT_FOLDER: str(output_folder)}
 
     def name(self):
         """
@@ -450,58 +553,75 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         return FireSimulatorAlgorithm()
 
 
+def get_rasters(self, parameters, context):
+    raster = dict(
+        zip(
+            ["fuels", "elevation", "pv", "cbh", "cbd", "ccf", "py"],
+            map(
+                lambda x: self.parameterAsRasterLayer(parameters, x, context),
+                [
+                    self.FUEL,
+                    self.ELEVATION,
+                    self.PV,
+                    self.CBH,
+                    self.CBD,
+                    self.CCF,
+                    self.IGNIPROBMAP,
+                ],
+            ),
+        )
+    )
+    return raster
+
+
 def get_gdal_driver_shortname(raster: QgsRasterLayer):
     if hasattr(raster, "publicSource"):
         raster_filename = raster.publicSource()
     else:
-        raise FileNotFoundError("raster {raster.name()} does not have a public source!")
+        raise AttributeError(f"raster {raster.name()} does not have a public source attribute!")
     filepath = Path(raster_filename)
     if not filepath.is_file() or filepath.stat().st_size == 0:
-        raise FileNotFoundError("raster {raster.name()} file does not exist os is empty!")
-    return (gdal.Open(raster_filename, gdal.GA_ReadOnly).GetDriver().ShortName,)  # AAIGrid
+        raise FileNotFoundError(f"raster {raster.name()} file does not exist or is empty!")
+    return gdal.Open(raster_filename, gdal.GA_ReadOnly).GetDriver().ShortName  # AAIGrid
 
 
-def get_qgs_raster_properties(raster: QgsRasterLayer, feedback):
-    output = {
+def get_qgs_raster_properties(raster: QgsRasterLayer) -> dict:
+    return {
+        "name": raster.name(),
         "bandCount": raster.bandCount(),  # 1
         "width": raster.width(),
         "height": raster.height(),
         "crs": raster.crs().authid(),
-        "extent": raster.extent(),
+        # "extent": raster.extent(),
+        "xMinimum": raster.extent().xMinimum(),
+        "yMinimum": raster.extent().yMinimum(),
+        "xMaximum": raster.extent().xMaximum(),
+        "yMaximum": raster.extent().yMaximum(),
         "rasterUnitsPerPixelX": raster.rasterUnitsPerPixelX(),
         "rasterUnitsPerPixelY": raster.rasterUnitsPerPixelY(),
     }
-    feedback.pushDebugInfo(f"output: {output}")
-    return output
 
 
-def ensure_same_properties(base: dict, incumbent: dict):
-    if base != incumbent:
-        raise QgsProcessingException(self.tr("Input raster {v.name()} must have the same properties as fuels!"))
-    return True
-
-
-def check_rasters_congruence(rasters, feedback):
-    base = get_qgs_raster_properties(raster["fuels"], feedback)
-    for k, v in raster.items():
-        feedback.pushDebugInfo(f"k-{k}: v-{v}")
-        if v is None or k == "fuels":
-            pass
-        incumbent = get_qgs_raster_properties(v, feedback)
-        if k in ["cbh", "cbd", "ccf"] and is_crown:
-            ensure_same_properties(base, incumbent)
-            continue
-        if k in ["elevation", "pv"]:
-            ensure_same_properties(base, incumbent)
-            continue
-        if k == "igniprobmap" and ignition_mode == 1:
-            ensure_same_properties(base, incumbent)
-            continue
-    """
-    if ignipoint := self.parameterAsVectorLayer(parameters, self.IGNIPOINT, context):
-        layer["ignipoint"] := ignipoint
-        if layer['ignipoint'].crs().authid() != layer['fuels'].crs().authid():
-            raise QgsProcessingException(
-                self.tr("Input raster {layer.name()} must have the same CRS as fuel!")
+def compare_raster_properties(base: dict, incumbent: dict):
+    for key in ["bandCount", "width", "height", "crs", "rasterUnitsPerPixelX", "rasterUnitsPerPixelY"]:
+        if base[key] != incumbent[key]:
+            return False, f"raster '{incumbent['name']}' {key} dont'match to fuels! {base[key]}!={incumbent[key]}"
+    for key in ["xMinimum", "xMaximum"]:
+        if not isclose(base[key], incumbent[key], abs_tol=base["rasterUnitsPerPixelX"]):
+            return (
+                False,
+                (
+                    f"raster '{incumbent['name']}' {key} not close enough!\n"
+                    f"| {base[key]} - {incumbent[key]} | > {base['rasterUnitsPerPixelX']}"
+                ),
             )
-    """
+    for key in ["yMinimum", "yMaximum"]:
+        if not isclose(base[key], incumbent[key], abs_tol=base["rasterUnitsPerPixelY"]):
+            return (
+                False,
+                (
+                    f"raster '{incumbent['name']}' {key} not close enough!\n"
+                    f"| {base[key]} - {incumbent[key]} | > {base['rasterUnitsPerPixelY']}"
+                ),
+            )
+    return True, "all ok"
