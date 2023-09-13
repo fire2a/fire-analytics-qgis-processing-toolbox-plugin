@@ -31,7 +31,7 @@ __copyright__ = "(C) 2023 by Fernando Badilla Veliz - Fire2a.com"
 __revision__ = "$Format:%H$"
 
 import processing
-from qgis.core import (QgsProcessing, QgsProcessingAlgorithm,
+from qgis.core import (QgsFeatureSink, QgsProcessing, QgsProcessingAlgorithm,
                        QgsProcessingParameterFeatureSink,
                        QgsProcessingParameterRasterLayer, QgsVectorLayer)
 from qgis.PyQt.QtCore import QCoreApplication
@@ -68,7 +68,7 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
                 name=self.INPUT,
                 description=self.tr("Input raster layer to clusterize"),
                 defaultValue=[QgsProcessing.TypeRaster],
-                optional=True,
+                optional=False,
             )
         )
 
@@ -78,11 +78,7 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
         """
         Here is where the processing itself takes place.
         """
-        from time import sleep
-        feedback.pushInfo("1")
         raster = self.parameterAsRasterLayer(parameters, self.INPUT, context)
-        feedback.pushInfo("2")
-        sleep(1)
 
         output = processing.run(
             "gdal:polygonize",
@@ -95,12 +91,35 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
                 "OUTPUT": "TEMPORARY_OUTPUT",
             },
         )
-        feedback.pushInfo("3")
-
-        sleep(1)
         vector_layer = QgsVectorLayer(output["OUTPUT"], "polygonized", "ogr")
-        feedback.pushInfo("4")
-        return {self.OUTPUT: vector_layer}
+
+        feedback.pushInfo("Clusterize algorithm finished.\n"
+                          f"name: {vector_layer.name()}\n"
+                          f"CRS: {vector_layer.crs().authid()}\n"
+                          f"geometry type: {vector_layer.geometryType()}\n"
+                          f"wkbType: {vector_layer.wkbType()}\n"
+                          f"feature count: {vector_layer.featureCount()}\n"
+                          f"fields: {vector_layer.fields()}\n"
+                          )
+        (sink, dest_id) = self.parameterAsSink(
+            parameters, self.OUTPUT, context, vector_layer.fields(), vector_layer.wkbType(), vector_layer.sourceCrs()
+        )
+
+        total = 100.0 / vector_layer.featureCount() if vector_layer.featureCount() else 0
+        features = vector_layer.getFeatures()
+
+        for current, feature in enumerate(features):
+            # Stop the algorithm if cancel button has been clicked
+            if feedback.isCanceled():
+                break
+
+            # Add a feature in the sink
+            sink.addFeature(feature, QgsFeatureSink.FastInsert)
+
+            # Update the progress bar
+            feedback.setProgress(int(current * total))
+
+        return {self.OUTPUT: dest_id}
 
     def name(self):
         """

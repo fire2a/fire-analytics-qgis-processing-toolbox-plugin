@@ -22,20 +22,18 @@
  ***************************************************************************/
 """
 
-__author__ = 'Fernando Badilla Veliz - Fire2a.com'
-__date__ = '2023-08-30'
-__copyright__ = '(C) 2023 by Fernando Badilla Veliz - Fire2a.com'
+__author__ = "Fernando Badilla Veliz - Fire2a.com"
+__date__ = "2023-08-30"
+__copyright__ = "(C) 2023 by Fernando Badilla Veliz - Fire2a.com"
 
 # This will get replaced with a git SHA1 when you do a git archive
 
-__revision__ = '$Format:%H$'
+__revision__ = "$Format:%H$"
 
+from qgis.core import (QgsFeatureSink, QgsProcessing, QgsProcessingAlgorithm,
+                       QgsProcessingParameterFeatureSink,
+                       QgsProcessingParameterFeatureSource)
 from qgis.PyQt.QtCore import QCoreApplication
-from qgis.core import (QgsProcessing,
-                       QgsFeatureSink,
-                       QgsProcessingAlgorithm,
-                       QgsProcessingParameterFeatureSource,
-                       QgsProcessingParameterFeatureSink)
 
 
 class FireToolboxAlgorithm(QgsProcessingAlgorithm):
@@ -56,8 +54,8 @@ class FireToolboxAlgorithm(QgsProcessingAlgorithm):
     # used when calling the algorithm from another algorithm, or when
     # calling from the QGIS console.
 
-    OUTPUT = 'OUTPUT'
-    INPUT = 'INPUT'
+    OUTPUT = "OUTPUT"
+    INPUT = "INPUT"
 
     def initAlgorithm(self, config):
         """
@@ -69,21 +67,14 @@ class FireToolboxAlgorithm(QgsProcessingAlgorithm):
         # geometry.
         self.addParameter(
             QgsProcessingParameterFeatureSource(
-                self.INPUT,
-                self.tr('Input layer'),
-                [QgsProcessing.TypeVectorAnyGeometry]
+                self.INPUT, self.tr("Input layer"), [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
 
         # We add a feature sink in which to store our processed features (this
         # usually takes the form of a newly created vector layer when the
         # algorithm is run in QGIS).
-        self.addParameter(
-            QgsProcessingParameterFeatureSink(
-                self.OUTPUT,
-                self.tr('Output layer')
-            )
-        )
+        self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUT, self.tr("Output layer")))
 
     def processAlgorithm(self, parameters, context, feedback):
         """
@@ -94,8 +85,9 @@ class FireToolboxAlgorithm(QgsProcessingAlgorithm):
         # to uniquely identify the feature sink, and must be included in the
         # dictionary returned by the processAlgorithm function.
         source = self.parameterAsSource(parameters, self.INPUT, context)
-        (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT,
-                context, source.fields(), source.wkbType(), source.sourceCrs())
+        (sink, dest_id) = self.parameterAsSink(
+            parameters, self.OUTPUT, context, source.fields(), source.wkbType(), source.sourceCrs()
+        )
 
         # Compute the number of steps to display within the progress bar and
         # get features from source
@@ -129,7 +121,7 @@ class FireToolboxAlgorithm(QgsProcessingAlgorithm):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'PluginBuilderBaseAlgorithm'
+        return "PluginBuilderBaseAlgorithm"
 
     def displayName(self):
         """
@@ -156,7 +148,7 @@ class FireToolboxAlgorithm(QgsProcessingAlgorithm):
         return "experimental"
 
     def tr(self, string):
-        return QCoreApplication.translate('Processing', string)
+        return QCoreApplication.translate("Processing", string)
 
     def createInstance(self):
         return FireToolboxAlgorithm()

@@ -22,23 +22,24 @@
  ***************************************************************************/
 """
 
-__author__ = 'Fernando Badilla Veliz - Fire2a.com'
-__date__ = '2023-08-30'
-__copyright__ = '(C) 2023 by Fernando Badilla Veliz - Fire2a.com'
+__author__ = "Fernando Badilla Veliz - Fire2a.com"
+__date__ = "2023-08-30"
+__copyright__ = "(C) 2023 by Fernando Badilla Veliz - Fire2a.com"
 
 # This will get replaced with a git SHA1 when you do a git archive
 
-__revision__ = '$Format:%H$'
+__revision__ = "$Format:%H$"
 
 from qgis.core import QgsProcessingProvider
-from .fireanalyticstoolbox_algorithm import FireToolboxAlgorithm
-from .algorithm_sandbox import SandboxAlgorithm
-from .algorithm_raster_knapsack import RasterKnapsackAlgorithm
+
 from .algorithm_clusterize import ClusterizeAlgorithm
+from .algorithm_raster_knapsack import RasterKnapsackAlgorithm
+from .algorithm_sandbox import SandboxAlgorithm
 from .algorithm_simulator import FireSimulatorAlgorithm
+from .fireanalyticstoolbox_algorithm import FireToolboxAlgorithm
+
 
 class FireToolboxProvider(QgsProcessingProvider):
-
     def __init__(self):
         """
         Default constructor.
@@ -62,14 +63,13 @@ class FireToolboxProvider(QgsProcessingProvider):
         self.addAlgorithm(ClusterizeAlgorithm())
         self.addAlgorithm(FireSimulatorAlgorithm())
 
-
     def id(self):
         """
         Returns the unique provider id, used for identifying the provider. This
         string should be a unique, short, character only string, eg "qgis" or
         "gdal". This string should not be localised.
         """
-        return 'Fire2a'
+        return "fire2a"
 
     def name(self):
         """
@@ -78,7 +78,7 @@ class FireToolboxProvider(QgsProcessingProvider):
 
         This string should be short (e.g. "Lastools") and localised.
         """
-        return self.tr('Fire Analytics')
+        return self.tr("Fire Analytics")
 
     def icon(self):
         """

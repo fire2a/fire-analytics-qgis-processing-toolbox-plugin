@@ -33,7 +33,9 @@ __version__ = "$Format:%H$"
 from time import sleep
 from os import sep
 
-from qgis.core import (QgsFeatureSink, QgsProcessing, QgsProcessingAlgorithm,
+from qgis.core import (QgsFeatureSink, QgsProcessing, 
+                       QgsProcessingAlgorithm, 
+                       QgsProcessingParameterMatrix,
                        QgsProcessingLayerPostProcessorInterface, QgsProject,
                        QgsProcessingParameterBoolean,
                        QgsProcessingParameterEnum,
@@ -78,6 +80,18 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         Here we define the inputs and output of the algorithm, along
         with some other properties.
         """
+        self.addParameter(
+            QgsProcessingParameterMatrix(
+                name = 'wea',
+                description = 'weather builder', 
+                numberRows = 3, 
+                hasFixedNumberRows = False,
+                headers = ['datetime', 'WS', 'WD', 'TMP', 'RH'],
+                defaultValue = None, 
+                optional = False,
+            )
+        )
+
         qplppi = QPLPPI()
         # add parameter
         # self.addParameter(

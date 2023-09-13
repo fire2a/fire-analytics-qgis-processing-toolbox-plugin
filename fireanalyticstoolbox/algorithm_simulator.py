@@ -33,8 +33,11 @@ __revision__ = "$Format:%H$"
 from datetime import datetime
 from math import isclose
 from multiprocessing import cpu_count
+from os import kill
 from pathlib import Path
+from platform import system as platform_system
 from shutil import copy
+from signal import SIGKILL
 from typing import Any
 
 from numpy import array
@@ -57,7 +60,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     """Cell2Fire"""
 
     plugin_dir = Path(__file__).parent
-    # c2f_path = Path(plugin_dir, "simulator")
+    # c2f_path = Path(plugin_dir, "simulator", "C2F-W")
     c2f_path = Path("/home/fdo/source/C2F-W")
 
     fuel_models = ["0. Scott & Burgan", "1. Kitral"]
@@ -120,6 +123,22 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     LDFMCS = "LiveAndDeadFuelMoistureContentScenario"
     SIM_THREADS = "SimulationThreads"
     RNG_SEED = "RandomNumberGeneratorSeed"
+
+    # def validateInputCrs(self, parameters, context):
+    #    """ prints friendly warning if input crs dont match across all inputs
+    #    """
+    #    super().validateInputCrs(parameters, context)
+
+    def canExecute(self):
+        """checks if cell2fire binary is available"""
+        match platform_system():
+            case "Linux":
+                if not Path(self.c2f_path, "Cell2FireC", "Cell2Fire").is_file():
+                    return False, "Cell2Fire binary not found! Check fire2a documentation for compiling"
+            case "Windows":
+                if not Path(self.c2f_path, "Cell2FireC", "Cell2Fire.exe").is_file():
+                    return False, "Cell2Fire.exe program not found! Contact fire2a team for a copy"
+        return True, "all ok"
 
     def initAlgorithm(self, config):
         """
@@ -307,7 +326,8 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 name=self.SIM_THREADS,
                 description=(
                     "\nRUN CONFIGURATION\nsimulation cpu threads (controls overall load to the computer by controlling"
-                    " number of simultaneous simulations [check Advanced>Algorithm Settings alternative settings])"
+                    " number of simultaneous simulations"
+                    # "[check Advanced>Algorithm Settings alternative settings])"
                 ),
                 type=QgsProcessingParameterNumber.Integer,
                 defaultValue=cpu_count() - 1,
@@ -395,6 +415,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         """
         Here is where the processing itself takes place.
         """
+        feedback.pushDebugInfo("processAlgorithm start")
         # feedback.pushDebugInfo(f"parameters {parameters}")
         # feedback.pushDebugInfo(f"context args: {context.asQgisProcessArguments()}")
         # GET OPTIONS
@@ -410,7 +431,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             f"output_options: {output_options_strings}\n"
         )
         is_crown = self.parameterAsBool(parameters, self.CROWN, context)
-        # ARGS
+        # BUILD ARGS
         self.args["sim"] = "S" if fuel_model == 0 else "K"
         self.args["nsims"] = self.parameterAsInt(parameters, self.NSIM, context)
         self.args["seed"] = self.parameterAsInt(parameters, self.RNG_SEED, context)
@@ -449,8 +470,11 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             f"_is_dir: {output_folder.is_dir()}\n"
             f"_contents: {list(output_folder.glob('*'))}\n"
         )
+
+        # COPY
+        # fuel table
         copy(Path(self.plugin_dir, "simulator", self.fuel_tables[fuel_model]), output_folder)
-        # LAYERS
+        # layers
         raster = get_rasters(self, parameters, context)
         for k, v in raster.items():
             if v is None:
@@ -490,24 +514,45 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                     self.tr("Multiple weathers requires a directory with Weather[0-9]*.csv files!")
                 )
             feedback.pushDebugInfo(f"copy: {weadir} to {weadirout}\n\t{c} files copied")
+
         # BUILD COMMAND
         for opt in output_options:
             self.args[self.argparse_options[opt]] = True
+        self.args["input-instance-folder"] = str(output_folder)
+        results_folder = output_folder / "results"
+        self.args["output-folder"] = str(results_folder)
         feedback.pushDebugInfo(f"args: {self.args}")
         cmd = "python main.py"
         for k, v in self.args.items():
             if v is False or v is None:
                 continue
             cmd += f" --{k} {v if v is not True else ''}"
-        cmd += f" --input-instance-folder {output_folder}"
-        cmd += f" --output-folder {output_folder/'results'}"
-        feedback.pushDebugInfo(f"command: {cmd}\n")
+        # feedback.pushDebugInfo(f"command: {cmd}\n")
 
         # RUN
         c2f = C2F(proc_dir=self.c2f_path, feedback=feedback)
         c2f.start(cmd)
-        c2f.waitForFinished(-1)
-        #
+        pid = c2f.pid()
+        while True:
+            c2f.waitForFinished(1000)
+            if feedback.isCanceled():
+                c2f.terminate()
+                kill(pid, SIGKILL)
+                feedback.pushDebugInfo("terminate signal sent")
+            if c2f.ended:
+                feedback.pushDebugInfo("C2F qprocess ended")
+                break
+            # feedback.pushDebugInfo(f"c2f loop ended:{c2f.ended}")
+
+        # CHECK RESULTS
+        feedback.pushDebugInfo(f"simulation finished, checking result log!")
+        log_file = Path(output_folder, "results", "LogFile.txt")
+        if log_file.is_file() and log_file.stat().st_size > 0:
+            feedback.pushDebugInfo(log_file.read_text())
+        else:
+            feedback.reportError(f"{log_file} not found or empty!")
+        feedback.pushDebugInfo("processAlgorithm end")
+
         return {self.OUTPUT_FOLDER: str(output_folder)}
 
     def name(self):
@@ -527,24 +572,23 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         return self.tr(self.name())
         """
         return self.tr("Cell2 Fire Simulator")
-        '''
-        def group(self):
-            """
-            Returns the name of the group this algorithm belongs to. This string
-            should be localised.
-            """
-            return self.tr(self.groupId())
 
-        def groupId(self):
-            """
-            Returns the unique ID of the group this algorithm belongs to. This
-            string should be fixed for the algorithm, and must not be localised.
-            The group id should be unique within each provider. Group id should
-            contain lowercase alphanumeric characters only and no spaces or other
-            formatting characters.
-            """
-            return "experimental"
-        '''
+    # def group(self):
+    #     """
+    #     Returns the name of the group this algorithm belongs to. This string
+    #     should be localised.
+    #     """
+    #     return self.tr(self.groupId())
+
+    # def groupId(self):
+    #     """
+    #     Returns the unique ID of the group this algorithm belongs to. This
+    #     string should be fixed for the algorithm, and must not be localised.
+    #     The group id should be unique within each provider. Group id should
+    #     contain lowercase alphanumeric characters only and no spaces or other
+    #     formatting characters.
+    #     """
+    #     return "experimental"
 
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)
