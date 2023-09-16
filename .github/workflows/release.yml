@@ -21,6 +21,7 @@ jobs:
          VERSION=${GITHUB_REF_NAME#v}
          echo "version is ${VERSION}"
          sed -i -e "s/version=0.0.1/version=${VERSION}/" fireanalyticstoolbox/metadata.txt
+         git add fireanalyticstoolbox/metadata.txt
 
     - name: download cbc
       uses: robinraju/release-downloader@v1.8
@@ -31,10 +32,21 @@ jobs:
         out-file-path: "fireanalyticstoolbox/cbc"
         extract: true
 
+    - name: download cell2fire
+      uses: robinraju/release-downloader@v1.8
+      with:
+        repository: "fire2a/C2F-W" 
+        latest: true
+        fileName: "Cell2Fire_*.zip"
+        out-file-path: "fireanalyticstoolbox/simulator"
+        extract: true
+
     - name: git archive
       run: |
          rm fireanalyticstoolbox/cbc/*w64-msvc17*.zip
+         rm fireanalyticstoolbox/simulator/Cell2Fire_*.zip
          git add fireanalyticstoolbox/cbc
+         git add fireanalyticstoolbox/simulator/C2F
          lestash=`git stash create`
          git archive --output "fireanalyticstoolbox_${{ github.ref_name }}.zip" $lestash fireanalyticstoolbox
          # git archive --prefix=fireanalyticstoolbox/ --add-file=fireanalyticstoolbox/metadata.txt \
