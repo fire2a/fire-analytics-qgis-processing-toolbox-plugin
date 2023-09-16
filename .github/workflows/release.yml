@@ -37,14 +37,14 @@ jobs:
       with:
         repository: "fire2a/C2F-W" 
         latest: true
-        fileName: "Cell2Fire_*.zip"
+        fileName: "Cell2Fire*.zip"
         out-file-path: "fireanalyticstoolbox/simulator"
         extract: true
 
     - name: git archive
       run: |
          rm fireanalyticstoolbox/cbc/*w64-msvc17*.zip
-         rm fireanalyticstoolbox/simulator/Cell2Fire_*.zip
+         rm fireanalyticstoolbox/simulator/Cell2Fire*.zip
          git add fireanalyticstoolbox/cbc
          git add fireanalyticstoolbox/simulator/C2F
          lestash=`git stash create`
