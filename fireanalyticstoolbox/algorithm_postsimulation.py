@@ -166,7 +166,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
                         feedback.pushDebugInfo(f"task {task.description()} {task.status()}")
                 QCoreApplication.processEvents()
             c += 1
-            if c>100:
+            if c > 100:
                 break
         return {self.OUTPUT_FOLDER: str(output_folder)}
 
