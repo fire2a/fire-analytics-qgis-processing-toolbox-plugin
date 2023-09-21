@@ -60,8 +60,8 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     """Cell2Fire"""
 
     plugin_dir = Path(__file__).parent
-    # c2f_path = Path(plugin_dir, "simulator", "C2F-W")
-    c2f_path = Path("/home/fdo/source/C2F-W")
+    c2f_path = Path(plugin_dir, "simulator", "C2F")
+    # c2f_path = Path("/home/fdo/source/C2F-W")
 
     fuel_models = ["0. Scott & Burgan", "1. Kitral"]
     fuel_tables = ["spain_lookup_table.csv", "kitral_lookup_table.csv"]
@@ -381,9 +381,9 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
 
     def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
         if parameters[self.IGNITION_MODE] == 1 and parameters[self.IGNIPROBMAP] is None:
-            return False, "{self.IGNIPROBMAP} cant be None if {self.IGNITION_MODE} generation is 1"
+            return False, f"{self.IGNIPROBMAP} cant be None if {self.IGNITION_MODE} generation is 1"
         if parameters[self.IGNITION_MODE] == 2 and parameters[self.IGNIPOINT] is None:
-            return False, "{self.IGNIPOINT} cant be None if {self.IGNITION_MODE} generation is 2"
+            return False, f"{self.IGNIPOINT} cant be None if {self.IGNITION_MODE} generation is 2"
 
         weafile = self.parameterAsFile(parameters, self.WEAFILE, context)
         if parameters[self.WEATHER_MODE] == 0 and weafile == "":
@@ -443,7 +443,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             case 0:
                 self.args["ignitions"] = False
             case 1:
-                self.args["ignitions"] = True
+                self.args["ignitions"] = False
             case 2:
                 self.args["ignitions"] = True
                 self.args["IgnitionRad"] = self.parameterAsInt(parameters, self.IGNIRADIUS, context)
@@ -553,7 +553,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             feedback.reportError(f"{log_file} not found or empty!")
         feedback.pushDebugInfo("processAlgorithm end")
 
-        return {self.OUTPUT_FOLDER: str(output_folder)}
+        return {self.OUTPUT_FOLDER: str(output_folder), self.OUTPUTS: output_options}
 
     def name(self):
         """
