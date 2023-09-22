@@ -73,7 +73,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     weather_modes = [
         "0. Single weather file scenario",
         "1. Random draw from multiple weathers in a directory",
-        "2. Sequential draw from multiple weathers in a directory",
+        # "2. Sequential draw from multiple weathers in a directory",
     ]
     argparse_options = [
         "final-grid",
@@ -449,11 +449,11 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 self.args["IgnitionRad"] = self.parameterAsInt(parameters, self.IGNIRADIUS, context)
         match weather_mode:
             case 0:
-                self.args["weather"] = "constant"
+                self.args["weather"] = "rows"
             case 1:
                 self.args["weather"] = "random"
-            case 2:
-                self.args["weather"] = "rows"
+            # case 2:
+            #     self.args["weather"] = "rows"
 
         # OUTPUT FOLDER
         project_path = QgsProject().instance().absolutePath()
