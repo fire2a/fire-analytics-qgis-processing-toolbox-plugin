@@ -30,36 +30,42 @@ __copyright__ = "(C) 2023 by Fernando Badilla Veliz - Fire2a.com"
 
 __revision__ = "$Format:%H$"
 
-import random
+from copy import deepcopy
 from datetime import datetime
 from math import isclose
 from multiprocessing import cpu_count
 from os import kill
 from pathlib import Path
 from platform import system as platform_system
+from re import search
 from shutil import copy
 from signal import SIGKILL
 from time import sleep
 from typing import Any
 
-from numpy import array
+from fire2a.raster import get_geotransform, id2xy, transform_coords_to_georef
+from numpy import array, float32, int16, int32, loadtxt, random
 from osgeo import gdal
-from qgis.core import (Qgis, QgsApplication, QgsMessageLog, QgsProcessing,
+from qgis.core import (Qgis, QgsApplication, QgsFeature, QgsFeatureSink,
+                       QgsField, QgsFields, QgsGeometry, QgsLineString,
+                       QgsMessageLog, QgsPoint, QgsProcessing,
                        QgsProcessingAlgorithm, QgsProcessingContext,
                        QgsProcessingException, QgsProcessingParameterBoolean,
-                       QgsProcessingParameterEnum, QgsProcessingParameterFile,
+                       QgsProcessingParameterEnum,
+                       QgsProcessingParameterFeatureSink,
+                       QgsProcessingParameterFile,
                        QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterNumber,
                        QgsProcessingParameterRasterLayer,
                        QgsProcessingParameterVectorLayer, QgsProject,
-                       QgsRasterLayer, QgsTask)
-from qgis.PyQt.QtCore import QCoreApplication
+                       QgsRasterLayer, QgsTask, QgsVectorLayer)
+from qgis.PyQt.QtCore import QCoreApplication, QVariant
 
-from .simulator.qgstasks import StopMeTask
+from .simulator.qgstasks import finished_func, run_func
 
 
 class PostSimulationAlgorithm(QgsProcessingAlgorithm):
-    """Cell2Fire"""
+    """Cell2Fire results post processing bundle"""
 
     INSTANCE_DIR = "InstanceDirectory"
     OUTPUTS = "RequestedOutputs"
@@ -80,10 +86,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
     ]
 
     def initAlgorithm(self, config):
-        """
-        Here we define the inputs and output of the algorithm, along
-        with some other properties.
-        """
+        """inputs and output of the algorithm"""
         project_path = QgsProject().instance().absolutePath()
         self.addParameter(
             QgsProcessingParameterFile(
@@ -116,7 +119,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         )
 
     def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
-        # log file exists and is not empty
+        """log file exists and is not empty"""
         output_folder = Path(self.parameterAsString(parameters, self.INSTANCE_DIR, context))
         log_file = Path(output_folder, "results", "LogFile.txt")
         if log_file.is_file() and log_file.stat().st_size > 0:
@@ -124,9 +127,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         return False, f"No results/LogFile.txt file found in instance directory ({output_folder})"
 
     def processAlgorithm(self, parameters, context, feedback):
-        """
-        Here is where the processing itself takes place.
-        """
+        """Here is where the processing itself takes place."""
         feedback.pushDebugInfo("processAlgorithm start")
         feedback.pushDebugInfo(f"context args: {context.asQgisProcessArguments()}")
         # feedback.pushDebugInfo(f"parameters {parameters}")
@@ -142,71 +143,155 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         output_folder = Path(self.parameterAsString(parameters, self.INSTANCE_DIR, context))
         log_file = Path(output_folder, "results", "LogFile.txt")
         log_text = log_file.read_text()
-        feedback.pushDebugInfo(log_text)
-
-        atask = StopMeTask("A Stop Me Random", context, feedback)
-        btask = StopMeTask("B Stop Me Random", context, feedback)
-        task_list = []
-        task_list.append(atask)
-        task_list.append(btask)
-        for task in task_list:
-            feedback.pushDebugInfo(f"task {task.description()} {task.status()}")
-            QgsApplication.taskManager().addTask(task)
-            feedback.pushDebugInfo(f"task {task.description()} {task.status()}")
-
-        c = 0
-        while all([task.status() not in [QgsTask.Complete, QgsTask.Terminated] for task in task_list]):
-            feedback.pushDebugInfo(f"c: {c}")
-            sleep(0.5)
-            if feedback.isCanceled():
-                feedback.pushDebugInfo("algorithm isCanceled")
-                for task in task_list:
-                    if task.isActive():
-                        task.cancel()
-                        feedback.pushDebugInfo(f"task {task.description()} {task.status()}")
-                QCoreApplication.processEvents()
-            c += 1
-            if c > 100:
-                break
+        feedback.pushDebugInfo(log_text[:80])
         return {self.OUTPUT_FOLDER: str(output_folder)}
 
     def name(self):
-        """
-        Returns the algorithm name, used for identifying the algorithm. This
-        string should be fixed for the algorithm, and must not be localised.
-        The name should be unique within each provider. Names should contain
-        lowercase alphanumeric characters only and no spaces or other
-        formatting characters.
-        """
         return "simulationresultsprocessing"
 
     def displayName(self):
-        """
-        Returns the translated algorithm name, which should be used for any
-        user-visible display of the algorithm name.
-        return self.tr(self.name())
-        """
-        return self.tr("Simulation results processing")
+        return self.tr("All together bundle")
 
-    # def group(self):
-    #     """
-    #     Returns the name of the group this algorithm belongs to. This string
-    #     should be localised.
-    #     """
-    #     return self.tr(self.groupId())
+    def group(self):
+        return self.tr("Simulator Post Processing")
 
-    # def groupId(self):
-    #     """
-    #     Returns the unique ID of the group this algorithm belongs to. This
-    #     string should be fixed for the algorithm, and must not be localised.
-    #     The group id should be unique within each provider. Group id should
-    #     contain lowercase alphanumeric characters only and no spaces or other
-    #     formatting characters.
-    #     """
-    #     return "experimental"
+    def groupId(self):
+        return "simulatorpostprocessing"
 
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)
 
     def createInstance(self):
         return PostSimulationAlgorithm()
+
+
+class MessagesSIMPP(QgsProcessingAlgorithm):
+    # INSTANCE_DIR = "InstanceDirectory"
+    BASE_LAYER = "BaseLayer"
+    RESULTS_DIR = "ResultsDirectory"
+    OUTPUT_LAYER = "PropagationDirectedGraph"
+
+    def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
+        """log file exists and is not empty
+        debug:
+            output_dir = Path('/home/fdo/source/C2F-W/data/Homogeneous_kitral/firesim_230922_135815/results')
+            output_dir.is_dir()
+            msg_dir = Path(output_dir, "Messages")
+            msg_dir.is_dir()
+            not any([ afile for afile in files if afile.is_file() and afile.stat().st_size>0 ])
+        """
+        output_dir = Path(self.parameterAsString(parameters, self.RESULTS_DIR, context))
+        if not output_dir.is_dir():
+            return False, f"Provided {RESULTS_DIR}: {output_dir} is not a directory"
+        msg_dir = Path(output_dir, "Messages")
+        if not msg_dir.is_dir():
+            return False, f"Provided {RESULTS_DIR}: {msg_dir} is not a directory"
+        files = list(msg_dir.glob("MessagesFile[0-9]*.csv"))
+        if files == []:
+            return False, f"Provided {RESULTS_DIR}: {msg_dir} does not contain any 'MessagesFile[0-9]*.csv' files"
+        if not any([afile for afile in files if afile.is_file() and afile.stat().st_size > 0]):
+            return False, f"Provided {RESULTS_DIR}: {msg_dir} contains only empty 'MessagesFile[0-9]*.csv' file"
+        return True, ""
+
+    def initAlgorithm(self, config):
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(
+                name=self.OUTPUT_LAYER,
+                description=self.tr("Output vector layer"),
+                type=QgsProcessing.TypeVectorLine,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterRasterLayer(
+                name=self.BASE_LAYER,
+                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform"),
+                defaultValue=[QgsProcessing.TypeRaster],
+                optional=False,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterFile(
+                name=self.RESULTS_DIR,
+                description="Cell2 Fire Simulator RESULTS folder (normally firesim_yymmdd_HHMMSS/results)",
+                behavior=QgsProcessingParameterFile.Folder,
+                extension="",
+                defaultValue=None,
+                optional=False,
+                fileFilter="",
+            )
+        )
+
+    def processAlgorithm(self, parameters, context, feedback):
+        """
+        msgs_files = sorted(list(Path(output_dir, "Messages").glob("MessagesFile[0-9]*.csv")))
+        """
+        feedback.pushDebugInfo("processAlgorithm start")
+        # get base map
+        base_raster = self.parameterAsRasterLayer(parameters, self.BASE_LAYER, context)
+        dataset = gdal.Open(base_raster.publicSource(), gdal.GA_ReadOnly)
+        if dataset is None:
+            raise FileNotFoundError(filename)
+        GT = dataset.GetGeoTransform()
+        # "Projection": ds.GetProjection(),
+        # "RasterCount": ds.RasterCount,
+        W = (dataset.RasterXSize,)
+        H = (dataset.RasterYSize,)
+        # set output layer
+        fields = QgsFields()
+        fields.append(QgsField(name="simulation", type=QVariant.Int, len=10))
+        fields.append(QgsField(name="time", type=QVariant.Int, len=10))
+        (sink, dest_id) = self.parameterAsSink(
+            parameters, self.OUTPUT_LAYER, context, fields, Qgis.WkbType.MultiLineString, base_raster.crs()
+        )
+        # get messages
+        msgs_dir = Path(self.parameterAsString(parameters, self.RESULTS_DIR, context), "Messages")
+        files = []
+        for afile in msgs_dir.glob("MessagesFile[0-9]*.csv"):
+            if afile.is_file() and afile.stat().st_size > 0:
+                files += [afile]
+        feedback.pushDebugInfo(f"messages files: {files[0]}...")
+        # build digraphs
+        for count, afile in enumerate(files):
+            sim_idx = search("\\d+", afile.stem).group(0)
+            data = loadtxt(afile, delimiter=",", dtype=[("i", int32), ("j", int32), ("time", int32)], usecols=(0, 1, 2))
+            feedback.pushDebugInfo(f"simulation id: {sim_idx}, edges: {len(data)}")
+            # build line add to sink
+            for i, j, time in data:
+                i_x_px, i_y_ln = id2xy(i - 1, W, H)
+                i_x_geo, i_y_geo = transform_coords_to_georef(i_x_px + 0.5, i_y_ln + 0.5, GT)
+                # feedback.pushDebugInfo(f"i_x_geo, i_y_geo: {i_x_geo}, {i_y_geo}, time: {time}")
+                j_x_px, j_y_ln = id2xy(j - 1, W, H)
+                j_x_geo, j_y_geo = transform_coords_to_georef(j_x_px + 0.5, j_y_ln + 0.5, GT)
+                # feedback.pushDebugInfo(f"j_x_geo, j_y_geo: {j_x_geo}, {j_y_geo}, time: {time}")
+                # TODO id = int(f"{sim_idx.zfill}_{i.zfill...}_{j}")
+                feature = QgsFeature(fields)
+                feature.setAttributes([int(sim_idx), int(time)])
+                feature.setGeometry(QgsLineString([QgsPoint(i_x_geo, i_y_geo), QgsPoint(j_x_geo, j_y_geo)]))
+                # feedback.pushDebugInfo(f"j_x_geo, j_y_geo: {j_x_geo}, {j_y_geo}, time: {time}, sim_idx: {sim_idx}")
+                sink.addFeature(feature, QgsFeatureSink.FastInsert)
+                if feedback.isCanceled():
+                    break
+            feedback.setProgress(int(count * len(files)))
+
+        return {self.OUTPUT_LAYER: dest_id}
+
+    def createInstance(self):
+        return MessagesSIMPP()
+
+    def tr(self, string):
+        return QCoreApplication.translate("Processing", string)
+
+    def createInstance(self):
+        return MessagesSIMPP()
+
+    def group(self):
+        return self.tr("Simulator Post Processing")
+
+    def groupId(self):
+        return "simulatorpostprocessing"
+
+    def name(self):
+        return "messages"
+
+    def displayName(self):
+        return self.tr("Messages")

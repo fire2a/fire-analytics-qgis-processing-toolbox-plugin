@@ -288,7 +288,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.WEADIR,
-                description="From multiple weathers in a directory (requires source 1 or 2)",
+                description="From multiple weathers in a directory (requires source 1)",
                 behavior=QgsProcessingParameterFile.Folder,
                 extension="",
                 defaultValue=None,

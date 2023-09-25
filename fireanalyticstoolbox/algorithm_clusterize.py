@@ -71,7 +71,6 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
                 optional=False,
             )
         )
-
         self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUT, self.tr("Output vector layer")))
 
     def processAlgorithm(self, parameters, context, feedback):
@@ -93,14 +92,15 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
         )
         vector_layer = QgsVectorLayer(output["OUTPUT"], "polygonized", "ogr")
 
-        feedback.pushInfo("Clusterize algorithm finished.\n"
-                          f"name: {vector_layer.name()}\n"
-                          f"CRS: {vector_layer.crs().authid()}\n"
-                          f"geometry type: {vector_layer.geometryType()}\n"
-                          f"wkbType: {vector_layer.wkbType()}\n"
-                          f"feature count: {vector_layer.featureCount()}\n"
-                          f"fields: {vector_layer.fields()}\n"
-                          )
+        feedback.pushInfo(
+            "Clusterize algorithm finished.\n"
+            f"name: {vector_layer.name()}\n"
+            f"CRS: {vector_layer.crs().authid()}\n"
+            f"geometry type: {vector_layer.geometryType()}\n"
+            f"wkbType: {vector_layer.wkbType()}\n"
+            f"feature count: {vector_layer.featureCount()}\n"
+            f"fields: {vector_layer.fields()}\n"
+        )
         (sink, dest_id) = self.parameterAsSink(
             parameters, self.OUTPUT, context, vector_layer.fields(), vector_layer.wkbType(), vector_layer.sourceCrs()
         )

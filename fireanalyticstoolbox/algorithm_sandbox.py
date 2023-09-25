@@ -30,20 +30,21 @@ __copyright__ = "(C) 2023 by fdo"
 
 __version__ = "$Format:%H$"
 
-from time import sleep
 from os import sep
+from time import sleep
 
-from qgis.core import (QgsFeatureSink, QgsProcessing, 
-                       QgsProcessingAlgorithm, 
-                       QgsProcessingParameterMatrix,
-                       QgsProcessingLayerPostProcessorInterface, QgsProject,
+from pandas import DataFrame
+from qgis.core import (Qgis, QgsApplication, QgsFeatureSink, QgsMessageLog,
+                       QgsProcessing, QgsProcessingAlgorithm,
+                       QgsProcessingLayerPostProcessorInterface,
                        QgsProcessingParameterBoolean,
                        QgsProcessingParameterEnum,
                        QgsProcessingParameterFeatureSink,
-                       QgsProcessingParameterFileDestination,
                        QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterFile,
-                       QgsProcessingParameterNumber)
+                       QgsProcessingParameterFileDestination,
+                       QgsProcessingParameterMatrix,
+                       QgsProcessingParameterNumber, QgsProject, QgsTask)
 from qgis.PyQt.QtCore import QCoreApplication
 
 
@@ -67,38 +68,27 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
 
     OUTPUT = "OUTPUT"
     INPUT = "INPUT"
-    INPUT_bool = "INPUT_bool"
-    INPUT_file = "INPUT_file"
-    INPUT_folder = "INPUT_folder"
-    INPUT_integer = "INPUT_integer"
-    INPUT_double = "INPUT_double"
-    INPUT_enum = "INPUT_enum"
-    OUTPUT_csv = "OUTPUT_csv"
+    # INPUT_bool = "INPUT_bool"
+    # INPUT_file = "INPUT_file"
+    # INPUT_folder = "INPUT_folder"
+    # INPUT_integer = "INPUT_integer"
+    # INPUT_double = "INPUT_double"
+    # INPUT_enum = "INPUT_enum"
+    # OUTPUT_csv = "OUTPUT_csv"
 
     def initAlgorithm(self, config):
         """
         Here we define the inputs and output of the algorithm, along
         with some other properties.
         """
-        self.addParameter(
-            QgsProcessingParameterMatrix(
-                name = 'wea',
-                description = 'weather builder', 
-                numberRows = 3, 
-                hasFixedNumberRows = False,
-                headers = ['datetime', 'WS', 'WD', 'TMP', 'RH'],
-                defaultValue = None, 
-                optional = False,
-            )
-        )
-
-        qplppi = QPLPPI()
+        # TODO
+        # qplppi = QPLPPI()
         # add parameter
         # self.addParameter(
         #     )
         # )
-        # We add the input vector features source. It can have any kind of
-        # geometry.
+
+        # We add the input vector features source. It can have any kind of geometry.
         self.addParameter(
             QgsProcessingParameterFeatureSource(
                 self.INPUT,
@@ -106,94 +96,111 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
                 [QgsProcessing.TypeVectorAnyGeometry],
             )
         )
-        # bool
-        self.addParameter(
-            QgsProcessingParameterBoolean(
-                name=self.INPUT_bool,
-                description=self.tr("Input Boolean"),
-                defaultValue=False,
-                optional=False,
-            )
-        )
-        # number
-        # QgsProcessingParameterNumber(name: str, description: str = '', type: QgsProcessingParameterNumber.Type = QgsProcessingParameterNumber.Integer, defaultValue: Any = None, optional: bool = False, minValue: float = -DBL_MAX+1, maxValue: float = DBL_MAX)
-        # integer
-        self.addParameter(
-            QgsProcessingParameterNumber(
-                name=self.INPUT_integer,
-                description=self.tr("Input Integer"),
-                type=QgsProcessingParameterNumber.Integer,
-                # defaultValue = 0,
-                optional=False,
-                minValue=-7,
-                maxValue=13,
-            )
-        )
-        # double
-        qppn = QgsProcessingParameterNumber(
-            name=self.INPUT_double,
-            description=self.tr("Input Double"),
-            type=QgsProcessingParameterNumber.Double,
-            defaultValue=0.69,
-            optional=True,
-            minValue=-1.2345,
-            maxValue=420.666,
-        )
-        qppn.setMetadata({"widget_wrapper": {"decimals": 3}})
-        self.addParameter(qppn)
-        # file
-        # name: str, description: str = '', behavior: QgsProcessingParameterFile.Behavior = QgsProcessingParameterFile.File, extension: str = '', defaultValue: Any = None, optional: bool = False, fileFilter: str = ''
-        self.addParameter(
-            QgsProcessingParameterFile(
-                name=self.INPUT_file,
-                description=self.tr("Input File"),
-                behavior=QgsProcessingParameterFile.File,
-                extension="csv",  # only 1
-                # >1 ?? fileFilter="csv(*.csv), text(*.txt)",
-            )
-        )
-        # folder
-        self.addParameter(
-            QgsProcessingParameterFile(
-                name=self.INPUT_folder,
-                description=self.tr("Input Folder"),
-                behavior=QgsProcessingParameterFile.Folder,
-            )
-        )
-        # enum
-        # QgsProcessingParameterEnum(name: str, description: str = '', options: Iterable[str] = [], allowMultiple: bool = False, defaultValue: Any = None, optional: bool = False, usesStaticStrings: bool = False)
-        qppe = QgsProcessingParameterEnum(
-            name=self.INPUT_enum,
-            description=self.tr("Input Enum"),
-            options=["a", "b", "c"],
-            allowMultiple=True,
-            defaultValue="b",
-            optional=False,
-            usesStaticStrings=True,
-        )
-        #  qppe.param.setMetadata( {'widget_wrapper':
-        #    { 'icons': [QIcon('integer.svg'), QIcon('string.svg')] }
-        #  })
-        self.addParameter(qppe)
-        #
         # We add a feature sink in which to store our processed features (this
         # usually takes the form of a newly created vector layer when the
         # algorithm is run in QGIS).
-        self.addParameter(
-            QgsProcessingParameterFeatureSink(self.OUTPUT, self.tr("Output layer"))
-        )
+        self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUT, self.tr("Output layer")))
 
-        # QgsProcessingParameterFileDestination(name: str, description: str = '', fileFilter: str = '', defaultValue: Any = None, optional: bool = False, createByDefault: bool = True)
-        defaultValue = QgsProject().instance().absolutePath()
-        defaultValue = defaultValue + sep + "statistics.csv" if defaultValue != "" else None
-        qparamfd = QgsProcessingParameterFileDestination(
-            name=self.OUTPUT_csv,
-            description=self.tr("CSV statistics file output (overwrites!)"),
-            fileFilter="CSV files (*.csv)",
-            defaultValue=defaultValue,
-        )
-        qparamfd.setMetadata({"widget_wrapper": {"dontconfirmoverwrite": True}})
-        self.addParameter(qparamfd)
+        #self.addParameter(
+        #    QgsProcessingParameterMatrix(
+        #        name="wea",
+        #        description="weather builder",
+        #        numberRows=3,
+        #        hasFixedNumberRows=False,
+        #        headers=["datetime", "WS", "WD", "TMP", "RH"],
+        #        defaultValue=None,
+        #        optional=False,
+        #    )
+        #)
+
+        # bool
+        # self.addParameter(
+        #     QgsProcessingParameterBoolean(
+        #         name=self.INPUT_bool,
+        #         description=self.tr("Input Boolean"),
+        #         defaultValue=False,
+        #         optional=False,
+        #     )
+        # )
+
+        # NUMBERS
+
+        # integer
+        # self.addParameter(
+        #     QgsProcessingParameterNumber(
+        #         name=self.INPUT_integer,
+        #         description=self.tr("Input Integer"),
+        #         type=QgsProcessingParameterNumber.Integer,
+        #         # defaultValue = 0,
+        #         optional=False,
+        #         minValue=-7,
+        #         maxValue=13,
+        #     )
+        # )
+
+        # double
+        # qppn = QgsProcessingParameterNumber(
+        #     name=self.INPUT_double,
+        #     description=self.tr("Input Double"),
+        #     type=QgsProcessingParameterNumber.Double,
+        #     defaultValue=0.69,
+        #     optional=True,
+        #     minValue=-1.2345,
+        #     maxValue=420.666,
+        # )
+        # qppn.setMetadata({"widget_wrapper": {"decimals": 3}})
+        # self.addParameter(qppn)
+
+        # file
+        # self.addParameter(
+        #     QgsProcessingParameterFile(
+        #         name=self.INPUT_file,
+        #         description=self.tr("Input File"),
+        #         behavior=QgsProcessingParameterFile.File,
+        #         extension="csv",  # only 1
+        #         # >1 ?? fileFilter="csv(*.csv), text(*.txt)",
+        #         optional=True,
+        #         # defaultValue = None, 
+        #         # fileFilter: str = ''
+        #     )
+        # )
+
+        # folder
+        # self.addParameter(
+        #     QgsProcessingParameterFile(
+        #         name=self.INPUT_folder,
+        #         description=self.tr("Input Folder"),
+        #         behavior=QgsProcessingParameterFile.Folder,
+        #         optional=True,
+        #     )
+        # )
+
+        # enum
+        # qppe = QgsProcessingParameterEnum(
+        #     name=self.INPUT_enum,
+        #     description=self.tr("Input Enum"),
+        #     options=["a", "b", "c"],
+        #     allowMultiple=True,
+        #     defaultValue="b",
+        #     optional=False,
+        #     usesStaticStrings=True,
+        # )
+        #  qppe.param.setMetadata( {'widget_wrapper':
+        #    { 'icons': [QIcon('integer.svg'), QIcon('string.svg')] }
+        #  })
+        # self.addParameter(qppe)
+
+        # defaultValue = QgsProject().instance().absolutePath()
+        # defaultValue = defaultValue + sep + "statistics.csv" if defaultValue != "" else None
+        # qparamfd = QgsProcessingParameterFileDestination(
+        #     name=self.OUTPUT_csv,
+        #     description=self.tr("CSV statistics file output (overwrites!)"),
+        #     fileFilter="CSV files (*.csv)",
+        #     defaultValue=defaultValue,
+        #     # createByDefault: bool = True,
+        # )
+        # qparamfd.setMetadata({"widget_wrapper": {"dontconfirmoverwrite": True}})
+        # self.addParameter(qparamfd)
 
     def processAlgorithm(self, parameters, context, feedback):
         """
@@ -202,6 +209,9 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         context : <class 'qgis._core.QgsProcessingContext'>
         parameters : <class 'dict'>
         """
+        # feedback.pushCommandInfo(f"feedback \n {type(feedback)} \n {dir(feedback)}")
+        feedback.pushCommandInfo(f"parameters {parameters}")
+        feedback.pushCommandInfo(f"context args: {context.asQgisProcessArguments()}")
 
         # feedback.setProgress 0.0 -> 100.0
         # for i in range(6):
@@ -217,10 +227,6 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         # feedback.pushWarning("pushWarning")  # yellow
         # feedback.reportError("reportError")  # red
 
-        # feedback.pushCommandInfo(f"feedback \n {type(feedback)} \n {dir(feedback)}")
-        feedback.pushCommandInfo(f"parameters {parameters}")
-        feedback.pushCommandInfo(f"context args: {context.asQgisProcessArguments()}")
-
         # Retrieve the feature source and sink. The 'dest_id' variable is used
         # to uniquely identify the feature sink, and must be included in the
         # dictionary returned by the processAlgorithm function.
@@ -234,27 +240,46 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
             source.sourceCrs(),
         )
 
-        input_boolean = self.parameterAsBool(parameters, self.INPUT_bool, context)
-        feedback.pushCommandInfo(f"input_boolean {input_boolean}")
+        # input_boolean = self.parameterAsBool(parameters, self.INPUT_bool, context)
+        # feedback.pushCommandInfo(f"input_boolean {input_boolean}")
 
         # Compute the number of steps to display within the progress bar and
         # get features from source
         total = 100.0 / source.featureCount() if source.featureCount() else 0
         features = source.getFeatures()
+        feedback.pushCommandInfo(f"source featureCount: {source.featureCount()}")
+
+        task = QgsTask.fromFunction(
+            "Template Task Name",
+            template_task,
+            flags=QgsTask.CanCancel,
+            on_finished=template_task_on_finished,
+            result=5,
+            password=1,
+        )
+        feedback.pushCommandInfo(f"task {task.description()}, status: {task.status()}")
+        QgsApplication.taskManager().addTask(task)
 
         for current, feature in enumerate(features):
             # Stop the algorithm if cancel button has been clicked
             if feedback.isCanceled():
-                break
-
+                feedback.pushCommandInfo(f"task {task.description()}, status: {task.status()} pre cancel")
+                task.cancel()
+                feedback.pushCommandInfo(f"task {task.description()}, status: {task.status()} post cancel")
+                if task.status in [QgsTask.Complete, QgsTask.Terminated]:
+                    feedback.pushCommandInfo(f"task {task.description()}, status: {task.status()} fin loop")
+                    break
             # Add a feature in the sink
             sink.addFeature(feature, QgsFeatureSink.FastInsert)
-
             # Update the progress bar
             feedback.setProgress(int(current * total))
+            # wait
+            sleep(0.1)
+
+        feedback.pushDebugInfo(f"task: {task} END, task.returned_values: {task.returned_values}, task.exception: {task.exception}")
 
         # TODO test:
-        #context.addLayerToLoadOnCompletion()
+        # context.addLayerToLoadOnCompletion()
         # .addLayerToLoadOnCompletion(self, layer: str, details: QgsProcessingContext.LayerDetails)
         #       QgsProcessingContext.LayerDetails(name: str, project: QgsProject, outputName: str = '', layerTypeHint: QgsProcessingUtils.LayerHint = QgsProcessingUtils.LayerHint.UnknownType)
         # .setLayersToLoadOnCompletion()
@@ -283,12 +308,13 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         #    )
         # )
 
-        output_file = self.parameterAsFileOutput(parameters, self.OUTPUT_csv, context)
-        feedback.pushCommandInfo(f"output_file: {output_file}, type: {type(output_file)}")
-        df = DataFrame(np.random.randint(0, 10, (4, 3)), columns=["a", "b", "c"])
-        df.to_csv(output_file, index=False)
+        # output_file = self.parameterAsFileOutput(parameters, self.OUTPUT_csv, context)
+        # feedback.pushCommandInfo(f"output_file: {output_file}, type: {type(output_file)}")
+        # df = DataFrame(np.random.randint(0, 10, (4, 3)), columns=["a", "b", "c"])
+        # df.to_csv(output_file, index=False)
+        # return {self.OUTPUT: dest_id, self.OUTPUT_csv: output_file}
 
-        return {self.OUTPUT: dest_id, self.OUTPUT_csv: output_file}
+        return {self.OUTPUT: dest_id}
 
     def name(self):
         """
@@ -337,20 +363,16 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         should provide a basic description about what the algorithm does and the
         parameters and outputs associated with it..
         """
-        return self.tr(
-            "This is an example algorithm that takes a vector layer and creates a new identical one."
-        )
+        return self.tr("This is an example algorithm that takes a vector layer and creates a new identical one.")
 
     def helpString(self):
         """
         Returns a localised help string for the algorithm. This string should
         provide more detailed help and usage information for the algorithm.
         """
-        return self.tr(
-            """This is an example algorithm that takes a vector layer and creates a new identical one.
+        return self.tr("""This is an example algorithm that takes a vector layer and creates a new identical one.
         It is meant to be used as an example of how to create your own algorithms and explain methods and variables used to do it. An algorithm like this will be available in all elements, and there is not need for additional work.
-        All Processing algorithms should extend the QgsProcessingAlgorithm class."""
-        )
+        All Processing algorithms should extend the QgsProcessingAlgorithm class.""")
 
     def helpUrl(self):
         """
@@ -360,11 +382,20 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
 
 
 class QPLPPI(QgsProcessingLayerPostProcessorInterface):
-    """ https://qgis.org/pyqgis/3.28/core/QgsProcessingLayerPostProcessorInterface.html
-    """
+    """https://qgis.org/pyqgis/3.28/core/QgsProcessingLayerPostProcessorInterface.html"""
+
     def __init__(self):
         super().__init__()
 
     def postProcessLayer(self, layer, context, feedback):
         # def postProcessLayer(self, layer: QgsMapLayer, context: QgsProcessingContext, feedback: QgsProcessingFeedback):
         pass
+
+
+task_status = {
+    QgsTask.Queued: "Task is queued and has not begun.",  # 0
+    QgsTask.OnHold: "Task is queued but on hold and will not be started.",  # 1
+    QgsTask.Running: "Task is currently running.",  # 2
+    QgsTask.Complete: "Task successfully completed.",  # 3
+    QgsTask.Terminated: "Task was terminated or errored.",  # 4
+}
