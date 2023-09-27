@@ -34,7 +34,7 @@ from qgis.core import QgsProcessingProvider
 from qgis.PyQt.QtGui import QIcon
 
 from .algorithm_clusterize import ClusterizeAlgorithm
-from .algorithm_postsimulation import MessagesSIMPP, PostSimulationAlgorithm
+from .algorithm_postsimulation import MessagesSIMPP, StatisticSIMPP, PostSimulationAlgorithm
 from .algorithm_raster_knapsack import RasterKnapsackAlgorithm
 from .algorithm_sandbox import SandboxAlgorithm
 from .algorithm_simulator import FireSimulatorAlgorithm
@@ -67,6 +67,7 @@ class FireToolboxProvider(QgsProcessingProvider):
         self.addAlgorithm(FireSimulatorAlgorithm())
         self.addAlgorithm(PostSimulationAlgorithm())
         self.addAlgorithm(MessagesSIMPP())
+        self.addAlgorithm(StatisticSIMPP())
 
     def id(self):
         """

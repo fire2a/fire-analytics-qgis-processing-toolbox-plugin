@@ -66,7 +66,9 @@ from qgis.core import (Qgis, QgsApplication, QgsFeature, QgsFeatureSink,
                        QgsProcessingParameterFile,
                        QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterNumber,
+                       QgsProcessingParameterRasterDestination,
                        QgsProcessingParameterRasterLayer,
+                       QgsProcessingParameterString,
                        QgsProcessingParameterVectorLayer, QgsProject,
                        QgsRasterLayer, QgsTask, QgsVectorLayer)
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
@@ -219,7 +221,8 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
 
 
 class MessagesSIMPP(QgsProcessingAlgorithm):
-    # INSTANCE_DIR = "InstanceDirectory"
+    """Messages Simulation Post Processing Algorithm"""
+
     BASE_LAYER = "BaseLayer"
     MSGS_DIR = "MessagesDirectory"
     OUTPUT_LAYER = "PropagationDirectedGraph"
@@ -280,7 +283,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
         base_raster = self.parameterAsRasterLayer(parameters, self.BASE_LAYER, context)
         dataset = gdal.Open(base_raster.publicSource(), gdal.GA_ReadOnly)
         if dataset is None:
-            raise FileNotFoundError(filename)
+            raise FileNotFoundError(base_raster.publicSource())
         GT = dataset.GetGeoTransform()
         # "Projection": ds.GetProjection(),
         # "RasterCount": ds.RasterCount,
@@ -343,9 +346,6 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
     #     # layer.triggerRepaint()
     #     return {self.OUTPUT_LAYER: self.dest_id}
 
-    def createInstance(self):
-        return MessagesSIMPP()
-
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)
 
@@ -363,3 +363,134 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
 
     def displayName(self):
         return self.tr("Messages")
+
+
+class StatisticSIMPP(QgsProcessingAlgorithm):
+    """Statistic Simulation Post Processing Algorithm"""
+
+    dirs = ["FlameLength", "Intensity", "RateOfSpread", "CrownFractionBurn", "CrownFire"]
+    names = ["FL", "Intensity", "ROSFile", "Cfb", "Crown"]
+
+    BASE_LAYER = "BaseLayer"
+    ST_NAME = "StatisticName"
+    ST_DIR = "StatisticDirectory"
+    OUTPUT_RASTER = "OutputRaster"
+
+    def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
+        """log file exists and is not empty"""
+        st_name = self.parameterAsString(parameters, self.ST_NAME, context)
+        st_dir = Path(self.parameterAsString(parameters, self.ST_DIR, context))
+        if not st_dir.is_dir():
+            return False, f"Provided {self.ST_DIR}: {st_dir} is not a directory"
+        files = list(st_dir.glob(st_name + "[0-9]*.asc"))
+        if files == []:
+            return False, f"Provided {self.ST_DIR}: {st_dir} does not contain any '{st_name}[0-9]*.asc' files"
+        if not any([afile for afile in files if afile.is_file() and afile.stat().st_size > 0]):
+            return False, f"Provided {self.ST_DIR}: {st_dir} contains only empty '{st_name}[0-9]*.asc' files"
+        return True, ""
+
+    def initAlgorithm(self, config):
+        self.addParameter(
+            QgsProcessingParameterRasterDestination(
+                name=self.OUTPUT_RASTER,
+                description=self.tr("Output raster layer"),
+                # defaultValue: Any = None,
+                optional=True,
+                createByDefault=True,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterRasterLayer(
+                name=self.BASE_LAYER,
+                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform"),
+                defaultValue=[QgsProcessing.TypeRaster],
+                optional=False,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterFile(
+                name=self.ST_DIR,
+                description=(
+                    f"Statistic directory (normally firesim_yymmdd_HHMMSS/results/Statistic\n any of {self.dirs}"
+                ),
+                behavior=QgsProcessingParameterFile.Folder,
+                extension="",
+                defaultValue=None,
+                optional=False,
+                fileFilter="",
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterString(
+                name=self.ST_NAME,
+                description=f"Statistic 'name[0-9]+.asc' (normally any of {self.names})",
+                defaultValue=self.names[2],
+                # defaultValue=None,
+                optional=False,
+            )
+        )
+
+    def processAlgorithm(self, parameters, context, feedback):
+        """proc algo"""
+        feedback.pushDebugInfo("processAlgorithm start")
+        # get base map
+        base_raster = self.parameterAsRasterLayer(parameters, self.BASE_LAYER, context)
+        dataset = gdal.Open(base_raster.publicSource(), gdal.GA_ReadOnly)
+        if dataset is None:
+            raise FileNotFoundError(f"{base_raster}")
+        GT = dataset.GetGeoTransform()
+        # "Projection": ds.GetProjection(),
+        # "RasterCount": ds.RasterCount,
+        W = dataset.RasterXSize
+        H = dataset.RasterYSize
+        # raster
+        output_raster = self.parameterAsFileOutput(parameters, self.OUTPUT_RASTER, context)
+        feedback.pushDebugInfo(f"output_raster: {output_raster}, {type(output_raster)}")
+
+        # get data
+        st_dir = Path(self.parameterAsString(parameters, self.ST_DIR, context))
+        st_name = self.parameterAsString(parameters, self.ST_NAME, context)
+        feedback.pushDebugInfo(f"st_dir: {st_dir}, st_name: {st_name}")
+        files = []
+        for afile in st_dir.glob(st_name + "[0-9]*.asc"):
+            if afile.is_file() and afile.stat().st_size > 0:
+                files += [afile]
+        feedback.pushDebugInfo(f"{len(files)} {st_name} files, first: {files[0]}...")
+
+        data = []
+        for count, afile in enumerate(files):
+            sim_idx = search("\\d+", afile.stem).group(0)
+            feedback.pushDebugInfo(f"simulation id: {sim_idx}")
+            # data += [loadtxt(afile, dtype=float32, skiprows=6)]
+            if feedback.isCanceled():
+                break
+            feedback.setProgress(int(count * len(files)))
+
+        return {self.OUTPUT_RASTER: output_raster}
+
+    # def postProcessAlgorithm(self, context, feedback):
+    #     """Called after processAlgorithm, use it to load the layer and set the symbology"""
+    #     feedback.pushDebugInfo(f"postProcessAlgorithm start {context}")
+    #     # layer = QgsProcessingUtils.mapLayerFromString(self.dest_id, context)
+    #     layer = context.getMapLayer(self.dest_id)
+    #     layer.loadNamedStyle(str(Path(assets_dir, "messages.qml")))
+    #     # layer.triggerRepaint()
+    #     return {self.OUTPUT_LAYER: self.dest_id}
+
+    def tr(self, string):
+        return QCoreApplication.translate("Processing", string)
+
+    def createInstance(self):
+        return StatisticSIMPP()
+
+    def group(self):
+        return self.tr("Simulator Post Processing")
+
+    def groupId(self):
+        return "simulatorpostprocessing"
+
+    def name(self):
+        return "statistic"
+
+    def displayName(self):
+        return self.tr("Spatial Statistic")
