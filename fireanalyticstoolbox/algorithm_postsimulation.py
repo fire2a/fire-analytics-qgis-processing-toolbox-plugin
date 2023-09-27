@@ -20,6 +20,8 @@
  *   (at your option) any later version.                                   *
  *                                                                         *
  ***************************************************************************/
+TODO:
+    group results https://gis.stackexchange.com/questions/416542/adding-output-layers-of-qgis-processing-scripts-to-group-using-pyqgis
 """
 
 __author__ = "Fernando Badilla Veliz - Fire2a.com"
@@ -30,7 +32,6 @@ __copyright__ = "(C) 2023 by Fernando Badilla Veliz - Fire2a.com"
 
 __revision__ = "$Format:%H$"
 
-from copy import deepcopy
 from datetime import datetime
 from math import isclose
 from multiprocessing import cpu_count
@@ -62,15 +63,17 @@ from qgis.core import (Qgis, QgsApplication, QgsFeature, QgsFeatureSink,
                        QgsRasterLayer, QgsTask, QgsVectorLayer)
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 
+plugin_dir = Path(__file__).parent
+assets_dir = Path(plugin_dir, "simulator")
+
 
 class PostSimulationAlgorithm(QgsProcessingAlgorithm):
     """Cell2Fire results post processing bundle"""
 
     INSTANCE_DIR = "InstanceDirectory"
+    RESULTS_DIR = "ResultsDirectory"
     OUTPUTS = "RequestedOutputs"
     OUTPUT_DIR = "OutputFolder"
-    plugin_dir = Path(__file__).parent
-    assets_dir = Path(plugin_dir, "simulator")
     output_options = [
         "Final fire scar",
         "Propagation fire scars",
@@ -90,7 +93,18 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.INSTANCE_DIR,
-                description="Cell2 Fire Simulator instance directory (normally firesim_yymmdd_HHMMSS)",
+                description="Cell2 Fire Simulator INSTANCE directory (normally firesim_yymmdd_HHMMSS)",
+                behavior=QgsProcessingParameterFile.Folder,
+                extension="",
+                defaultValue=project_path if project_path != "" else None,
+                optional=False,
+                fileFilter="",
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterFile(
+                name=self.RESULTS_DIR,
+                description="Cell2 Fire Simulator RESULTS directory (normally firesim_yymmdd_HHMMSS/results)",
                 behavior=QgsProcessingParameterFile.Folder,
                 extension="",
                 defaultValue=project_path if project_path != "" else None,
@@ -119,11 +133,15 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
 
     def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
         """log file exists and is not empty"""
-        output_directory = Path(self.parameterAsString(parameters, self.INSTANCE_DIR, context))
-        log_file = Path(output_directory, "results", "LogFile.txt")
-        if log_file.is_file() and log_file.stat().st_size > 0:
-            return True, ""
-        return False, f"No results/LogFile.txt file found in instance directory ({output_directory})"
+        instance_directory = Path(self.parameterAsString(parameters, self.INSTANCE_DIR, context))
+        fuels = Path(instance_directory, "fuels.asc")
+        if not fuels.is_file() and fuels.stat().st_size > 0:
+            return False, f"fuels.asc file not found or empty in instance directory: ({results_directory})"
+        results_directory = Path(self.parameterAsString(parameters, self.RESULTS_DIR, context))
+        log_file = Path(results_directory, "LogFile.txt")
+        if not log_file.is_file() and log_file.stat().st_size > 0:
+            return False, f"LogFile.txt file not found or empty in results directory: ({results_directory})"
+        return True, ""
 
     def processAlgorithm(self, parameters, context, feedback):
         """Here is where the processing itself takes place."""
@@ -134,31 +152,43 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         output_options = self.parameterAsEnums(parameters, self.OUTPUTS, context)
         output_options_strings = array(self.output_options)[output_options]
         feedback.pushDebugInfo(f"output_options: {output_options_strings}\n")
-        # INSTANCE DIR
-        instance_directory = Path(self.parameterAsString(parameters, self.INSTANCE_DIR, context))
         # OUTPUT DIR
         output_directory = Path(self.parameterAsString(parameters, self.OUTPUT_DIR, context))
+        # INSTANCE DIR
+        instance_directory = Path(self.parameterAsString(parameters, self.INSTANCE_DIR, context))
+        # RESULTS DIR
+        results_directory = Path(self.parameterAsString(parameters, self.RESULTS_DIR, context))
         # log file
-        output_directory = Path(self.parameterAsString(parameters, self.INSTANCE_DIR, context))
-        log_file = Path(output_directory, "results", "LogFile.txt")
+        log_file = Path(results_directory, "LogFile.txt")
         log_text = log_file.read_text(encoding="utf-8")
         feedback.pushDebugInfo(log_text[:80])
 
-        msg_out = processing.run(
-            "fire2a:messages",
-            {
-                "BaseLayer": str(Path(instance_directory, "fuels.asc")),
-                "PropagationDirectedGraph": QgsProcessing.TEMPORARY_OUTPUT,
-                "ResultsDirectory": str(Path(instance_directory, "results")),
-            },
-            context=context,
-            feedback=feedback,
-            is_child_algorithm=True,
-        )
-        lyr_out_str = msg_out["PropagationDirectedGraph"]
-        lyr_out = context.takeResultLayer(lyr_out_str)
-        context.addLayerToLoadOnCompletion(lyr_out_str, QgsProcessingContext.LayerDetails())
-
+        if "Propagation directed-graph" in output_options_strings:
+            msg_out = processing.run(
+                "fire2a:messages",
+                {
+                    "BaseLayer": str(Path(instance_directory, "fuels.asc")),
+                    "MessagesDirectory": str(Path(results_directory, "Messages")),
+                    "PropagationDirectedGraph": QgsProcessing.TEMPORARY_OUTPUT,
+                },
+                context=context,
+                feedback=feedback,
+                is_child_algorithm=True,
+            )
+            context.addLayerToLoadOnCompletion(
+                msg_out["PropagationDirectedGraph"],
+                QgsProcessingContext.LayerDetails(
+                    "propagation_directed_graph",
+                    context.project(),
+                    "messages",
+                ),
+            )
+        # context.temporaryLayerStore().addMapLayer(lyr_out)
+        # lyr_out_str = msg_out["PropagationDirectedGraph"]
+        # lyr_out = context.takeResultLayer(lyr_out_str)
+        # context.addLayerToLoadOnCompletion(
+        #     lyr_out_str, QgsProcessingContext.LayerDetails("messages", QgsProject.instance(), "")
+        # )
         return {self.OUTPUT_DIR: str(output_directory), "MSG_OUT": msg_out}
 
     def name(self):
@@ -183,7 +213,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
 class MessagesSIMPP(QgsProcessingAlgorithm):
     # INSTANCE_DIR = "InstanceDirectory"
     BASE_LAYER = "BaseLayer"
-    RESULTS_DIR = "ResultsDirectory"
+    MSGS_DIR = "MessagesDirectory"
     OUTPUT_LAYER = "PropagationDirectedGraph"
 
     def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
@@ -195,17 +225,14 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
             msg_dir.is_dir()
             not any([ afile for afile in files if afile.is_file() and afile.stat().st_size>0 ])
         """
-        output_dir = Path(self.parameterAsString(parameters, self.RESULTS_DIR, context))
-        if not output_dir.is_dir():
-            return False, f"Provided {self.RESULTS_DIR}: {output_dir} is not a directory"
-        msg_dir = Path(output_dir, "Messages")
+        msg_dir = Path(self.parameterAsString(parameters, self.MSGS_DIR, context))
         if not msg_dir.is_dir():
-            return False, f"Provided {self.RESULTS_DIR}: {msg_dir} is not a directory"
+            return False, f"Provided {self.MSGS_DIR}: {msg_dir} is not a directory"
         files = list(msg_dir.glob("MessagesFile[0-9]*.csv"))
         if files == []:
-            return False, f"Provided {self.RESULTS_DIR}: {msg_dir} does not contain any 'MessagesFile[0-9]*.csv' files"
+            return False, f"Provided {self.MSGS_DIR}: {msg_dir} does not contain any 'MessagesFile[0-9]*.csv' files"
         if not any([afile for afile in files if afile.is_file() and afile.stat().st_size > 0]):
-            return False, f"Provided {self.RESULTS_DIR}: {msg_dir} contains only empty 'MessagesFile[0-9]*.csv' file"
+            return False, f"Provided {self.MSGS_DIR}: {msg_dir} contains only empty 'MessagesFile[0-9]*.csv' file"
         return True, ""
 
     def initAlgorithm(self, config):
@@ -226,8 +253,8 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
         )
         self.addParameter(
             QgsProcessingParameterFile(
-                name=self.RESULTS_DIR,
-                description="Cell2 Fire Simulator RESULTS directory (normally firesim_yymmdd_HHMMSS/results)",
+                name=self.MSGS_DIR,
+                description="Cell2 Fire Simulator Messages directory (normally firesim_yymmdd_HHMMSS/results/Messages)",
                 behavior=QgsProcessingParameterFile.Folder,
                 extension="",
                 defaultValue=None,
@@ -258,13 +285,14 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
         (sink, dest_id) = self.parameterAsSink(
             parameters, self.OUTPUT_LAYER, context, fields, Qgis.WkbType.MultiLineString, base_raster.crs()
         )
+
         # get messages
-        msgs_dir = Path(self.parameterAsString(parameters, self.RESULTS_DIR, context), "Messages")
+        msg_dir = Path(self.parameterAsString(parameters, self.MSGS_DIR, context))
         files = []
-        for afile in msgs_dir.glob("MessagesFile[0-9]*.csv"):
+        for afile in msg_dir.glob("MessagesFile[0-9]*.csv"):
             if afile.is_file() and afile.stat().st_size > 0:
                 files += [afile]
-        feedback.pushDebugInfo(f"messages files: {files[0]}...")
+        feedback.pushDebugInfo(f"{len(files)} messages files, first: {files[0]}...")
         # build digraphs
         for count, afile in enumerate(files):
             sim_idx = search("\\d+", afile.stem).group(0)
@@ -288,7 +316,24 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
                     break
             feedback.setProgress(int(count * len(files)))
 
+        processing.run(
+            "qgis:setstyleforvectorlayer",
+            {"INPUT": dest_id, "STYLE": str(Path(assets_dir, "messages.qml"))},
+            context=context,
+            feedback=feedback,
+            is_child_algorithm=True,
+        )
+        # self.dest_id = dest_id
         return {self.OUTPUT_LAYER: dest_id}
+
+    # def postProcessAlgorithm(self, context, feedback):
+    #     """Called after processAlgorithm, use it to load the layer and set the symbology"""
+    #     feedback.pushDebugInfo(f"postProcessAlgorithm start {context}")
+    #     # layer = QgsProcessingUtils.mapLayerFromString(self.dest_id, context)
+    #     layer = context.getMapLayer(self.dest_id)
+    #     layer.loadNamedStyle(str(Path(assets_dir, "messages.qml")))
+    #     # layer.triggerRepaint()
+    #     return {self.OUTPUT_LAYER: self.dest_id}
 
     def createInstance(self):
         return MessagesSIMPP()
