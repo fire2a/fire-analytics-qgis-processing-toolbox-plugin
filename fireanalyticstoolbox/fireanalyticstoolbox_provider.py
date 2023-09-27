@@ -31,12 +31,14 @@ __copyright__ = "(C) 2023 by Fernando Badilla Veliz - Fire2a.com"
 __revision__ = "$Format:%H$"
 
 from qgis.core import QgsProcessingProvider
+from qgis.PyQt.QtGui import QIcon
 
 from .algorithm_clusterize import ClusterizeAlgorithm
+from .algorithm_postsimulation import MessagesSIMPP, PostSimulationAlgorithm
 from .algorithm_raster_knapsack import RasterKnapsackAlgorithm
 from .algorithm_sandbox import SandboxAlgorithm
 from .algorithm_simulator import FireSimulatorAlgorithm
-from .algorithm_postsimulation import PostSimulationAlgorithm, MessagesSIMPP
+from .assets.resources import *
 from .fireanalyticstoolbox_algorithm import FireToolboxAlgorithm
 
 
@@ -87,8 +89,9 @@ class FireToolboxProvider(QgsProcessingProvider):
         """
         Should return a QIcon which is used for your provider inside
         the Processing toolbox.
-        """
         return QgsProcessingProvider.icon(self)
+        """
+        return QIcon(":/plugins/fireanalyticstoolbox/assets/bonfire.svg")
 
     def longName(self):
         """

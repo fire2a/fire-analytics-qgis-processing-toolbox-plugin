@@ -27,7 +27,7 @@ tags=python,fire,forest fires,wildfires,fire simulator,prescriptive analytics
 
 homepage=http://homepage
 category=Analysis
-icon=icon.png
+icon=forestfire.svg
 # experimental flag
 experimental=False
 

@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/plugins/fireanalyticstoolbox/assets" >
+        <file>4neighbors.svg</file>
+        <file>8neighbors.svg</file>
+        <file>forestfire.svg</file>
+        <file>bonfire.svg</file>
+    </qresource>
+</RCC>

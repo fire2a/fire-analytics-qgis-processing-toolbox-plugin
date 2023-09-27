@@ -53,6 +53,7 @@ from qgis.core import (QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm,
                        QgsRasterLayer)
 from qgis.PyQt.QtCore import QCoreApplication
 
+from qgis.PyQt.QtGui import QIcon
 from .simulator.c2fqprocess import C2F
 
 
@@ -554,6 +555,9 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         feedback.pushDebugInfo("processAlgorithm end")
 
         return {self.OUTPUT_FOLDER: str(output_folder), self.OUTPUTS: output_options}
+
+    def icon(self):
+        return QIcon(":/plugins/fireanalyticstoolbox/assets/forestfire.svg")
 
     def name(self):
         """

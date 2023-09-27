@@ -30,8 +30,11 @@ __copyright__ = "(C) 2023 by Fernando Badilla Veliz - Fire2a.com"
 
 __revision__ = "$Format:%H$"
 
+from pathlib import Path
+
 import processing
-from qgis.core import (QgsFeatureSink, QgsProcessing, QgsProcessingAlgorithm,
+from qgis.core import (QgsFeatureSink, QgsMessageLog, QgsProcessing,
+                       QgsProcessingAlgorithm,
                        QgsProcessingParameterDefinition,
                        QgsProcessingParameterEnum,
                        QgsProcessingParameterFeatureSink,
@@ -39,6 +42,9 @@ from qgis.core import (QgsFeatureSink, QgsProcessing, QgsProcessingAlgorithm,
                        QgsProcessingParameterNumber,
                        QgsProcessingParameterRasterLayer, QgsVectorLayer)
 from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtGui import QIcon
+
+from .assets.resources import *
 
 
 class ClusterizeAlgorithm(QgsProcessingAlgorithm):
@@ -138,6 +144,16 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
             defaultValue="4",
             optional=False,
             usesStaticStrings=True,
+        )
+        nbc_qppe.setMetadata(
+            {
+                "widget_wrapper": {
+                    "icons": [
+                        QIcon(":/plugins/fireanalyticstoolbox/assets/4neighbors.svg"),
+                        QIcon(":/plugins/fireanalyticstoolbox/assets/8neighbors.svg"),
+                    ]
+                }
+            }
         )
         nbc_qppe.setFlags(nbc_qppe.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(nbc_qppe)
