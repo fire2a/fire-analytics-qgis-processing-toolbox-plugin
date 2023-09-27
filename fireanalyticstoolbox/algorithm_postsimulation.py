@@ -22,6 +22,14 @@
  ***************************************************************************/
 TODO:
     group results https://gis.stackexchange.com/questions/416542/adding-output-layers-of-qgis-processing-scripts-to-group-using-pyqgis
+util:
+    https://gis.stackexchange.com/questions/314036/programmatically-styling-layer-after-output-is-returned-from-qgis-3-processing-s
+    https://lists.osgeo.org/pipermail/qgis-developer/2021-June/063741.html
+    https://gis.stackexchange.com/questions/375987/customizing-qgsprocessing-output-layer-name
+    https://gis.stackexchange.com/questions/448603/change-the-symbology-of-a-vector-output-layer-that-is-returned-from-a-processing
+    https://gis.stackexchange.com/questions/414559/qgis-iterative-rasterize-naming
+    https://gis.stackexchange.com/questions/306659/pyqgis-style-layer-after-processing-with-qml-file
+
 """
 
 __author__ = "Fernando Badilla Veliz - Fire2a.com"
