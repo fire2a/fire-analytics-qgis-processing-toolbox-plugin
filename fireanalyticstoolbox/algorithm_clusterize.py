@@ -32,7 +32,11 @@ __revision__ = "$Format:%H$"
 
 import processing
 from qgis.core import (QgsFeatureSink, QgsProcessing, QgsProcessingAlgorithm,
+                       QgsProcessingParameterDefinition,
+                       QgsProcessingParameterEnum,
                        QgsProcessingParameterFeatureSink,
+                       QgsProcessingParameterMultipleLayers,
+                       QgsProcessingParameterNumber,
                        QgsProcessingParameterRasterLayer, QgsVectorLayer)
 from qgis.PyQt.QtCore import QCoreApplication
 
@@ -56,28 +60,113 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
     # calling from the QGIS console.
 
     OUTPUT = "OUTPUT"
-    INPUT = "INPUT"
+    INPUT_RASTERS = "INPUT"
+    MIN_SRFCE = "MinimumSurface"
+    MAX_SRFCE = "MaximumSurface"
+    DST_TRSHLD = "DistanceThreshold"
+    TTL_CLSTRS = "TotalClusters"
+    NEIGHBORS = "NeighborConnectivity"
 
     def initAlgorithm(self, config):
-        """
-        Here we define the inputs and output of the algorithm, along
-        with some other properties.
-        """
+        """define the inputs and output"""
         self.addParameter(
-            QgsProcessingParameterRasterLayer(
-                name=self.INPUT,
-                description=self.tr("Input raster layer to clusterize"),
+            QgsProcessingParameterMultipleLayers(
+                name=self.INPUT_RASTERS,
+                description=self.tr("Input rasters to clusterize"),
+                layerType=QgsProcessing.TypeRaster,
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
         )
+
+        min_qppn = QgsProcessingParameterNumber(
+            name=self.MIN_SRFCE,
+            description=self.tr("Minimum surface [ha]"),
+            type=QgsProcessingParameterNumber.Double,
+            defaultValue=6.9,
+            optional=False,
+            minValue=-1.2345,
+            maxValue=420.666,
+        )
+        min_qppn.setMetadata({"widget_wrapper": {"decimals": 1}})
+        self.addParameter(min_qppn)
+
+        max_qppn = QgsProcessingParameterNumber(
+            name=self.MAX_SRFCE,
+            description=self.tr("Maximum surface [ha]"),
+            type=QgsProcessingParameterNumber.Double,
+            defaultValue=11,
+            optional=False,
+            minValue=-1.2345,
+            maxValue=420.666,
+        )
+        max_qppn.setMetadata({"widget_wrapper": {"decimals": 1}})
+        self.addParameter(max_qppn)
+
+        thr_qppn = QgsProcessingParameterNumber(
+            name=self.DST_TRSHLD,
+            description=self.tr("Distance threshold [m]"),
+            type=QgsProcessingParameterNumber.Double,
+            defaultValue=0.69,
+            optional=True,
+            minValue=-1.2345,
+            maxValue=420.666,
+        )
+        thr_qppn.setMetadata({"widget_wrapper": {"decimals": 3}})
+        thr_qppn.setFlags(thr_qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(thr_qppn)
+
+        # integer
+        tcl_qppn = QgsProcessingParameterNumber(
+            name=self.TTL_CLSTRS,
+            description=self.tr("Total clusters"),
+            type=QgsProcessingParameterNumber.Integer,
+            # defaultValue = 0,
+            optional=True,
+            minValue=-7,
+            maxValue=13,
+        )
+        tcl_qppn.setFlags(tcl_qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(tcl_qppn)
+
+        # enum
+        nbc_qppe = QgsProcessingParameterEnum(
+            name=self.NEIGHBORS,
+            description=self.tr("Neighbor connectivity"),
+            options=["4", "8"],
+            allowMultiple=False,
+            defaultValue="4",
+            optional=False,
+            usesStaticStrings=True,
+        )
+        nbc_qppe.setFlags(nbc_qppe.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(nbc_qppe)
+
         self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUT, self.tr("Output vector layer")))
 
     def processAlgorithm(self, parameters, context, feedback):
         """
         Here is where the processing itself takes place.
         """
-        raster = self.parameterAsRasterLayer(parameters, self.INPUT, context)
+        raster_list = self.parameterAsLayerList(parameters, self.INPUT_RASTERS, context)
+        feedback.pushDebugInfo(
+            f"Input rasters:\n names: {[ r.name() for r in raster_list]}\ntypes:"
+            f" {[ r.rasterType() for r in raster_list]}"
+        )
+        neighbors = self.parameterAsEnum(parameters, self.NEIGHBORS, context)
+        feedback.pushDebugInfo(f"neighbor connectivity: {neighbors}")
+
+        total_clusters = self.parameterAsInt(parameters, self.TTL_CLSTRS, context)
+        feedback.pushDebugInfo(f"total clusters: {total_clusters}")
+
+        distance_threshold = self.parameterAsDouble(parameters, self.DST_TRSHLD, context)
+        feedback.pushDebugInfo(f"distance threshold: {distance_threshold}")
+
+        max_surface = self.parameterAsDouble(parameters, self.MAX_SRFCE, context)
+        feedback.pushDebugInfo(f"maximum surface: {max_surface}")
+
+        min_surface = self.parameterAsDouble(parameters, self.MIN_SRFCE, context)
+        feedback.pushDebugInfo(f"minimum surface: {min_surface}")
 
         output = processing.run(
             "gdal:polygonize",
@@ -86,7 +175,7 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
                 "EIGHT_CONNECTEDNESS": False,
                 "EXTRA": "",
                 "FIELD": "DN",
-                "INPUT": raster,
+                "INPUT": raster_list[0],
                 "OUTPUT": "TEMPORARY_OUTPUT",
             },
         )
@@ -160,3 +249,17 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
 
     def createInstance(self):
         return ClusterizeAlgorithm()
+
+    def shortDescription(self):
+        return self.tr("This short description appear when hovering?")
+
+    def helpUrl(self):
+        return "https://fire2a.github.io/docs"
+
+    def shortHelpString(self):
+        return self.tr(
+            """The short help string is the help on the rigth vertical tab when opening the algorithm dialog?"""
+        )
+
+    def helpString(self):
+        return self.shortHelpString()

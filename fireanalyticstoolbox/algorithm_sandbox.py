@@ -101,7 +101,7 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         # algorithm is run in QGIS).
         self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUT, self.tr("Output layer")))
 
-        #self.addParameter(
+        # self.addParameter(
         #    QgsProcessingParameterMatrix(
         #        name="wea",
         #        description="weather builder",
@@ -111,7 +111,7 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         #        defaultValue=None,
         #        optional=False,
         #    )
-        #)
+        # )
 
         # bool
         # self.addParameter(
@@ -160,7 +160,7 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         #         extension="csv",  # only 1
         #         # >1 ?? fileFilter="csv(*.csv), text(*.txt)",
         #         optional=True,
-        #         # defaultValue = None, 
+        #         # defaultValue = None,
         #         # fileFilter: str = ''
         #     )
         # )
@@ -276,7 +276,9 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
             # wait
             sleep(0.1)
 
-        feedback.pushDebugInfo(f"task: {task} END, task.returned_values: {task.returned_values}, task.exception: {task.exception}")
+        feedback.pushDebugInfo(
+            f"task: {task} END, task.returned_values: {task.returned_values}, task.exception: {task.exception}"
+        )
 
         # TODO test:
         # context.addLayerToLoadOnCompletion()
