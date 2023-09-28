@@ -44,27 +44,14 @@ from qgis.core import (Qgis, QgsApplication, QgsFeatureSink, QgsMessageLog,
                        QgsProcessingParameterFile,
                        QgsProcessingParameterFileDestination,
                        QgsProcessingParameterMatrix,
-                       QgsProcessingParameterNumber, QgsProject, QgsTask)
+                       QgsProcessingParameterNumber,
+                       QgsProcessingParameterRasterDestination,
+                       QgsProcessingParameterRasterLayer, QgsProject, QgsTask)
 from qgis.PyQt.QtCore import QCoreApplication
 
 
 class SandboxAlgorithm(QgsProcessingAlgorithm):
-    """
-    This is an example algorithm that takes a vector layer and
-    creates a new identical one.
-
-    It is meant to be used as an example of how to create your own
-    algorithms and explain methods and variables used to do it. An
-    algorithm like this will be available in all elements, and there
-    is not need for additional work.
-
-    All Processing algorithms should extend the QgsProcessingAlgorithm
-    class.
-    """
-
-    # Constants used to refer to parameters and outputs. They will be
-    # used when calling the algorithm from another algorithm, or when
-    # calling from the QGIS console.
+    """comment uncomment to try"""
 
     OUTPUT = "OUTPUT"
     INPUT = "INPUT"
@@ -75,6 +62,8 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
     # INPUT_double = "INPUT_double"
     # INPUT_enum = "INPUT_enum"
     # OUTPUT_csv = "OUTPUT_csv"
+    o_raster = "OutputRaster"
+    o_rasterb = "OutputRasterB"
 
     def initAlgorithm(self, config):
         """
@@ -87,19 +76,53 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         # self.addParameter(
         #     )
         # )
-
-        # We add the input vector features source. It can have any kind of geometry.
         self.addParameter(
-            QgsProcessingParameterFeatureSource(
-                self.INPUT,
-                self.tr("Input TypeVectorAnyGeometry"),
-                [QgsProcessing.TypeVectorAnyGeometry],
+            QgsProcessingParameterRasterDestination(
+                self.o_raster,
+                self.tr(self.o_raster),
             )
         )
+        # devuelve in memory memory:Output layer
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(
+                name=self.o_rasterb,
+                description=self.tr(self.o_rasterb),
+                type=QgsProcessing.TypeRaster,
+                # defaultValue: Any = None,
+                optional=True,  #: bool = False,
+                # createByDefault: bool = True,
+                # supportsAppend: bool = False
+            )
+        )
+        # devuelve obj con fields?
+        # self.addParameter(
+        #    QgsProcessingParameterFeatureSink(
+        #        self.OUTPUT_csv, self.tr("CSV Output"), QgsProcessing.TypeFile
+        #    )
+        # )
+
+        # We add the input vector features source. It can have any kind of geometry.
+        # BUT RASTER IS NOT A GEOEMTRY
+        # self.addParameter(
+        #     QgsProcessingParameterFeatureSource(
+        #         self.INPUT,
+        #         self.tr("Input TypeVectorAnyGeometry"),
+        #         [QgsProcessing.TypeVectorAnyGeometry],
+        #     )
+        # )
+        self.addParameter(
+            QgsProcessingParameterRasterLayer(
+                name=self.INPUT,
+                description=self.tr("Input Raster"),
+                defaultValue=[QgsProcessing.TypeRaster],
+                optional=False,
+            )
+        )
+
         # We add a feature sink in which to store our processed features (this
         # usually takes the form of a newly created vector layer when the
         # algorithm is run in QGIS).
-        self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUT, self.tr("Output layer")))
+        # self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUT, self.tr("Output layer")))
 
         # self.addParameter(
         #    QgsProcessingParameterMatrix(
@@ -230,55 +253,35 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         # Retrieve the feature source and sink. The 'dest_id' variable is used
         # to uniquely identify the feature sink, and must be included in the
         # dictionary returned by the processAlgorithm function.
-        source = self.parameterAsSource(parameters, self.INPUT, context)
-        (sink, dest_id) = self.parameterAsSink(
-            parameters,
-            self.OUTPUT,
-            context,
-            source.fields(),
-            source.wkbType(),
-            source.sourceCrs(),
-        )
+        # source = self.parameterAsSource(parameters, self.INPUT, context)
+        # (sink, dest_id) = self.parameterAsSink(
+        #    parameters,
+        #    self.OUTPUT,
+        #    context,
+        #    source.fields(),
+        #    source.wkbType(),
+        #    source.sourceCrs(),
+        # )
 
         # input_boolean = self.parameterAsBool(parameters, self.INPUT_bool, context)
         # feedback.pushCommandInfo(f"input_boolean {input_boolean}")
 
         # Compute the number of steps to display within the progress bar and
         # get features from source
-        total = 100.0 / source.featureCount() if source.featureCount() else 0
-        features = source.getFeatures()
-        feedback.pushCommandInfo(f"source featureCount: {source.featureCount()}")
+        # total = 100.0 / source.featureCount() if source.featureCount() else 0
+        # features = source.getFeatures()
+        # feedback.pushCommandInfo(f"source featureCount: {source.featureCount()}")
 
-        task = QgsTask.fromFunction(
-            "Template Task Name",
-            template_task,
-            flags=QgsTask.CanCancel,
-            on_finished=template_task_on_finished,
-            result=5,
-            password=1,
-        )
-        feedback.pushCommandInfo(f"task {task.description()}, status: {task.status()}")
-        QgsApplication.taskManager().addTask(task)
-
-        for current, feature in enumerate(features):
-            # Stop the algorithm if cancel button has been clicked
-            if feedback.isCanceled():
-                feedback.pushCommandInfo(f"task {task.description()}, status: {task.status()} pre cancel")
-                task.cancel()
-                feedback.pushCommandInfo(f"task {task.description()}, status: {task.status()} post cancel")
-                if task.status in [QgsTask.Complete, QgsTask.Terminated]:
-                    feedback.pushCommandInfo(f"task {task.description()}, status: {task.status()} fin loop")
-                    break
-            # Add a feature in the sink
-            sink.addFeature(feature, QgsFeatureSink.FastInsert)
-            # Update the progress bar
-            feedback.setProgress(int(current * total))
-            # wait
-            sleep(0.1)
-
-        feedback.pushDebugInfo(
-            f"task: {task} END, task.returned_values: {task.returned_values}, task.exception: {task.exception}"
-        )
+        # for current, feature in enumerate(features):
+        #     # Stop the algorithm if cancel button has been clicked
+        #     if feedback.isCanceled():
+        #         break
+        #     # Add a feature in the sink
+        #     sink.addFeature(feature, QgsFeatureSink.FastInsert)
+        #     # Update the progress bar
+        #     feedback.setProgress(int(current * total))
+        #     # wait
+        #     sleep(0.1)
 
         # TODO test:
         # context.addLayerToLoadOnCompletion()
@@ -288,35 +291,46 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         # .willLoadLayerOnCompletion()
         # .layerToLoadOnCompletionDetails()
 
-        # Return the results of the algorithm. In this case our only result is
-        # the feature sink which contains the processed features, but some
-        # algorithms may return multiple feature sinks, calculated numeric
-        # statistics, etc. These should all be included in the returned
-        # dictionary, with keys matching the feature corresponding parameter
-        # or output names.
-
-        # devuelve in memory memory:Output layer
-        # self.addParameter(
-        #     QgsProcessingParameterFeatureSink(
-        #         self.OUTPUT_layer,
-        #         self.tr("Output layer"),
-        #         QgsProcessing.TypeRaster,
-        #     )
-        # )
-        # devuelve obj con fields?
-        # self.addParameter(
-        #    QgsProcessingParameterFeatureSink(
-        #        self.OUTPUT_csv, self.tr("CSV Output"), QgsProcessing.TypeFile
-        #    )
-        # )
-
         # output_file = self.parameterAsFileOutput(parameters, self.OUTPUT_csv, context)
         # feedback.pushCommandInfo(f"output_file: {output_file}, type: {type(output_file)}")
         # df = DataFrame(np.random.randint(0, 10, (4, 3)), columns=["a", "b", "c"])
         # df.to_csv(output_file, index=False)
         # return {self.OUTPUT: dest_id, self.OUTPUT_csv: output_file}
 
-        return {self.OUTPUT: dest_id}
+        i_raster = self.parameterAsRasterLayer(parameters, self.INPUT, context)
+        feedback.pushCommandInfo(f"i_raster: {i_raster}, type: {type(i_raster)}")
+
+        # raster_fs, raster_str = self.parameterAsSink(
+        #     parameters,
+        #     self.o_raster,
+        #     context,
+        #     # fields: QgsFields,
+        #     # geometryType: Qgis.WkbType = Qgis.WkbType.NoGeometry,
+        #     crs=i_raster.sourceCrs(),
+        #     # sinkFlags: Union[QgsFeatureSink.SinkFlags, QgsFeatureSink.SinkFlag] = QgsFeatureSink.SinkFlags(),
+        #     # createOptions: Dict[str, Any] = {},
+        #     # datasourceOptions: Iterable[str] = [],
+        #     # layerOptions: Iterable[str] = []
+        # )
+        # feedback.pushCommandInfo(f"raster_fs: {raster_fs}, type: {type(raster_fs)}")
+
+        raster = self.parameterAsOutputLayer(parameters, self.o_raster, context)
+        # raster = self.parameterAsRasterLayer(parameters, self.o_raster, context)
+        # raster = self.parameterAsSink(parameters, self.o_raster, context)
+        feedback.pushCommandInfo(f"raster: {raster}, type: {type(raster)}")
+
+        rasterb = self.parameterAsOutputLayer(parameters, self.o_rasterb, context)
+        # rasterb = self.parameterAsRasterLayer(parameters, self.o_rasterb, context)
+        # rasterb = self.parameterAsSink(parameters, self.o_rasterb, context)
+        feedback.pushCommandInfo(f"rasterb: {rasterb}, type: {type(rasterb)}")
+
+        rasterc = parameters[self.o_raster]
+        feedback.pushCommandInfo(f"rasterc: {rasterc}, type: {type(rasterc)}")
+
+        rasterd = parameters[self.o_rasterb]
+        feedback.pushCommandInfo(f"rasterd: {rasterd}, type: {type(rasterd)}")
+
+        return {"foo": "bar"}
 
     def name(self):
         """
@@ -351,7 +365,7 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         contain lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return "experimental"
+        return "zexperimental"
 
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)

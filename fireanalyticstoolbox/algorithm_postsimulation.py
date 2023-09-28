@@ -393,10 +393,10 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterDestination(
                 name=self.OUTPUT_RASTER,
-                description=self.tr("Output raster layer"),
-                # defaultValue: Any = None,
-                optional=True,
-                createByDefault=True,
+                description=self.tr("Output raster"),
+                # defaultValue=None,
+                # optional=False,
+                # createByDefault=True,
             )
         )
         self.addParameter(
@@ -444,7 +444,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         W = dataset.RasterXSize
         H = dataset.RasterYSize
         # raster
-        output_raster = self.parameterAsFileOutput(parameters, self.OUTPUT_RASTER, context)
+        output_raster = self.parameterAsOutputLayer(parameters, self.OUTPUT_RASTER, context)
         feedback.pushDebugInfo(f"output_raster: {output_raster}, {type(output_raster)}")
 
         # get data
@@ -487,7 +487,8 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         return self.tr("Simulator Post Processing")
 
     def groupId(self):
-        return "simulatorpostprocessing"
+        return "zexperimental"
+        # return "simulatorpostprocessing"
 
     def name(self):
         return "statistic"
