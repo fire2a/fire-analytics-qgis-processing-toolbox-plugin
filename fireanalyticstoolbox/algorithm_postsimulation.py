@@ -54,13 +54,16 @@ from typing import Any
 
 import processing
 from fire2a.raster import get_geotransform, id2xy, transform_coords_to_georef
+from grassprovider.Grass7Utils import Grass7Utils
 from numpy import array, float32, int16, int32, loadtxt, random
 from osgeo import gdal
+from osgeo.gdal import GA_ReadOnly, GDT_Float32, GDT_Int16
 from qgis.core import (Qgis, QgsApplication, QgsFeature, QgsFeatureSink,
                        QgsField, QgsFields, QgsGeometry, QgsLineString,
                        QgsMessageLog, QgsPoint, QgsProcessing,
                        QgsProcessingAlgorithm, QgsProcessingContext,
                        QgsProcessingException, QgsProcessingParameterBoolean,
+                       QgsProcessingParameterDefinition,
                        QgsProcessingParameterEnum,
                        QgsProcessingParameterFeatureSink,
                        QgsProcessingParameterFile,
@@ -281,7 +284,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
         feedback.pushDebugInfo("processAlgorithm start")
         # get base map
         base_raster = self.parameterAsRasterLayer(parameters, self.BASE_LAYER, context)
-        dataset = gdal.Open(base_raster.publicSource(), gdal.GA_ReadOnly)
+        dataset = gdal.Open(base_raster.publicSource(), GA_ReadOnly)
         if dataset is None:
             raise FileNotFoundError(base_raster.publicSource())
         GT = dataset.GetGeoTransform()
@@ -370,10 +373,14 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
 
     dirs = ["FlameLength", "Intensity", "RateOfSpread", "CrownFractionBurn", "CrownFire"]
     names = ["FL", "Intensity", "ROSFile", "Cfb", "Crown"]
+    gdal_dt_str =["gdal.GDT_Float32", "gdal.GDT_Int16"],
+    gdal_dt = [GDT_Float32, GDT_Int16]
+    numpy_dt = [float32, int16]
 
     BASE_LAYER = "BaseLayer"
     ST_NAME = "StatisticName"
     ST_DIR = "StatisticDirectory"
+    DATA_TYPE = "DataType"
     OUTPUT_RASTER = "OutputRaster"
 
     def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
@@ -429,6 +436,17 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
                 optional=False,
             )
         )
+        qppe = QgsProcessingParameterEnum(
+            name=self.DATA_TYPE,
+            description=self.tr("data type"),
+            options=self.gdal_dt_str,
+            allowMultiple=False,
+            defaultValue=self.gdal_dt_str[0],
+            optional=False,
+            usesStaticStrings=True,
+        )
+        qppe.setFlags(qppe.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppe)
 
     def processAlgorithm(self, parameters, context, feedback):
         """proc algo"""
@@ -437,15 +455,12 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         base_raster = self.parameterAsRasterLayer(parameters, self.BASE_LAYER, context)
         dataset = gdal.Open(base_raster.publicSource(), gdal.GA_ReadOnly)
         if dataset is None:
-            raise FileNotFoundError(f"{base_raster}")
+            raise FileNotFoundError(f"{base_raster} at {base_raster.publicSource()}")
         GT = dataset.GetGeoTransform()
         # "Projection": ds.GetProjection(),
         # "RasterCount": ds.RasterCount,
         W = dataset.RasterXSize
         H = dataset.RasterYSize
-        # raster
-        output_raster = self.parameterAsOutputLayer(parameters, self.OUTPUT_RASTER, context)
-        feedback.pushDebugInfo(f"output_raster: {output_raster}, {type(output_raster)}")
 
         # get data
         st_dir = Path(self.parameterAsString(parameters, self.ST_DIR, context))
@@ -457,16 +472,36 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
                 files += [afile]
         feedback.pushDebugInfo(f"{len(files)} {st_name} files, first: {files[0]}...")
 
+        # raster
+        output_raster_filename = self.parameterAsOutputLayer(parameters, self.OUTPUT_RASTER, context)
+        raster_format = Grass7Utils.getRasterFormatFromFilename(output_raster_filename)
+        feedback.pushDebugInfo(f"output_raster: {output_raster_filename}, {raster_format}")
+
+        data_type = self.parameterAsEnum(parameters, self.DATA_TYPE, context)
+        feedback.pushDebugInfo(f"data_type: {data_type}, {self.gdal_dt[data_type]}, {self.numpy_dt[data_type]}")
+
+        dst_ds = gdal.GetDriverByName(raster_format).Create(
+            output_raster_filename, W, H, len(files), self.gdal_dt[data_type]
+        )
+        dst_ds.SetGeoTransform(GT)  # specify coords
+        dst_ds.SetProjection(base_raster.crs().authid())  # export coords to file
+
         data = []
         for count, afile in enumerate(files):
             sim_idx = search("\\d+", afile.stem).group(0)
-            feedback.pushDebugInfo(f"simulation id: {sim_idx}")
-            # data += [loadtxt(afile, dtype=float32, skiprows=6)]
+            data += [loadtxt(afile, dtype=self.numpy_dt[data_type], skiprows=6)]
+            feedback.pushDebugInfo(f"simulation id: {sim_idx}, data: {data[-1].shape}")
+            # retval = dst_ds.GetRasterBand(count + 1).SetNoDataValue(0)
+            # feedback.pushDebugInfo(f"retval nodata: {retval}")
+            if 0 != dst_ds.GetRasterBand(count + 1).WriteArray(data[-1]):
+                feedback.pushWarning(f"WriteArray failed for {afile}")
             if feedback.isCanceled():
                 break
             feedback.setProgress(int(count * len(files)))
 
-        return {self.OUTPUT_RASTER: output_raster}
+        dst_ds.FlushCache()  # write to disk
+        dst_ds = None
+        return {self.OUTPUT_RASTER: output_raster_filename}
 
     # def postProcessAlgorithm(self, context, feedback):
     #     """Called after processAlgorithm, use it to load the layer and set the symbology"""
