@@ -47,13 +47,15 @@ from qgis.core import (QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm,
                        QgsProcessingParameterBoolean,
                        QgsProcessingParameterEnum, QgsProcessingParameterFile,
                        QgsProcessingParameterFolderDestination,
+                       QgsProcessingParameterGeometry,
                        QgsProcessingParameterNumber,
                        QgsProcessingParameterRasterLayer,
                        QgsProcessingParameterVectorLayer, QgsProject,
                        QgsRasterLayer)
+from qgis.gui import Qgis
 from qgis.PyQt.QtCore import QCoreApplication
-
 from qgis.PyQt.QtGui import QIcon
+
 from .simulator.c2fqprocess import C2F
 
 
@@ -243,6 +245,13 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             )
         )
         self.addParameter(
+            # QgsProcessingParameterGeometry(
+            #     name=self.IGNIPOINT,
+            #     description="Single point vector layer (requires generation mode 2)",
+            #     defaultValue=None,
+            #     optional=True,
+            #     geometryTypes=[Qgis.GeometryType.PointGeometry],  # Qgis.GeometryType(0)],
+            #     allowMultipart=False,
             QgsProcessingParameterVectorLayer(
                 name=self.IGNIPOINT,
                 description="Single point vector layer (requires generation mode 2)",
@@ -448,6 +457,12 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             case 2:
                 self.args["ignitions"] = True
                 self.args["IgnitionRad"] = self.parameterAsInt(parameters, self.IGNIRADIUS, context)
+                point_lyr = self.parameterAsVectorLayer(parameters, self.IGNIPOINT, context)
+                for feature in point_lyr.getFeatures():
+                    point = feature.geometry().asPoint()
+                    # self.args["IgnitionPoint"] = f"{point.x()} {point.y()}"
+                    feedback.pushDebugInfo(f"point: {point.asWkt()}, {point.x()}, {point.y()}, {type(point)}")
+                return {}
         match weather_mode:
             case 0:
                 self.args["weather"] = "rows"

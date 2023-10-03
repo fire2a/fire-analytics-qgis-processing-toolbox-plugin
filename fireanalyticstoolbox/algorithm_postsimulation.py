@@ -40,24 +40,19 @@ __copyright__ = "(C) 2023 by Fernando Badilla Veliz - Fire2a.com"
 
 __revision__ = "$Format:%H$"
 
-from datetime import datetime
-from math import isclose
-from multiprocessing import cpu_count
-from os import kill
 from pathlib import Path
-from platform import system as platform_system
 from re import search
-from shutil import copy
-from signal import SIGKILL
-from time import sleep
 from typing import Any
+from matplotlib.colors import to_rgba_array
+from matplotlib import colormaps
+from numpy import array, linspace
 
 import processing
 from fire2a.raster import get_geotransform, id2xy, transform_coords_to_georef
 from grassprovider.Grass7Utils import Grass7Utils
 from numpy import array, float32, int16, int32, loadtxt, random
 from osgeo import gdal
-from osgeo.gdal import GA_ReadOnly, GDT_Float32, GDT_Int16
+from osgeo.gdal import GA_ReadOnly, GDT_Float32, GDT_Int16, GCI_PaletteIndex
 from qgis.core import (Qgis, QgsApplication, QgsFeature, QgsFeatureSink,
                        QgsField, QgsFields, QgsGeometry, QgsLineString,
                        QgsMessageLog, QgsPoint, QgsProcessing,
@@ -149,7 +144,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         instance_directory = Path(self.parameterAsString(parameters, self.INSTANCE_DIR, context))
         fuels = Path(instance_directory, "fuels.asc")
         if not fuels.is_file() and fuels.stat().st_size > 0:
-            return False, f"fuels.asc file not found or empty in instance directory: ({results_directory})"
+            return False, f"fuels.asc file not found or empty in instance directory: ({instance_directory})"
         results_directory = Path(self.parameterAsString(parameters, self.RESULTS_DIR, context))
         log_file = Path(results_directory, "LogFile.txt")
         if not log_file.is_file() and log_file.stat().st_size > 0:
@@ -373,7 +368,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
 
     dirs = ["FlameLength", "Intensity", "RateOfSpread", "CrownFractionBurn", "CrownFire"]
     names = ["FL", "Intensity", "ROSFile", "Cfb", "Crown"]
-    gdal_dt_str =["gdal.GDT_Float32", "gdal.GDT_Int16"],
+    # gdal_dt_str =["gdal.GDT_Float32", "gdal.GDT_Int16"],
     gdal_dt = [GDT_Float32, GDT_Int16]
     numpy_dt = [float32, int16]
 
@@ -439,9 +434,12 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         qppe = QgsProcessingParameterEnum(
             name=self.DATA_TYPE,
             description=self.tr("data type"),
-            options=self.gdal_dt_str,
+            # WEIRD BUG
+            # options=self.gdal_dt_str,
+            options=["gdal.GDT_Float32", "gdal.GDT_Int16"],
             allowMultiple=False,
-            defaultValue=self.gdal_dt_str[0],
+            defaultValue="gdal.GDT_Float32",
+            # defaultValue=self.gdal_dt_str[0],
             optional=False,
             usesStaticStrings=True,
         )
@@ -467,7 +465,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         st_name = self.parameterAsString(parameters, self.ST_NAME, context)
         feedback.pushDebugInfo(f"st_dir: {st_dir}, st_name: {st_name}")
         files = []
-        for afile in st_dir.glob(st_name + "[0-9]*.asc"):
+        for afile in sorted(st_dir.glob(st_name + "[0-9]*.asc")):
             if afile.is_file() and afile.stat().st_size > 0:
                 files += [afile]
         feedback.pushDebugInfo(f"{len(files)} {st_name} files, first: {files[0]}...")
@@ -486,19 +484,42 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         dst_ds.SetGeoTransform(GT)  # specify coords
         dst_ds.SetProjection(base_raster.crs().authid())  # export coords to file
 
+        # colors = get_color_table(feedback, cm = colormaps.get('magma'))
         data = []
         for count, afile in enumerate(files):
             sim_idx = search("\\d+", afile.stem).group(0)
             data += [loadtxt(afile, dtype=self.numpy_dt[data_type], skiprows=6)]
             feedback.pushDebugInfo(f"simulation id: {sim_idx}, data: {data[-1].shape}")
-            # retval = dst_ds.GetRasterBand(count + 1).SetNoDataValue(0)
+            # retval = dst_ds.GetRasterBand(count + 1)
             # feedback.pushDebugInfo(f"retval nodata: {retval}")
-            if 0 != dst_ds.GetRasterBand(count + 1).WriteArray(data[-1]):
+            colors = get_color_table(feedback, data[-1].min(), data[-1].max(), cm = colormaps.get('magma'))
+            band = dst_ds.GetRasterBand(count + 1)
+            if 0 != band.SetDescription(f"simulation id: {sim_idx}"):
+                feedback.pushWarning(f"SetDescription failed for {band}")
+            # TODO
+            # r"""SetUnitType(Band self, char const * val) -> CPLErr"""
+            # band.SetUnitType("m/s")
+            # r"""SetStatistics(Band self, double min, double max, double mean, double stddev) -> CPLErr"""
+            # NOT THIS : band.SetStatistics(data[-1].min(), data[-1].max(), data[-1].mean(), data[-1].std())
+            # r"""SetCategoryNames(Band self, char ** papszCategoryNames) -> CPLErr"""
+            # band.SetCategoryNames(["min", "max", "mean", "stddev"])
+            # ds.SetMetadata({"X_BAND": "1" }, "GEOLOCATION")
+            # band.SetCategoryNames([f"simulation id: {sim_idx}"])
+            feedback.pushDebugInfo(f"colors: {colors} {colors.GetCount()}, {data[-1].min()}, {data[-1].max()}")
+            if 0 != band.SetRasterColorInterpretation(GCI_PaletteIndex):
+                feedback.pushWarning(f"SetRasterColorInterpretation failed for {band}")
+            if 0 != band.SetRasterColorTable(colors):
+                feedback.pushWarning(f"SetRasterColorTable failed for {band}")
+            if 0 != band.SetNoDataValue(0):
+                feedback.pushWarning(f"Set No Data failed for {afile}")
+            if 0 != band.WriteArray(data[-1]):
                 feedback.pushWarning(f"WriteArray failed for {afile}")
             if feedback.isCanceled():
                 break
+            band.FlushCache()  # write to disk
+            band = None
+            colors = None
             feedback.setProgress(int(count * len(files)))
-
         dst_ds.FlushCache()  # write to disk
         dst_ds = None
         return {self.OUTPUT_RASTER: output_raster_filename}
@@ -530,3 +551,22 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
 
     def displayName(self):
         return self.tr("Spatial Statistic")
+
+def get_color_table(feedback, amin, amax, cm = colormaps.get('magma')):
+    """set colormap for a band"""
+    acm = (array(to_rgba_array(cm.colors))*255).astype(int)
+    ramp = linspace(amin, amax+1, 255, dtype=int)
+    colors = None
+    colors = gdal.ColorTable()
+    for i in range(254):
+        ret = colors.CreateColorRamp(int(ramp[i]), tuple(acm[i]), int(ramp[i+1]), tuple(acm[i+1]))
+        feedback.pushDebugInfo(f"i: {i}, {tuple(acm[i])}, {i+1}, {tuple(acm[i+1])}, {ret}")
+    return colors
+# def get_color_table(feedback, cm = colormaps.get('magma')):
+#     """set colormap for a band"""
+#     acm = (array(to_rgba_array(cm.colors))*255).astype(int)
+#     colors = gdal.ColorTable()
+#     for i in range(254):
+#         ret = colors.CreateColorRamp(i, tuple(acm[i]), i+1, tuple(acm[i+1]))
+#         feedback.pushDebugInfo(f"i: {i}, {tuple(acm[i])}, {i+1}, {tuple(acm[i+1])}, {ret}")
+#     return colors
