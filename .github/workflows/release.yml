@@ -32,19 +32,25 @@ jobs:
         out-file-path: "fireanalyticstoolbox/cbc"
         extract: true
 
-    - name: download cell2fire
-      uses: robinraju/release-downloader@v1.8
+    - name: CheckoutC2F-W
+      uses: actions/checkout@master
       with:
         repository: "fire2a/C2F-W" 
-        latest: true
-        fileName: "Cell2Fire*.zip"
-        out-file-path: "fireanalyticstoolbox/simulator"
-        extract: true
+        path: "fireanalyticstoolbox/simulator/C2F"
+
+          # - name: download cell2fire
+          #   uses: robinraju/release-downloader@v1.8
+          #   with:
+          #     repository: "fire2a/C2F-W" 
+          #     latest: true
+          #     fileName: "Cell2Fire*.zip"
+          #     out-file-path: "fireanalyticstoolbox/simulator"
+          #     extract: true
 
     - name: git archive
       run: |
          rm fireanalyticstoolbox/cbc/*w64-msvc17*.zip
-         rm fireanalyticstoolbox/simulator/Cell2Fire*.zip
+         # rm fireanalyticstoolbox/simulator/Cell2Fire*.zip
          git add fireanalyticstoolbox/cbc
          git add fireanalyticstoolbox/simulator/C2F
          lestash=`git stash create`
