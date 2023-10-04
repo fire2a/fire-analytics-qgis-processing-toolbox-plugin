@@ -96,7 +96,7 @@
 		<qgis_maximum_version>6.66</qgis_maximum_version>
 		<homepage>https://fire2a.github.io/docs</homepage>
 		<file_name>fireanalyticstoolbox</file_name>
-		<icon>https://fire2a.github.io/fire-analytics-qgis-processing-toolbox-plugin/icon.png</icon>
+		<icon>https://raw.githubusercontent.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/main/fireanalyticstoolbox/assets/forestfire.svg</icon>
 		<author_name>fdobad</author_name>
 		<download_url>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases/download/v0.0.12/fireanalyticstoolbox_v0.0.12.zip</download_url>
 		<uploaded_by>fdobad</uploaded_by>
