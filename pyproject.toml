@@ -24,3 +24,6 @@ max-line-length = 120
 
 [tool.pylsp-mypy]
 enabled = true
+
+[tool.isort]
+line_length = 120
