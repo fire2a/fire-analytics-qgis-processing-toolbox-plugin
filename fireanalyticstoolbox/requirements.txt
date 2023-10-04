@@ -3,4 +3,4 @@ pandas
 pyomo
 scipy
 cplex
-fire2a @ git+https://github.com/fire2a/fire2a-lib.git
+fire2a-lib @ git+https://github.com/fire2a/fire2a-lib.git
