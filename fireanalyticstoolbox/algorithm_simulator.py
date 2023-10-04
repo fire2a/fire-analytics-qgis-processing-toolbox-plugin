@@ -136,14 +136,31 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
 
     def canExecute(self):
         """checks if cell2fire binary is available"""
-        match platform_system():
-            case "Linux":
-                if not Path(self.c2f_path, "Cell2FireC", "Cell2Fire").is_file():
-                    return False, "Cell2Fire binary not found! Check fire2a documentation for compiling"
-            case "Windows":
-                if not Path(self.c2f_path, "Cell2FireC", "Cell2Fire.exe").is_file():
-                    return False, "Cell2Fire.exe program not found! Contact fire2a team for a copy"
-        return True, "all ok"
+        # TODO python version 3.10
+        # match platform_system():
+        #     case "Linux":
+        #         if not Path(self.c2f_path, "Cell2FireC", "Cell2Fire").is_file():
+        #             return False, "Cell2Fire binary not found! Check fire2a documentation for compiling"
+        #     case "Windows":
+        #         if not Path(self.c2f_path, "Cell2FireC", "Cell2Fire.exe").is_file():
+        #             return False, "Cell2Fire.exe program not found! Contact fire2a team for a copy"
+        #     case "Darwin":
+        #         return False, "MacOS not supported yet"
+        #     case _:
+        #         return False, "OS not supported yet"
+        # return True, "all ok"
+        if platform_system() == "Linux":
+            if Path(self.c2f_path, "Cell2FireC", "Cell2Fire").is_file():
+                return True, "all ok"
+            else:
+                return False, "Cell2Fire binary not found! Check fire2a documentation for compiling"
+        elif platform_system() == "Windows":
+            if Path(self.c2f_path, "Cell2FireC", "Cell2Fire.exe").is_file():
+                return True, "all ok"
+            else:
+                return False, "Cell2Fire.exe program not found! Contact fire2a team for a copy"
+        else:
+            return False, "OS not supported yet"
 
     def initAlgorithm(self, config):
         """
@@ -451,18 +468,23 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.args["fmc"] = self.parameterAsInt(parameters, self.FMC, context)
         self.args["scenario"] = self.parameterAsInt(parameters, self.LDFMCS, context)
         self.args["cros"] = is_crown
-        match ignition_mode:
-            case 0:
+        #match ignition_mode:
+        #    case 0:
+        if ignition_mode == 0:
                 self.args["ignitions"] = False
-            case 1:
+        elif ignition_mode == 1:
+            # case 1:
                 self.args["ignitions"] = False
-            case 2:
+        elif ignition_mode == 2:
+            # case 2:
                 self.args["ignitions"] = True
                 self.args["IgnitionRad"] = self.parameterAsInt(parameters, self.IGNIRADIUS, context)
-        match weather_mode:
-            case 0:
+        # match weather_mode:
+        #     case 0:
+        if weather_mode == 0:
                 self.args["weather"] = "rows"
-            case 1:
+        elif weather_mode == 1: 
+            # case 1:
                 self.args["weather"] = "random"
             # case 2:
             #     self.args["weather"] = "rows"
