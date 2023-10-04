@@ -51,6 +51,7 @@ jobs:
       run: |
          rm fireanalyticstoolbox/cbc/*w64-msvc17*.zip
          # rm fireanalyticstoolbox/simulator/Cell2Fire*.zip
+         rm -rf fireanalyticstoolbox/simulator/C2F/.git*
          git add fireanalyticstoolbox/cbc
          git add fireanalyticstoolbox/simulator/C2F
          lestash=`git stash create`
