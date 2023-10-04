@@ -40,8 +40,10 @@ from shutil import copy
 from signal import SIGKILL
 from typing import Any
 
+from fire2a.raster import read_raster, transform_georef_to_coords, xy2id
 from numpy import array
 from osgeo import gdal
+from pandas import DataFrame
 from qgis.core import (QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm,
                        QgsProcessingContext, QgsProcessingException,
                        QgsProcessingParameterBoolean,
@@ -457,12 +459,6 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             case 2:
                 self.args["ignitions"] = True
                 self.args["IgnitionRad"] = self.parameterAsInt(parameters, self.IGNIRADIUS, context)
-                point_lyr = self.parameterAsVectorLayer(parameters, self.IGNIPOINT, context)
-                for feature in point_lyr.getFeatures():
-                    point = feature.geometry().asPoint()
-                    # self.args["IgnitionPoint"] = f"{point.x()} {point.y()}"
-                    feedback.pushDebugInfo(f"point: {point.asWkt()}, {point.x()}, {point.y()}, {type(point)}")
-                return {}
         match weather_mode:
             case 0:
                 self.args["weather"] = "rows"
@@ -505,6 +501,25 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 copy(v.publicSource(), Path(output_folder, f"{k}.asc"))
             else:
                 feedback.pushDebugInfo(f"NO copy: {k}:{v}")
+
+        # IGNITION
+        if ignition_mode == 2:
+            point_lyr = self.parameterAsVectorLayer(parameters, self.IGNIPOINT, context)
+            for feature in point_lyr.getFeatures():
+                feedback.pushDebugInfo(f"feature: {feature.id()}, {feature.geometry().asWkt()}")
+                point = feature.geometry().asPoint()
+                x, y = point.x(), point.y()
+                feedback.pushDebugInfo(f"point: {point.asWkt()}, {x}, {y}")
+                _, raster_props = read_raster(raster["fuels"].publicSource(), data=False)
+                GT = raster_props["Transform"]
+                i, j = transform_georef_to_coords(x, y, GT)
+                feedback.pushDebugInfo(f"raster coords {i}, {j}")
+                W = raster_props["RasterXSize"]
+                cell = xy2id(i, j, W) + 1
+                feedback.pushDebugInfo(f"cell coord: {cell}")
+                with open(Path(output_folder, "Ignitions.csv"), "w") as f:
+                    f.write(f"Year,Ncell\n1,{cell}")
+                feedback.pushDebugInfo(f"point: {point.asWkt()}, {i}, {j}, {cell}")
 
         # WEATHER
         # TODO move checks to checkParameterValues
