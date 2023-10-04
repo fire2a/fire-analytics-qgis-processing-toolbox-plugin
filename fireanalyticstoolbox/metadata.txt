@@ -12,20 +12,21 @@ email=fbadilla@ing.uchile.cl
 
 about=This Processing-ToolBox-Plugin gathers and implements multiple algorithms needed by landscape planners, fire risk managers, biologists, geographers, and so on. Looking for insights into large forest fires in a data-oriented pipelined way. One of the main goals is being interoperable with other tools, and being able to be used in various ways and contexts. Developed by the Fire2a(.com) research group, under the GNU GPL v3 license. We are eager to help! Contact Us!
 
-tracker=http://bugs
-repository=http://repo
+tracker=https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/issues
+repository=https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/
 # End of mandatory metadata
 
 # Recommended items:
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-# changelog=
+changelog=Conaf preview
+
 
 # Tags are comma separated with spaces allowed
 tags=python,fire,forest fires,wildfires,fire simulator,prescriptive analytics
 
-homepage=http://homepage
+homepage=https://fire2a.github.io/docs
 category=Analysis
 icon=assets/forestfire.svg
 # experimental flag
