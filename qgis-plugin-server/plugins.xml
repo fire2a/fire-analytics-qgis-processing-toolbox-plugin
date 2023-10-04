@@ -88,21 +88,21 @@
 		<external_dependencies/>
 		<server/>
 	</pyqgis_plugin>
-	<pyqgis_plugin name="Fire Analytics Processing-Toolbox" version="0.0.12" plugin_id="1029384756">
+	<pyqgis_plugin name="Fire Analytics Processing-Toolbox" version="0.0.13" plugin_id="1029384756">
 		<description>A collection of wild/forest fires insights related algorithms. Includes prescriptive analytics via mathematical programming optimization to generate management recommendations</description>
 		<about>This Processing-ToolBox-Plugin gathers and implements multiple algorithms needed by landscape planners, fire risk managers, biologists, geographers, and so on. Looking for insights into large forest fires in a data-oriented pipelined way. One of the main goals is being interoperable with other tools, and being able to be used in various ways and contexts. Developed by the Fire2a(.com) research group, under the GNU GPL v3 license. We are eager to help! Contact Us!
 WARNING: Before installing follow the python dependencies installation instructions in https://fire2a.github.io/docs/docs/qgis/README.html
 expert: 
 - https://raw.githubusercontent.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/main/fireanalyticstoolbox/requirements.txt
 - https://raw.githubusercontent.com/fire2a/fire2a-lib/main/requirements.txt</about>
-		<version>0.0.12</version>
+		<version>0.0.13</version>
 		<qgis_minimum_version>3.2</qgis_minimum_version>
 		<qgis_maximum_version>6.66</qgis_maximum_version>
 		<homepage>https://fire2a.github.io/docs</homepage>
 		<file_name>fireanalyticstoolbox</file_name>
 		<icon>https://raw.githubusercontent.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/main/fireanalyticstoolbox/assets/forestfire.svg</icon>
 		<author_name>fdobad</author_name>
-		<download_url>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases/download/v0.0.12/fireanalyticstoolbox_v0.0.12.zip</download_url>
+		<download_url>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases/download/v0.0.13/fireanalyticstoolbox_v0.0.13.zip</download_url>
 		<uploaded_by>fdobad</uploaded_by>
 		<create_date>"2006-06-06"</create_date>
 		<update_date>"2020-04-20"</update_date>
