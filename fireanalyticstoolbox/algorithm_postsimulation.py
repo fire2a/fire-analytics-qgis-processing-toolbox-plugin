@@ -625,8 +625,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         return self.tr("Simulator Post Processing")
 
     def groupId(self):
-        return "zexperimental"
-        # return "simulatorpostprocessing"
+        return "simulatorpostprocessing"
 
     def name(self):
         return "statistic"
