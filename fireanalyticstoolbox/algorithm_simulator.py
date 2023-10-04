@@ -37,7 +37,7 @@ from os import kill
 from pathlib import Path
 from platform import system as platform_system
 from shutil import copy
-from signal import SIGKILL
+from signal import SIGTERM
 from typing import Any
 
 from fire2a.raster import read_raster, transform_georef_to_coords, xy2id
@@ -65,7 +65,8 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     """Cell2Fire"""
 
     plugin_dir = Path(__file__).parent
-    c2f_path = Path(plugin_dir, "simulator", "C2F")
+    # c2f_path = Path(plugin_dir, "simulator", "C2F")
+    c2f_path = Path(plugin_dir, "simulator", "C2F", "Cell2FireC")
     # c2f_path = Path("/home/fdo/source/C2F-W")
 
     fuel_models = ["0. Scott & Burgan", "1. Kitral"]
@@ -150,12 +151,12 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         #         return False, "OS not supported yet"
         # return True, "all ok"
         if platform_system() == "Linux":
-            if Path(self.c2f_path, "Cell2FireC", "Cell2Fire").is_file():
+            if Path(self.c2f_path, "Cell2Fire").is_file():
                 return True, "all ok"
             else:
                 return False, "Cell2Fire binary not found! Check fire2a documentation for compiling"
         elif platform_system() == "Windows":
-            if Path(self.c2f_path, "Cell2FireC", "Cell2Fire.exe").is_file():
+            if Path(self.c2f_path, "Cell2Fire.exe").is_file():
                 return True, "all ok"
             else:
                 return False, "Cell2Fire.exe program not found! Contact fire2a team for a copy"
@@ -575,7 +576,8 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         results_folder = output_folder / "results"
         self.args["output-folder"] = str(results_folder)
         feedback.pushDebugInfo(f"args: {self.args}")
-        cmd = "python main.py"
+        # cmd = "python main.py"
+        cmd = "python cell2fire.py"
         for k, v in self.args.items():
             if v is False or v is None:
                 continue
@@ -590,7 +592,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             c2f.waitForFinished(1000)
             if feedback.isCanceled():
                 c2f.terminate()
-                kill(pid, SIGKILL)
+                kill(pid, SIGTERM)
                 feedback.pushDebugInfo("terminate signal sent")
             if c2f.ended:
                 feedback.pushDebugInfo("C2F qprocess ended")
