@@ -37,6 +37,12 @@ jobs:
       with:
         repository: "fire2a/C2F-W" 
         path: "fireanalyticstoolbox/simulator/C2F"
+        sparse-checkout: |
+          Cell2FireC/Cell2Fire
+          Cell2FireC/Cell2Fire.exe
+          Cell2FireC/Cell2Fire.Darwin.arm64
+          Cell2FireC/cell2fire.py
+          Cell2FireC/DataGeneratorC.py
 
           # - name: download cell2fire
           #   uses: robinraju/release-downloader@v1.8
