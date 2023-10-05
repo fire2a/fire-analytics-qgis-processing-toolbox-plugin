@@ -142,7 +142,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         c2f_bin = Path(self.c2f_path, f"Cell2Fire{ext}")
         if c2f_bin.is_file():
             st = c2f_bin.stat()
-            chmod(c2f_bin, st.st_mode | S_IXUSR)
+            chmod(c2f_bin, st.st_mode | S_IXUSR | S_IXGRP | S_IXOTH)
         else:
             return False, "Cell2Fire binary not found! Check fire2a documentation for compiling"
         #
