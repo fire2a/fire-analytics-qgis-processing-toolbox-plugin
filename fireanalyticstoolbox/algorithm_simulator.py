@@ -139,7 +139,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     def canExecute(self):
         """checks if cell2fire binary is available"""
         ext = ".exe" if platform_system() == "Windows" else ""
-        c2f_bin = Path(self.c2f_path, "Cell2FireC", f"Cell2Fire{ext}")
+        c2f_bin = Path(self.c2f_path, f"Cell2Fire{ext}")
         if c2f_bin.is_file():
             st = c2f_bin.stat()
             chmod(c2f_bin, st.st_mode | S_IXUSR)
