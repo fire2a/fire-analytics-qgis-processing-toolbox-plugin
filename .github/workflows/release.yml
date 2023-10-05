@@ -43,6 +43,7 @@ jobs:
           Cell2FireC/Cell2Fire.Darwin.arm64
           Cell2FireC/cell2fire.py
           Cell2FireC/DataGeneratorC.py
+        sparse-checkout-cone-mode: false
 
           # - name: download cell2fire
           #   uses: robinraju/release-downloader@v1.8
