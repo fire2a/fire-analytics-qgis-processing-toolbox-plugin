@@ -34,7 +34,7 @@ from datetime import datetime
 from math import isclose
 from multiprocessing import cpu_count
 from os import kill, chmod
-from stat import S_IXUSR
+from stat import S_IXUSR, S_IXGRP, S_IXOTH
 from pathlib import Path
 from platform import system as platform_system, machine as platform_machine
 from shutil import copy
