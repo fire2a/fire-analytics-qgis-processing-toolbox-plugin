@@ -33,9 +33,10 @@ __revision__ = "$Format:%H$"
 from datetime import datetime
 from math import isclose
 from multiprocessing import cpu_count
-from os import kill
+from os import kill, chmod
+from stat import S_IXUSR
 from pathlib import Path
-from platform import system as platform_system
+from platform import system as platform_system, machine as platform_machine
 from shutil import copy
 from signal import SIGTERM
 from typing import Any
@@ -137,31 +138,18 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
 
     def canExecute(self):
         """checks if cell2fire binary is available"""
-        # TODO python version 3.10
-        # match platform_system():
-        #     case "Linux":
-        #         if not Path(self.c2f_path, "Cell2FireC", "Cell2Fire").is_file():
-        #             return False, "Cell2Fire binary not found! Check fire2a documentation for compiling"
-        #     case "Windows":
-        #         if not Path(self.c2f_path, "Cell2FireC", "Cell2Fire.exe").is_file():
-        #             return False, "Cell2Fire.exe program not found! Contact fire2a team for a copy"
-        #     case "Darwin":
-        #         return False, "MacOS not supported yet"
-        #     case _:
-        #         return False, "OS not supported yet"
-        # return True, "all ok"
-        if platform_system() == "Linux":
-            if Path(self.c2f_path, "Cell2Fire").is_file():
-                return True, "all ok"
-            else:
-                return False, "Cell2Fire binary not found! Check fire2a documentation for compiling"
-        elif platform_system() == "Windows":
-            if Path(self.c2f_path, "Cell2Fire.exe").is_file():
-                return True, "all ok"
-            else:
-                return False, "Cell2Fire.exe program not found! Contact fire2a team for a copy"
+        ext = ".exe" if platform_system() == "Windows" else ""
+        c2f_bin = Path(self.c2f_path, "Cell2FireC", f"Cell2Fire{ext}")
+        if c2f_bin.is_file():
+            st = c2f_bin.stat()
+            chmod(c2f_bin, st.st_mode | S_IXUSR)
         else:
-            return False, "OS not supported yet"
+            return False, "Cell2Fire binary not found! Check fire2a documentation for compiling"
+        #
+        if platform_system() in ["Linux", "Windows"] and platform_machine() in ["x86_64", "AMD64"]:
+            return True, ""
+        else:
+            return False, "OS {platform_system()} {platform_machine()} not supported yet"
 
     def initAlgorithm(self, config):
         """
