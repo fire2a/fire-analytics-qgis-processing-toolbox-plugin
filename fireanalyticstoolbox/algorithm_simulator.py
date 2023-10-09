@@ -33,41 +33,42 @@ __revision__ = "$Format:%H$"
 from datetime import datetime
 from math import isclose
 from multiprocessing import cpu_count
-from os import kill, chmod
-from stat import S_IXUSR, S_IXGRP, S_IXOTH
+from os import chmod, kill, sep
 from pathlib import Path
-from platform import system as platform_system, machine as platform_machine
+from platform import machine as platform_machine
+from platform import system as platform_system
 from shutil import copy
 from signal import SIGTERM
+from stat import S_IXGRP, S_IXOTH, S_IXUSR
 from typing import Any
 
 from fire2a.raster import read_raster, transform_georef_to_coords, xy2id
 from numpy import array
 from osgeo import gdal
-from pandas import DataFrame
-from qgis.core import (QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm,
-                       QgsProcessingContext, QgsProcessingException,
-                       QgsProcessingParameterBoolean,
-                       QgsProcessingParameterEnum, QgsProcessingParameterFile,
-                       QgsProcessingParameterFolderDestination,
-                       QgsProcessingParameterGeometry,
-                       QgsProcessingParameterNumber,
-                       QgsProcessingParameterRasterLayer,
-                       QgsProcessingParameterVectorLayer, QgsProject,
-                       QgsRasterLayer)
+from qgis.core import (QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm, QgsProcessingContext,
+                       QgsProcessingException, QgsProcessingOutputBoolean, QgsProcessingParameterBoolean,
+                       QgsProcessingParameterEnum, QgsProcessingParameterFile, QgsProcessingParameterFolderDestination,
+                       QgsProcessingParameterGeometry, QgsProcessingParameterNumber, QgsProcessingParameterRasterLayer,
+                       QgsProcessingParameterVectorLayer, QgsProject, QgsRasterLayer)
 from qgis.gui import Qgis
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 
+from .config import METRICS, SIM_OUTPUTS, STATS, TAG, jolo
 from .simulator.c2fqprocess import C2F
+
+output_args = [item["arg"] for item in SIM_OUTPUTS]
+output_names = [item["name"] for item in SIM_OUTPUTS]
 
 
 class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     """Cell2Fire"""
 
+    output_dict = None
+    results_dir = None
     plugin_dir = Path(__file__).parent
-    # c2f_path = Path(plugin_dir, "simulator", "C2F")
     c2f_path = Path(plugin_dir, "simulator", "C2F", "Cell2FireC")
+    # c2f_path = Path(plugin_dir, "simulator", "C2F")
     # c2f_path = Path("/home/fdo/source/C2F-W")
 
     fuel_models = ["0. Scott & Burgan", "1. Kitral"]
@@ -82,34 +83,11 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         "1. Random draw from multiple weathers in a directory",
         # "2. Sequential draw from multiple weathers in a directory",
     ]
-    argparse_options = [
-        "final-grid",
-        "grids",
-        "output-messages",
-        "out-ros",
-        "out-fl",
-        "out-intensity",
-        "out-crown",
-        "out-cfb",
-        # "Betweenness Centrality",
-        # "Downstream Protection Value",
-    ]
-    output_options = [
-        "Final fire scar",
-        "Propagation fire scars",
-        "Propagation directed-graph",
-        "Hit rate of spread",
-        "Flame Length",
-        "Byram Intensity",
-        "Crown Fire Scar",
-        "Crown Fire Fuel Consumption",
-        # "Betweenness Centrality",
-        # "Downstream Protection Value",
-    ]
-    args = {key: None for key in argparse_options}
     OUTPUTS = "OutputOptions"
-    OUTPUT_FOLDER = "OutputFolder"
-    OUTPUT_FOLDER_IN_CURRENT_PROJECT = "CreateOutputFolderInCurrentProject"
+    INSTANCE_DIR = "InstanceDirectory"
+    INSTANCE_IN_PROJECT = "InstanceInProject"
+    RESULTS_DIR = "ResultsDirectory"
+    RESULTS_IN_INSTANCE = "ResultsInInstance"
     FUEL_MODEL = "FuelModel"
     FUEL = "FuelRaster"
     ELEVATION = "ElevationRaster"
@@ -372,16 +350,17 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 description=self.tr(
                     "\nOUTPUTS SECTION\nOptions (TODO: separar output de procesamiento en varios algoritmos)"
                 ),
-                options=self.output_options,
+                options=[item["name"] for item in SIM_OUTPUTS],
                 allowMultiple=True,
-                defaultValue=0,
+                defaultValue=[0, 2, 3],
             )
         )
         self.addParameter(
             QgsProcessingParameterBoolean(
-                name=self.OUTPUT_FOLDER_IN_CURRENT_PROJECT,
+                name=self.INSTANCE_IN_PROJECT,
                 description=(
-                    "Override output directory to 'project home/firesim_yymmdd_HHMMSS' (project must be saved locally)"
+                    "Override instance directory to 'project home/firesim_yymmdd_HHMMSS' (project must be saved"
+                    " locally)"
                 ),
                 defaultValue=False,
                 optional=False,
@@ -389,8 +368,25 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         )
         self.addParameter(
             QgsProcessingParameterFolderDestination(
-                name=self.OUTPUT_FOLDER,
-                description="Output directory (destructive action warning: empties contents if already exists)",
+                name=self.INSTANCE_DIR,
+                description="Instance directory (destructive action warning: empties contents if already exists)",
+                defaultValue=None,
+                optional=True,
+                createByDefault=True,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterBoolean(
+                name=self.RESULTS_IN_INSTANCE,
+                description="Override results directory to '$INSTANCE_DIR/results' (project must be saved locally)",
+                defaultValue=True,
+                optional=False,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterFolderDestination(
+                name=self.RESULTS_DIR,
+                description="Results directory (destructive action warning: empties contents if already exists)",
                 defaultValue=None,
                 optional=True,
                 createByDefault=True,
@@ -434,69 +430,88 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         Here is where the processing itself takes place.
         """
         feedback.pushDebugInfo("processAlgorithm start")
+        QgsMessageLog.logMessage(f"{self.name()}, in: {parameters}", tag=TAG, level=Qgis.Info)
         # feedback.pushDebugInfo(f"parameters {parameters}")
         # feedback.pushDebugInfo(f"context args: {context.asQgisProcessArguments()}")
-        # GET OPTIONS
+        # GET USER INPUT
         fuel_model = self.parameterAsInt(parameters, self.FUEL_MODEL, context)
         ignition_mode = self.parameterAsInt(parameters, self.IGNITION_MODE, context)
         weather_mode = self.parameterAsInt(parameters, self.WEATHER_MODE, context)
-        output_options = self.parameterAsEnums(parameters, self.OUTPUTS, context)
-        output_options_strings = array(self.output_options)[output_options]
+        selected_outputs = self.parameterAsEnums(parameters, self.OUTPUTS, context)
+        selected_output_strings = array(output_names)[selected_outputs]
         feedback.pushDebugInfo(
             f"fuel_model: {self.fuel_models[fuel_model]}\n"
             f"ignition_mode: {self.ignition_modes[ignition_mode]}\n"
             f"weather_mode: {self.weather_modes[weather_mode]}\n"
-            f"output_options: {output_options_strings}\n"
+            f"selected_output_strings: {selected_output_strings}\n"
         )
         is_crown = self.parameterAsBool(parameters, self.CROWN, context)
         # BUILD ARGS
-        self.args["sim"] = "S" if fuel_model == 0 else "K"
-        self.args["nsims"] = self.parameterAsInt(parameters, self.NSIM, context)
-        self.args["seed"] = self.parameterAsInt(parameters, self.RNG_SEED, context)
-        self.args["nthreads"] = self.parameterAsInt(parameters, self.SIM_THREADS, context)
-        self.args["fmc"] = self.parameterAsInt(parameters, self.FMC, context)
-        self.args["scenario"] = self.parameterAsInt(parameters, self.LDFMCS, context)
-        self.args["cros"] = is_crown
-        #match ignition_mode:
+        # output_options = [item["name"] for item in SIM_OUTPUTS]
+        args = {key: None for key in output_args}
+        args["sim"] = "S" if fuel_model == 0 else "K"
+        args["nsims"] = self.parameterAsInt(parameters, self.NSIM, context)
+        args["seed"] = self.parameterAsInt(parameters, self.RNG_SEED, context)
+        args["nthreads"] = self.parameterAsInt(parameters, self.SIM_THREADS, context)
+        args["fmc"] = self.parameterAsInt(parameters, self.FMC, context)
+        args["scenario"] = self.parameterAsInt(parameters, self.LDFMCS, context)
+        args["cros"] = is_crown
+        # match ignition_mode:
         #    case 0:
         if ignition_mode == 0:
-                self.args["ignitions"] = False
+            args["ignitions"] = False
         elif ignition_mode == 1:
             # case 1:
-                self.args["ignitions"] = False
+            args["ignitions"] = False
         elif ignition_mode == 2:
             # case 2:
-                self.args["ignitions"] = True
-                self.args["IgnitionRad"] = self.parameterAsInt(parameters, self.IGNIRADIUS, context)
+            args["ignitions"] = True
+            args["IgnitionRad"] = self.parameterAsInt(parameters, self.IGNIRADIUS, context)
         # match weather_mode:
         #     case 0:
         if weather_mode == 0:
-                self.args["weather"] = "rows"
-        elif weather_mode == 1: 
+            args["weather"] = "rows"
+        elif weather_mode == 1:
             # case 1:
-                self.args["weather"] = "random"
-            # case 2:
-            #     self.args["weather"] = "rows"
+            args["weather"] = "random"
+        # case 2:
+        #     args["weather"] = "rows"
 
-        # OUTPUT FOLDER
+        # output dirs
         project_path = QgsProject().instance().absolutePath()
-        if self.parameterAsBool(parameters, self.OUTPUT_FOLDER_IN_CURRENT_PROJECT, context) and project_path != "":
-            output_folder = Path(project_path, "firesim_" + datetime.now().strftime("%y%m%d_%H%M%S"))
+        # INSTANCE DIR
+        if self.parameterAsBool(parameters, self.INSTANCE_IN_PROJECT, context) and project_path != "":
+            instance_dir = Path(project_path, "firesim_" + datetime.now().strftime("%y%m%d_%H%M%S"))
         else:
-            output_folder = Path(self.parameterAsString(parameters, self.OUTPUT_FOLDER, context))
-        output_folder.mkdir(parents=True, exist_ok=True)
-        for afile in output_folder.glob("*"):
+            instance_dir = Path(self.parameterAsString(parameters, self.INSTANCE_DIR, context))
+        instance_dir.mkdir(parents=True, exist_ok=True)
+        for afile in instance_dir.glob("*"):
             afile.unlink(missing_ok=True)
         feedback.pushDebugInfo(
-            f"output_folder: {str(output_folder)}\n"
-            f"_exists: {output_folder.exists()}\n"
-            f"_is_dir: {output_folder.is_dir()}\n"
-            f"_contents: {list(output_folder.glob('*'))}\n"
+            f"instance_dir: {str(instance_dir)}\n"
+            f"_exists: {instance_dir.exists()}\n"
+            f"_is_dir: {instance_dir.is_dir()}\n"
+            f"_contents: {list(instance_dir.glob('*'))}\n"
+        )
+        # RESULTS DIR
+        if self.parameterAsBool(parameters, self.RESULTS_IN_INSTANCE, context) and project_path != "":
+            results_dir = Path(instance_dir, "results")
+        else:
+            results_dir = Path(self.parameterAsString(parameters, self.RESULTS_DIR, context))
+        self.results_dir = results_dir
+        results_dir.mkdir(parents=True, exist_ok=True)
+        for afile in results_dir.glob("*"):
+            afile.unlink(missing_ok=True)
+        feedback.pushDebugInfo(
+            f"results_dir: {str(results_dir)}\n"
+            f"_exists: {results_dir.exists()}\n"
+            f"_is_dir: {results_dir.is_dir()}\n"
+            f"_contents: {list(results_dir.glob('*'))}\n"
         )
 
         # COPY
         # fuel table
-        copy(Path(self.plugin_dir, "simulator", self.fuel_tables[fuel_model]), output_folder)
+        copy(Path(self.plugin_dir, "simulator", self.fuel_tables[fuel_model]), instance_dir)
         # layers
         raster = get_rasters(self, parameters, context)
         for k, v in raster.items():
@@ -509,11 +524,14 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 or (k == "py" and ignition_mode == 1)
             ):
                 feedback.pushDebugInfo(f"copy: {k}:{v}")
-                copy(v.publicSource(), Path(output_folder, f"{k}.asc"))
+                copy(v.publicSource(), Path(instance_dir, f"{k}.asc"))
             else:
                 feedback.pushDebugInfo(f"NO copy: {k}:{v}")
 
         # IGNITION
+        _, raster_props = read_raster(raster["fuels"].publicSource(), data=False)
+        GT = raster_props["Transform"]
+        W = raster_props["RasterXSize"]
         if ignition_mode == 2:
             point_lyr = self.parameterAsVectorLayer(parameters, self.IGNIPOINT, context)
             for feature in point_lyr.getFeatures():
@@ -521,14 +539,11 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 point = feature.geometry().asPoint()
                 x, y = point.x(), point.y()
                 feedback.pushDebugInfo(f"point: {point.asWkt()}, {x}, {y}")
-                _, raster_props = read_raster(raster["fuels"].publicSource(), data=False)
-                GT = raster_props["Transform"]
                 i, j = transform_georef_to_coords(x, y, GT)
                 feedback.pushDebugInfo(f"raster coords {i}, {j}")
-                W = raster_props["RasterXSize"]
                 cell = xy2id(i, j, W) + 1
                 feedback.pushDebugInfo(f"cell coord: {cell}")
-                with open(Path(output_folder, "Ignitions.csv"), "w") as f:
+                with open(Path(instance_dir, "Ignitions.csv"), "w") as f:
                     f.write(f"Year,Ncell\n1,{cell}")
                 feedback.pushDebugInfo(f"point: {point.asWkt()}, {i}, {j}, {cell}")
 
@@ -539,12 +554,12 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             if weafile == "":
                 # feedback.reportError("Single weather file scenario requires a file!")
                 raise QgsProcessingException(self.tr("Single weather file scenario requires a file!"))
-            weafileout = Path(output_folder, "Weather.csv")
+            weafileout = Path(instance_dir, "Weather.csv")
             copy(weafile, weafileout)
             feedback.pushDebugInfo(f"copy: {weafile} to {weafileout}")
         else:
             weadir = Path(self.parameterAsFile(parameters, self.WEADIR, context))
-            weadirout = Path(output_folder, "Weathers")
+            weadirout = Path(instance_dir, "Weathers")
             weadirout.mkdir(parents=True, exist_ok=True)
             c = 0
             for wfile in weadir.glob("Weather[0-9]*.csv"):
@@ -558,15 +573,14 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             feedback.pushDebugInfo(f"copy: {weadir} to {weadirout}\n\t{c} files copied")
 
         # BUILD COMMAND
-        for opt in output_options:
-            self.args[self.argparse_options[opt]] = True
-        self.args["input-instance-folder"] = str(output_folder)
-        results_folder = output_folder / "results"
-        self.args["output-folder"] = str(results_folder)
-        feedback.pushDebugInfo(f"args: {self.args}")
+        for opt in selected_outputs:
+            args[output_args[opt]] = True
+        args["input-instance-folder"] = str(instance_dir)
+        args["output-folder"] = str(results_dir)
+        feedback.pushDebugInfo(f"args: {args}")
         # cmd = "python main.py"
         cmd = "python cell2fire.py"
-        for k, v in self.args.items():
+        for k, v in args.items():
             if v is False or v is None:
                 continue
             cmd += f" --{k} {v if v is not True else ''}"
@@ -587,16 +601,74 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 break
             # feedback.pushDebugInfo(f"c2f loop ended:{c2f.ended}")
 
-        # CHECK RESULTS
+        output_dict = {
+            self.INSTANCE_DIR: str(instance_dir),
+            self.RESULTS_DIR: str(results_dir),
+            self.OUTPUTS: selected_outputs,
+        }
+        self.output_dict = output_dict
         feedback.pushDebugInfo(f"simulation finished, checking result log!")
-        log_file = Path(output_folder, "results", "LogFile.txt")
+        return output_dict
+
+    def postProcessAlgorithm(self, context, feedback):
+        feedback.pushDebugInfo("postProcessAlgorithm start")
+        output_dict = self.output_dict
+        instance_dir = output_dict[self.INSTANCE_DIR]
+        results_dir = output_dict[self.RESULTS_DIR]
+        selected_outputs = output_dict[self.OUTPUTS]
+        # CHECK RESULTS
+        log_file = Path(results_dir, "LogFile.txt")
         if log_file.is_file() and log_file.stat().st_size > 0:
             feedback.pushDebugInfo(log_file.read_text())
         else:
             feedback.reportError(f"{log_file} not found or empty!")
-        feedback.pushDebugInfo("processAlgorithm end")
+            raise QgsProcessingException(f"{log_file} not found or empty!")
+        output_dict["LogFile"] = str(log_file)
+        #
+        for opt in selected_outputs:
+            name = output_names[opt]
+            output_dict[name] = True
+            feedback.pushDebugInfo(f"output: {name} True")
+        #
+        for st in STATS:
+            files = Path(results_dir, st['dir']).glob(st['file']+"[0-9]*")
+            if sample_file := next(files, None):
+                output_dict[st['name']] = str(sample_file)  
+            else:
+                output_dict[st['name']] = None
 
-        return {self.OUTPUT_FOLDER: str(output_folder), self.OUTPUTS: output_options}
+        grid = SIM_OUTPUTS[0]
+        final_grid = SIM_OUTPUTS[1]
+        files = Path(results_dir).glob(grid['dir']+"[0-9]*"+sep+grid['file']+"[0-9]*")
+        if sample_file := next(files, None):
+            output_dict[grid['name']] = str(sample_file)
+            output_dict[final_grid['name']] = str(sample_file)
+        else:
+            output_dict[grid['name']] = None
+            output_dict[final_grid['name']] = None
+
+        msg = SIM_OUTPUTS[2]
+        files = Path(results_dir, msg['dir']).glob(msg['file']+"*")
+        if sample_file:= next(files, None):
+            output_dict[msg['name']] = str(sample_file)
+        else:
+            output_dict[st['name']] = None
+
+        # results_dir = Path().cwd()
+        # files = []
+        # parent = [None]
+        # for afile in results_dir.rglob("*"):
+        #     if afile.is_file():
+        #         new_parent = afile.parent.relative_to(results_dir)
+        #         if parent[-1] != new_parent:
+        #             parent += [new_parent]
+        #         files += [str(afile)]
+        #         print(afile.name,new_parent,len(files),len(parent))
+        # output_dict["files"] = files
+        with open(Path(self.results_dir, "qgis_log.html"), "w") as f:
+            f.write(feedback.htmlLog())
+        QgsMessageLog.logMessage(f"{self.name()}, out: {self.output_dict}", tag=TAG, level=Qgis.Info)
+        return self.output_dict
 
     def icon(self):
         return QIcon(":/plugins/fireanalyticstoolbox/assets/forestfire.svg")
