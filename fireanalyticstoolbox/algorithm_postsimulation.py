@@ -393,7 +393,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
         # build digraphs
         for count, afile in enumerate(files):
             sim_id = search("\\d+", afile.stem).group(0)
-            data = loadtxt(afile, delimiter=",", dtype=[("i", int32), ("j", int32), ("time", int32)], usecols=(0, 1, 2))
+            data = loadtxt(afile, delimiter=",", dtype=int32, usecols=(0, 1, 2), ndmin=2)
             feedback.pushDebugInfo(f"simulation id: {sim_id}, edges: {len(data)}")
             # build line add to sink
             for i, j, time in data:
