@@ -40,17 +40,17 @@ __copyright__ = "(C) 2023 by Fernando Badilla Veliz - Fire2a.com"
 
 __revision__ = "$Format:%H$"
 
+from os import sep
 from pathlib import Path
 from re import findall, search
 from typing import Any
-from os import sep
 
 import processing
 from fire2a.raster import get_geotransform, id2xy, read_raster, transform_coords_to_georef
 from grassprovider.Grass7Utils import Grass7Utils
 from matplotlib import colormaps
 from matplotlib.colors import to_rgba_array
-from numpy import array, dtype, float32, fromiter, int16, int32, linspace, loadtxt, argsort, array, unique
+from numpy import argsort, array, dtype, float32, fromiter, int16, int32, linspace, loadtxt, unique
 from osgeo import gdal
 from osgeo.gdal import GA_ReadOnly, GCI_PaletteIndex, GDT_Float32, GDT_Int16
 from qgis.core import (Qgis, QgsApplication, QgsColorRampShader, QgsFeature, QgsFeatureSink, QgsField, QgsFields,
@@ -229,8 +229,8 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         for sim_out in SIM_OUTPUTS:
             self.addParameter(
                 QgsProcessingParameterBoolean(
-                    name=sim_out['name'].replace(" ",""),
-                    description=sim_out['name'],
+                    name=sim_out["name"].replace(" ", ""),
+                    description=sim_out["name"],
                     defaultValue=True,
                     optional=False,
                 )
@@ -459,6 +459,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
     BASE_LAYER = "BaseLayer"
     DATA_TYPE = "DataType"
     OUTPUT_RASTER = "OutputRaster"
+    OUTPUT_RASTER_2 = "OutputRasterStats"
 
     dirs = ["FlameLength", "Intensity", "RateOfSpread", "CrownFractionBurn", "CrownFire"]
     names = ["FL", "Intensity", "ROSFile", "Cfb", "Crown"]
@@ -481,7 +482,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
                 optional=False,
             )
         )
-        known = [dirn+sep+name for dirn, name in zip(self.dirs, self.names)]
+        known = [dirn + sep + name for dirn, name in zip(self.dirs, self.names)]
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.IN_STAT,
@@ -520,38 +521,42 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
                 # createByDefault=True,
             )
         )
+        self.addParameter(
+            QgsProcessingParameterRasterDestination(
+                name=self.OUTPUT_RASTER_2,
+                description=self.tr("Output raster mean & std"),
+                # defaultValue=None,
+                optional=True,
+                createByDefault=True,
+            )
+        )
 
     def processAlgorithm(self, parameters, context, feedback):
         """proc algo"""
-        feedback.pushDebugInfo("processAlgorithm start")
+        feedback.pushDebugInfo(f"processAlgorithm start, parameters: {parameters}, type: {type(parameters)}")
         # get base map
         base_raster = self.parameterAsRasterLayer(parameters, self.BASE_LAYER, context)
-        dataset = gdal.Open(base_raster.publicSource(), gdal.GA_ReadOnly)
-        if dataset is None:
-            raise FileNotFoundError(f"{base_raster} at {base_raster.publicSource()}")
-        GT = dataset.GetGeoTransform()
-        # "Projection": ds.GetProjection(),
-        # "RasterCount": ds.RasterCount,
-        W = dataset.RasterXSize
-        H = dataset.RasterYSize
-
+        _, raster_props = read_raster(base_raster.publicSource(), data=False)
+        feedback.pushDebugInfo(f"base_raster.crs(): {base_raster.crs()}")
+        GT = raster_props["Transform"]
+        W = raster_props["RasterXSize"]
+        H = raster_props["RasterYSize"]
         # get data
         files, stat_dir, stat_name, ext = get_files(Path(self.parameterAsString(parameters, self.IN_STAT, context)))
         if files == []:
             feedback.reportError(f"{stat_dir} does not contain any non-empty '{stat_name}[0-9]*{ext}' files")
             raise QgsProcessingException(f"{stat_dir} does not contain any non-empty '{stat_name}[0-9]*{ext}' files")
         feedback.pushDebugInfo(f"{len(files)} files, first: {files[0]}...")
-
-        # raster
+        # out raster
         output_raster_filename = self.parameterAsOutputLayer(parameters, self.OUTPUT_RASTER, context)
         raster_format = Grass7Utils.getRasterFormatFromFilename(output_raster_filename)
         feedback.pushDebugInfo(f"output_raster: {output_raster_filename}, {raster_format}")
-
+        # dtype
         data_type = self.parameterAsEnum(parameters, self.DATA_TYPE, context)
         feedback.pushDebugInfo(f"data_type: {data_type}, {self.gdal_dt[data_type]}, {self.numpy_dt[data_type]}")
-
+        # create
         dst_ds = gdal.GetDriverByName(raster_format).Create(
-            output_raster_filename, W, H, len(files) + 1, self.gdal_dt[data_type]
+            output_raster_filename, W, H, len(files), self.gdal_dt[data_type]
         )
         dst_ds.SetGeoTransform(GT)  # specify coords
         dst_ds.SetProjection(base_raster.crs().authid())  # export coords to file
@@ -565,7 +570,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
             # retval = dst_ds.GetRasterBand(count + 1)
             # feedback.pushDebugInfo(f"retval nodata: {retval}")
             # colors = get_color_table(feedback, data[-1].min(), data[-1].max(), cm=colormaps.get("magma"))
-            band = dst_ds.GetRasterBand(count + 2)
+            band = dst_ds.GetRasterBand(count + 1)
             # if 0 != band.SetDescription(f"simulation id: {sim_id}"):
             #     feedback.pushWarning(f"SetDescription failed for {band}")
             # TODO
@@ -592,17 +597,9 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
             # band = None
             # colors = None
             feedback.setProgress(int(count * len(files)))
-        # write mean
         data = array(data)
-        band = dst_ds.GetRasterBand(1)
-        if 0 != band.SetNoDataValue(0):
-            feedback.pushWarning(f"Set No Data failed for mean band")
-        if 0 != band.WriteArray(data.mean(axis=0)):
-            feedback.pushWarning(f"WriteArray failed for mean band")
-
         dst_ds.FlushCache()  # write to disk
         dst_ds = None
-
         # attach post processor
         layer = output_raster_filename
         display_name = f"{stat_name}_{self.numpy_dt[data_type].__name__}"
@@ -622,9 +619,58 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
                     layer_bands=len(files) + 1,
                 )
             )
+        output_dict = {self.OUTPUT_RASTER: output_raster_filename}
+
+        if len(files) > 1:
+            # out raster
+            output_raster2_filename = self.parameterAsOutputLayer(parameters, self.OUTPUT_RASTER_2, context)
+            raster_format2 = Grass7Utils.getRasterFormatFromFilename(output_raster2_filename)
+            feedback.pushDebugInfo(f"output_raster2: {output_raster2_filename}, {raster_format2}")
+            # create
+            dst_ds2 = gdal.GetDriverByName(raster_format2).Create(
+                output_raster2_filename, W, H, 2, self.gdal_dt[data_type]
+            )
+            dst_ds2.SetGeoTransform(GT)  # specify coords
+            dst_ds2.SetProjection(base_raster.crs().authid())  # export coords to file
+            band = dst_ds2.GetRasterBand(1)
+            # write mean
+            band = dst_ds2.GetRasterBand(1)
+            if 0 != band.SetNoDataValue(0):
+                feedback.pushWarning(f"Set No Data failed for mean band")
+            if 0 != band.WriteArray(data.mean(axis=0)):
+                feedback.pushWarning(f"WriteArray failed for mean band")
+            band = dst_ds2.GetRasterBand(2)
+            if 0 != band.SetNoDataValue(0):
+                feedback.pushWarning(f"Set No Data failed for mean band")
+            if 0 != band.WriteArray(data.std(axis=0)):
+                feedback.pushWarning(f"WriteArray failed for mean band")
+            dst_ds2.FlushCache()  # write to disk
+            dst_ds2 = None
+            output_dict[self.OUTPUT_RASTER_2] = output_raster2_filename
+            # attach post processor
+            # layer = output_raster_filename
+            # display_name = f"stats_{stat_name}_{self.numpy_dt[data_type].__name__}"
+            # context.addLayerToLoadOnCompletion(
+            #    layer,
+            #    context.LayerDetails(display_name, context.project(), display_name),
+            # )
+            # if True:  # context.willLoadLayerOnCompletion(layer):
+            #    context.layerToLoadOnCompletionDetails(layer).setPostProcessor(
+            #        # RasterPostProcessor(display_name, (0, 0, 255), (255, 0, 0))
+            #        run_alg_styler(
+            #            display_name,
+            #            (68, 1, 84),
+            #            (253, 231, 37),
+            #            layer_min_val=data.min(),
+            #            layer_max_val=data.max(),
+            #            layer_bands=len(files) + 1,
+            #        )
+            #    )
+        else:
+            output_dict[self.OUTPUT_RASTER_2] = None
         feedback.pushDebugInfo(f"finished")
 
-        return {self.OUTPUT_RASTER: output_raster_filename}
+        return output_dict
 
     # def postProcessAlgorithm(self, context, feedback):
     #     """Called after processAlgorithm, use it to load the layer and set the symbology"""
@@ -653,15 +699,18 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
     def displayName(self):
         return self.tr("Spatial Statistic")
 
+
 class ScarSIMPP(QgsProcessingAlgorithm):
-    """ Fire scar Simulation Post Processing Algorithm"""
+    """Fire scar Simulation Post Processing Algorithm"""
 
     IN_SCAR = "SampleScarFile"
     BASE_LAYER = "BaseLayer"
     OUTPUT_RASTER = "OutputRaster"
 
     def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
-        files, scar_dir, scar_name, ext = get_scar_files(Path(self.parameterAsString(parameters, self.IN_SCAR, context)))
+        files, scar_dir, scar_name, ext = get_scar_files(
+            Path(self.parameterAsString(parameters, self.IN_SCAR, context))
+        )
         if files == []:
             return False, f"{scar_dir} does not contain any non-empty '{scar_name}[0-9]*{ext}' files"
         return True, ""
@@ -703,12 +752,11 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         feedback.pushDebugInfo("processAlgorithm start")
         # get base map
         base_raster = self.parameterAsRasterLayer(parameters, self.BASE_LAYER, context)
-        dataset = gdal.Open(base_raster.publicSource(), gdal.GA_ReadOnly)
-        if dataset is None:
-            raise FileNotFoundError(f"{base_raster} at {base_raster.publicSource()}")
-        GT = dataset.GetGeoTransform()
-        W = dataset.RasterXSize
-        H = dataset.RasterYSize
+        _, raster_props = read_raster(base_raster.publicSource(), data=False)
+        feedback.pushDebugInfo(f"base_raster.crs(): {base_raster.crs()}")
+        GT = raster_props["Transform"]
+        W = raster_props["RasterXSize"]
+        H = raster_props["RasterYSize"]
         # get IN_SCAR -> grids, final_grids
         sample_file = Path(self.parameterAsString(parameters, self.IN_SCAR, context))
         ext = sample_file.suffix
@@ -724,13 +772,13 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         else:
             raise ValueError(f"sample_file: {sample_file} does not contain a number at the end")
         parent1name = parent1.name[: -len(num)]
-        file_gen = parent2.rglob(parent1name+"[0-9]*"+sep+file_name+"[0-9]*"+ext)
+        file_gen = parent2.rglob(parent1name + "[0-9]*" + sep + file_name + "[0-9]*" + ext)
         files = []
         sim_id = []
         per_id = []
         for afile in file_gen:
             if afile.is_file() and afile.stat().st_size > 0:
-                print('afile', afile, afile.parent.name,afile.stem )
+                print("afile", afile, afile.parent.name, afile.stem)
                 files += [afile.relative_to(parent2)]
                 sim_id += [search("(\\d+)$", str(afile.parent.name)).group()]
                 per_id += [search("(\\d+)$", str(afile.stem)).group()]
@@ -741,11 +789,11 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         # unique sorts
         simulations = unique(sim_id)
         # files,sim_id,per_id
-        grids = [] 
+        grids = []
         final_grids = []
-        for s in simulations: 
-            sim_files = files[sim_id==s]
-            sim_periods = per_id[sim_id==s]
+        for s in simulations:
+            sim_files = files[sim_id == s]
+            sim_periods = per_id[sim_id == s]
             # final
             final_grids += [[sim_files[sim_periods.argmax()], s, sim_periods.max()]]
             # sort
@@ -764,9 +812,9 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         dst_ds.SetProjection(base_raster.crs().authid())  # export coords to file
 
         data = []
-        for i,(afile,sim,per) in enumerate(final_grids):
+        for i, (afile, sim, per) in enumerate(final_grids):
             feedback.pushDebugInfo(f"simulation id: {sim}, period: {period}, file: {afile}")
-            data += [ loadtxt( Path(parent2,afile) , delimiter=',', dtype=int16)]
+            data += [loadtxt(Path(parent2, afile), delimiter=",", dtype=int16)]
             band = dst_ds.GetRasterBand(i + 1)
             band.SetUnitType("burned")
             if 0 != band.SetNoDataValue(0):
@@ -818,6 +866,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
 
     def createInstance(self):
         return ScarSIMPP()
+
 
 def run_alg_styler(display_name, layer_color1, layer_color2, layer_min_val=0, layer_max_val=1, layer_bands=1):
     """Create a New Post Processor class and returns it"""
@@ -884,6 +933,7 @@ def get_files(sample_file: Path) -> list[list[Path], Path, str, str]:
     # QgsMessageLog.logMessage(f"files: {files}, adir: {adir}, aname: {aname}, ext: {ext}", "fire2a", Qgis.Info)
     return files, adir, aname, ext
 
+
 def get_scar_files(sample_file: Path) -> list[list[Path], Path, str, str]:
     """Get a list of files with the same name (+ any digit) and extension and the directory and name of the sample file
     sample_file = Path('/home/fdo/source/C2F-W/data/Vilopriu_2013/firesim_231001_145657/results/Grids/Grids1/ForestGrid00.csv')
@@ -901,7 +951,7 @@ def get_scar_files(sample_file: Path) -> list[list[Path], Path, str, str]:
     else:
         raise ValueError(f"sample_file: {sample_file} does not contain a number at the end")
     parent1name = parent1.name[: -len(num)]
-    file_gen = parent2.rglob(parent1name+"[0-9]*"+sep+file_name+"[0-9]*"+ext)
+    file_gen = parent2.rglob(parent1name + "[0-9]*" + sep + file_name + "[0-9]*" + ext)
     files = []
     for afile in sorted(file_gen):
         if afile.is_file() and afile.stat().st_size > 0:
