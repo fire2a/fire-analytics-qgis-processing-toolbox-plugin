@@ -374,7 +374,6 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
         fields = QgsFields()
         fields.append(QgsField(name="simulation", type=QVariant.Int, len=10))
         fields.append(QgsField(name="time", type=QVariant.Int, len=10))
-        feedback.pushDebugInfo(f"base_raster.crs(): {base_raster.crs()}")
         # TODO remove (,)
         (sink, dest_id) = self.parameterAsSink(
             parameters,
