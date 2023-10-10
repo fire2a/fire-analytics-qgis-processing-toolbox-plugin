@@ -546,6 +546,11 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
             feedback.reportError(f"{stat_dir} does not contain any non-empty '{stat_name}[0-9]*{ext}' files")
             raise QgsProcessingException(f"{stat_dir} does not contain any non-empty '{stat_name}[0-9]*{ext}' files")
         feedback.pushDebugInfo(f"{len(files)} files, first: {files[0]}...")
+        # infer dimensional units
+        if unit:=[item["unit"] for item in STATS if item["file"] == stat_name]:
+            unit = unit[0]
+        else:
+            unit = None
         # out raster
         output_raster_filename = self.parameterAsOutputLayer(parameters, self.OUTPUT_RASTER, context)
         raster_format = Grass7Utils.getRasterFormatFromFilename(output_raster_filename)
@@ -566,21 +571,20 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
             sim_id = search("\\d+", afile.stem).group(0)
             data += [loadtxt(afile, dtype=self.numpy_dt[data_type], skiprows=6)]
             feedback.pushDebugInfo(f"simulation id: {sim_id}, data: {data[-1].shape}")
-            # retval = dst_ds.GetRasterBand(count + 1)
-            # feedback.pushDebugInfo(f"retval nodata: {retval}")
-            # colors = get_color_table(feedback, data[-1].min(), data[-1].max(), cm=colormaps.get("magma"))
             band = dst_ds.GetRasterBand(count + 1)
             # if 0 != band.SetDescription(f"simulation id: {sim_id}"):
             #     feedback.pushWarning(f"SetDescription failed for {band}")
             # TODO
             # r"""SetUnitType(Band self, char const * val) -> CPLErr"""
-            # band.SetUnitType("m/s")
+            if unit:
+                band.SetUnitType(unit)
             # r"""SetStatistics(Band self, double min, double max, double mean, double stddev) -> CPLErr"""
             # NOT THIS : band.SetStatistics(data[-1].min(), data[-1].max(), data[-1].mean(), data[-1].std())
             # r"""SetCategoryNames(Band self, char ** papszCategoryNames) -> CPLErr"""
             # band.SetCategoryNames(["min", "max", "mean", "stddev"])
             # ds.SetMetadata({"X_BAND": "1" }, "GEOLOCATION")
             # band.SetCategoryNames([f"simulation id: {sim_idx}"])
+            # colors = get_color_table(feedback, data[-1].min(), data[-1].max(), cm=colormaps.get("magma"))
             # feedback.pushDebugInfo(f"colors: {colors} {colors.GetCount()}, {data[-1].min()}, {data[-1].max()}")
             # if 0 != band.SetRasterColorInterpretation(GCI_PaletteIndex):
             #     feedback.pushWarning(f"SetRasterColorInterpretation failed for {band}")
