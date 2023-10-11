@@ -38,7 +38,7 @@ METRICS = [
     "Downstream Protection Value",
 ]
 NAME = {
-    "layer_group": "Output Group",
+    "layer_group": "Simulator Post Processing Group",
     "postsimgroup": "Simulator Post Processing",
     # "IN_LOG": "Log File",
     # "post_sim": "Simulator Post Processing",

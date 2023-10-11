@@ -50,19 +50,19 @@ from fire2a.raster import get_geotransform, id2xy, read_raster, transform_coords
 from grassprovider.Grass7Utils import Grass7Utils
 from matplotlib import colormaps
 from matplotlib.colors import to_rgba_array
-from numpy import argsort, array, dtype, float32, fromiter, int16, int32, linspace, loadtxt, unique
+from numpy import any, argsort, array, dtype, float32, fromiter, int16, int32, linspace, loadtxt, unique
 from osgeo import gdal
 from osgeo.gdal import GA_ReadOnly, GCI_PaletteIndex, GDT_Float32, GDT_Int16
 from qgis.core import (Qgis, QgsApplication, QgsColorRampShader, QgsFeature, QgsFeatureSink, QgsField, QgsFields,
-                       QgsGeometry, QgsGradientColorRamp, QgsLineString, QgsMessageLog, QgsPalettedRasterRenderer,
-                       QgsPoint, QgsProcessing, QgsProcessingAlgorithm, QgsProcessingContext, QgsProcessingException,
-                       QgsProcessingLayerPostProcessorInterface, QgsProcessingParameterBoolean,
+                       QgsGeometry, QgsGradientColorRamp, QgsGraduatedSymbolRenderer, QgsLineString, QgsMessageLog,
+                       QgsPalettedRasterRenderer, QgsPoint, QgsProcessing, QgsProcessingAlgorithm, QgsProcessingContext,
+                       QgsProcessingException, QgsProcessingLayerPostProcessorInterface, QgsProcessingParameterBoolean,
                        QgsProcessingParameterDefinition, QgsProcessingParameterEnum, QgsProcessingParameterFeatureSink,
                        QgsProcessingParameterFile, QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterNumber, QgsProcessingParameterRasterDestination,
                        QgsProcessingParameterRasterLayer, QgsProcessingParameterString,
-                       QgsProcessingParameterVectorLayer, QgsProject, QgsRasterBandStats, QgsRasterLayer,
-                       QgsRasterShader, QgsSingleBandPseudoColorRenderer, QgsTask, QgsVectorLayer)
+                       QgsProcessingParameterVectorLayer, QgsProcessingUtils, QgsProject, QgsRasterBandStats,
+                       QgsRasterLayer, QgsRasterShader, QgsSingleBandPseudoColorRenderer, QgsTask, QgsVectorLayer)
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QColor
 
@@ -148,6 +148,8 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
             Qgis.WkbType.Point,
             base_raster.crs(),
         )
+        feedback.pushDebugInfo(f"dest_id: {dest_id}, type: {type(dest_id)}")
+        feedback.pushDebugInfo(f"sink: {sink}, type: {type(sink)}, dir: {dir(sink)}")
         # parse log file
         simulation_id, ignition_cell = fromiter(
             findall("ignition point for Year [0-9]*, sim ([0-9]+): ([0-9]+)", log_text), dtype=dtype((int32, 2))
@@ -174,6 +176,13 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
             feedback=feedback,
             is_child_algorithm=True,
         )
+        if context.willLoadLayerOnCompletion(dest_id):
+            layer = QgsProcessingUtils.mapLayerFromString(dest_id, context)
+            layer_details = context.LayerDetails(
+                layer.name(), context.project(), dest_id, QgsProcessingUtils.LayerHint.Vector
+            )
+            layer_details.groupName = NAME["layer_group"]
+            context.addLayerToLoadOnCompletion(dest_id, layer_details)
         return {self.OUT_LAYER: dest_id}
 
     def tr(self, string):
@@ -373,7 +382,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
         # set output layer
         fields = QgsFields()
         fields.append(QgsField(name="simulation", type=QVariant.Int, len=10))
-        fields.append(QgsField(name="period", type=QVariant.Int, len=10))
+        fields.append(QgsField(name="time", type=QVariant.Int, len=10))
         # TODO remove (,)
         (sink, dest_id) = self.parameterAsSink(
             parameters,
@@ -402,9 +411,9 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
                 j_x_px, j_y_ln = id2xy(j - 1, W, H)
                 j_x_geo, j_y_geo = transform_coords_to_georef(j_x_px + 0.5, j_y_ln + 0.5, GT)
                 # feedback.pushDebugInfo(f"j_x_geo, j_y_geo: {j_x_geo}, {j_y_geo}, time: {time}")
-                # TODO id = int(f"{sim_idx.zfill}_{i.zfill...}_{j}")
+                # TODO id = int(f"{str(sim_id).zfill(total_sims)}_{i.zfill...}_{j}")
                 feature = QgsFeature(fields)
-                feature.setId(int(sim_id))
+                # feature.setId(int(sim_id))
                 feature.setAttributes([int(sim_id), int(time)])
                 feature.setGeometry(QgsLineString([QgsPoint(i_x_geo, i_y_geo), QgsPoint(j_x_geo, j_y_geo)]))
                 sink.addFeature(feature, QgsFeatureSink.FastInsert)
@@ -412,15 +421,16 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
                 if feedback.isCanceled():
                     break
             feedback.setProgress(int(count * len(files)))
-        # style layer
-        processing.run(
-            "qgis:setstyleforvectorlayer",
-            {"INPUT": dest_id, "STYLE": str(Path(assets_dir, "messages.qml"))},
-            context=context,
-            feedback=feedback,
-            is_child_algorithm=True,
-        )
-        # self.dest_id = dest_id
+
+        if context.willLoadLayerOnCompletion(dest_id):
+            layer = QgsProcessingUtils.mapLayerFromString(dest_id, context)
+            layer_details = context.LayerDetails(
+                layer.name(), context.project(), dest_id, QgsProcessingUtils.LayerHint.Vector
+            )
+            layer_details.groupName = NAME["layer_group"]
+            context.addLayerToLoadOnCompletion(dest_id, layer_details)
+            context.layerToLoadOnCompletionDetails(dest_id).setPostProcessor(run_alg_styler_propagation())
+
         return {self.OUTPUT_LAYER: dest_id}
 
     # def postProcessAlgorithm(self, context, feedback):
@@ -461,6 +471,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
     OUTPUT_RASTER_2 = "OutputRasterStats"
     gdal_dt = [GDT_Float32, GDT_Int16]
     numpy_dt = [float32, int16]
+    dt_string = ["float32", "int16"]
 
     def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
         files, stat_dir, stat_name, ext = get_files(Path(self.parameterAsString(parameters, self.IN_STAT, context)))
@@ -499,11 +510,11 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
                 "data type\nSpeed-up processing and lower memory requirements by casting to integers\n(Crown is"
                 " integer)"
             ),
-            options=list(map(lambda x: x.__name__, self.numpy_dt)),
+            options=self.dt_string,
             allowMultiple=False,
-            defaultValue=list(map(lambda x: x.__name__, self.numpy_dt))[0],
+            defaultValue="float32",
             optional=False,
-            usesStaticStrings=True,
+            usesStaticStrings=False,
         )
         qppe.setFlags(qppe.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(qppe)
@@ -604,15 +615,12 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         if context.willLoadLayerOnCompletion(output_raster_filename):
             # attach post processor
             display_name = f"{stat_name}_{self.numpy_dt[data_type_idx].__name__}"
-            context.addLayerToLoadOnCompletion(
-                output_raster_filename,
-                context.LayerDetails(display_name, context.project(), display_name),
-            )
+            layer_details = context.LayerDetails(display_name, context.project(), display_name)
+            layer_details.groupName = NAME["layer_group"]
+            context.addLayerToLoadOnCompletion(output_raster_filename, layer_details)
             context.layerToLoadOnCompletionDetails(output_raster_filename).setPostProcessor(
                 run_alg_styler(
                     display_name,
-                    (68, 1, 84),
-                    (253, 231, 37),
                     layer_min_val=data.min(),
                     layer_max_val=data.max(),
                     layer_bands=len(files) + 1,
@@ -651,6 +659,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
             if context.willLoadLayerOnCompletion(output_raster2_filename):
                 layer_details = context.layerToLoadOnCompletionDetails(output_raster2_filename)
                 layer_details.name = f"{stat_name}_mean&std_{self.numpy_dt[data_type_idx].__name__}"
+                layer_details.groupName = NAME["layer_group"]
         else:
             output_dict[self.OUTPUT_RASTER_2] = None
         feedback.pushDebugInfo(f"finished")
@@ -784,6 +793,8 @@ class ScarSIMPP(QgsProcessingAlgorithm):
             # sort
             sorted_periods = argsort(sim_periods)
             grids += [[sim_files[sorted_periods], s, sim_periods[sorted_periods]]]
+        # feedback.pushDebugInfo(f"final_grids: {final_grids}")
+        # feedback.pushDebugInfo(f"grids: {grids}")
 
         # raster
         output_raster_filename = self.parameterAsOutputLayer(parameters, self.OUTPUT_RASTER, context)
@@ -791,11 +802,12 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         feedback.pushDebugInfo(f"output_raster: {output_raster_filename}, {raster_format}")
 
         dst_ds = gdal.GetDriverByName(raster_format).Create(
-            output_raster_filename, W, H, len(final_grids) + 1, GDT_Int16
-        )
+            output_raster_filename, W, H, len(final_grids), GDT_Int16
+        )  #  + 1 bands?
         dst_ds.SetGeoTransform(GT)  # specify coords
         dst_ds.SetProjection(base_raster.crs().authid())  # export coords to file
 
+        feedback.setProgressText(f"Processing final scars {len(final_grids)} files")
         data = []
         for i, (afile, sim, per) in enumerate(final_grids):
             feedback.pushDebugInfo(f"simulation id: {sim}, period: {per}, file: {afile}")
@@ -808,16 +820,58 @@ class ScarSIMPP(QgsProcessingAlgorithm):
                 feedback.pushWarning(f"WriteArray failed for {afile}")
             if feedback.isCanceled():
                 break
+            feedback.setProgress(int(i * len(final_grids)))
         data = array(data)
         dst_ds.FlushCache()  # write to disk
         dst_ds = None
         # rename if showing
         if context.willLoadLayerOnCompletion(output_raster_filename):
             layer_details = context.layerToLoadOnCompletionDetails(output_raster_filename)
+            layer_details.setPostProcessor(run_alg_styler_bin("Final Scar(s)"))
             layer_details.groupName = NAME["layer_group"]
-            layer_details.setPostProcessor(run_alg_styler_bin("final_grids_fire_scar"))
-        feedback.pushDebugInfo(f"finished")
+        feedback.pushDebugInfo(f"propagation final scar finished")
 
+        # TODO
+        # msg = f"Processing propagation scars {len(grids)} files"
+        # feedback.setProgressText(msg)
+        # feedback.pushDebugInfo(msg)
+        # orfnp = Path(output_raster_filename)
+        # name, suffix = orfnp.stem, orfnp.suffix
+        # layer_details = []
+        # for i, (files, sim, pers) in enumerate(grids):
+        #     feedback.setProgress(int(i * len(final_grids)))
+        #     file_name = name + "_propagation_" + str(sim) + suffix
+        #     dst_ds = gdal.GetDriverByName(raster_format).Create(file_name, W, H, len(files), GDT_Int16)
+        #     dst_ds.SetGeoTransform(GT)  # specify coords
+        #     dst_ds.SetProjection(base_raster.crs().authid())  # export coords to file
+        #     for j, (afile, per) in enumerate(zip(files, pers)):
+        #         feedback.pushDebugInfo(f"simulation id: {sim}, period: {per}, file: {afile}")
+        #         data = loadtxt(Path(parent2, afile), delimiter=",", dtype=int16)
+        #         if not any(data == 1):
+        #             feedback.pushWarning(f"no fire in {afile} warning! TODO?")
+        #         band = dst_ds.GetRasterBand(j + 1)
+        #         band.SetUnitType("burned")
+        #         if 0 != band.SetNoDataValue(0):
+        #             feedback.pushWarning(f"Set No Data failed for {afile}")
+        #         if 0 != band.WriteArray(data):
+        #             feedback.pushWarning(f"WriteArray failed for {afile}")
+        #         if feedback.isCanceled():
+        #             break
+        #         band = None
+        #         data = None
+        #     dst_ds.FlushCache()  # write to disk
+        #     dst_ds = None
+        #     layer_name = f"propagation_{sim}"
+        #     layer_details += [
+        #         QgsProcessingContext.LayerDetails(
+        #             file_name, context.project(), file_name, QgsProcessingUtils.LayerHint.Raster
+        #         )
+        #     ]
+        #     layer_details[-1].groupName = NAME["layer_group"]
+        #     layer_details[-1].setPostProcessor(run_alg_styler_bin(layer_name))
+        #     context.addLayerToLoadOnCompletion(file_name, layer_details[-1])
+
+        feedback.pushDebugInfo(f"finished")
         return {self.OUTPUT_RASTER: output_raster_filename}
 
     def name(self):
@@ -839,11 +893,40 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         return ScarSIMPP()
 
 
+def run_alg_styler_propagation():
+    """Create a New Post Processor class and returns it"""
+
+    class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
+        instance = None
+
+        def postProcessLayer(self, layer, context, feedback):
+            if layer.isValid():
+                processing.run(
+                    "qgis:setstyleforvectorlayer",
+                    {"INPUT": layer, "STYLE": str(Path(assets_dir, "messages.qml"))},
+                    context=context,
+                    feedback=feedback,
+                    is_child_algorithm=True,
+                )
+                renderer = layer.renderer()
+                renderer.updateClasses(layer, QgsGraduatedSymbolRenderer.Mode.Jenks, 10)
+                # enum : EqualInterval , Quantile , Jenks , StdDev , Pretty , Custom
+                # layer.triggerRepaint()
+            else:
+                feedback.pushInfo(f"Layer not valid: {self.name}")
+
+        # Hack to work around sip bug!
+        @staticmethod
+        def create() -> "LayerPostProcessor":
+            LayerPostProcessor.instance = LayerPostProcessor()
+            return LayerPostProcessor.instance
+
+    return LayerPostProcessor.create()
+
+
 def run_alg_styler_bin(display_name, layer_bands=1):
     """Create a New Post Processor class and returns it"""
 
-    # Just simply creating a new instance of the class was not working
-    # for details see https://gis.stackexchange.com/questions/423650/qgsprocessinglayerpostprocessorinterface-only-processing-the-last-layer
     class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
         instance = None
         name = display_name
@@ -876,11 +959,15 @@ def run_alg_styler_bin(display_name, layer_bands=1):
     return LayerPostProcessor.create()
 
 
-def run_alg_styler(display_name, layer_color1, layer_color2, layer_min_val=0, layer_max_val=1, layer_bands=1):
-    """Create a New Post Processor class and returns it"""
+def run_alg_styler(
+    display_name, layer_color1=(68, 1, 84), layer_color2=(253, 231, 37), layer_min_val=0, layer_max_val=1, layer_bands=1
+):
+    """Create a New Post Processor class and returns it
 
     # Just simply creating a new instance of the class was not working
     # for details see https://gis.stackexchange.com/questions/423650/qgsprocessinglayerpostprocessorinterface-only-processing-the-last-layer
+    """
+
     class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
         instance = None
         name = display_name
