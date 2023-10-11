@@ -71,7 +71,8 @@ jobs:
          rm -rf fireanalyticstoolbox/simulator/C2F/.git*
          git add fireanalyticstoolbox/cbc
          git add fireanalyticstoolbox/simulator/C2F
-         rm -rf fireanalyticstoolbox/fire2a/.git*
+         mv fireanalyticstoolbox/fire2a/src/fire2a/* fireanalyticstoolbox/fire2a
+         rm -rf fireanalyticstoolbox/fire2a/.git* fireanalyticstoolbox/fire2a/src
          git add fireanalyticstoolbox/fire2a
          lestash=`git stash create`
          git archive --output "fireanalyticstoolbox_${{ github.ref_name }}.zip" $lestash fireanalyticstoolbox
