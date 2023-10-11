@@ -45,6 +45,14 @@ jobs:
           Cell2FireC/DataGeneratorC.py
         sparse-checkout-cone-mode: false
 
+    - name: CheckoutFire2a-lib
+      uses: actions/checkout@master
+      with:
+        repository: "fire2a/fire2a-lib" 
+        path: "fireanalyticstoolbox"
+        sparse-checkout: src/fire2a
+        sparse-checkout-cone-mode: false
+
           # - name: download cell2fire
           #   uses: robinraju/release-downloader@v1.8
           #   with:
