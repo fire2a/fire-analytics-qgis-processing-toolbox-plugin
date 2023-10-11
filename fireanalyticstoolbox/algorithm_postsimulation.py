@@ -182,6 +182,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
                 layer.name(), context.project(), dest_id, QgsProcessingUtils.LayerHint.Vector
             )
             layer_details.groupName = NAME["layer_group"]
+            layer_details.layerSortKey = 0
             context.addLayerToLoadOnCompletion(dest_id, layer_details)
         return {self.OUT_LAYER: dest_id}
 
@@ -428,6 +429,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
                 layer.name(), context.project(), dest_id, QgsProcessingUtils.LayerHint.Vector
             )
             layer_details.groupName = NAME["layer_group"]
+            layer_details.layerSortKey = 1
             context.addLayerToLoadOnCompletion(dest_id, layer_details)
             context.layerToLoadOnCompletionDetails(dest_id).setPostProcessor(run_alg_styler_propagation())
 
@@ -617,6 +619,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
             display_name = f"{stat_name}_{self.numpy_dt[data_type_idx].__name__}"
             layer_details = context.LayerDetails(display_name, context.project(), display_name)
             layer_details.groupName = NAME["layer_group"]
+            layer_details.layerSortKey = 2
             context.addLayerToLoadOnCompletion(output_raster_filename, layer_details)
             context.layerToLoadOnCompletionDetails(output_raster_filename).setPostProcessor(
                 run_alg_styler(
@@ -660,6 +663,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
                 layer_details = context.layerToLoadOnCompletionDetails(output_raster2_filename)
                 layer_details.name = f"{stat_name}_mean&std_{self.numpy_dt[data_type_idx].__name__}"
                 layer_details.groupName = NAME["layer_group"]
+                layer_details.layerSortKey = 3
         else:
             output_dict[self.OUTPUT_RASTER_2] = None
         feedback.pushDebugInfo(f"finished")
