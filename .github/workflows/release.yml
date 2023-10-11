@@ -49,8 +49,11 @@ jobs:
       uses: actions/checkout@master
       with:
         repository: "fire2a/fire2a-lib" 
-        path: "fireanalyticstoolbox"
-        sparse-checkout: src/fire2a
+        path: "fireanalyticstoolbox/fire2a"
+        sparse-checkout: |
+          src/fire2a/raster.py
+          src/fire2a/__init__.py
+
           # sparse-checkout-cone-mode: false
 
           # - name: download cell2fire
