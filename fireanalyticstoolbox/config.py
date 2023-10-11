@@ -37,15 +37,16 @@ METRICS = [
     "Betweenness Centrality",
     "Downstream Protection Value",
 ]
-# TODO
-ALGO_NAME = {
-    "IN_LOG": "Log File",
-    "post_sim": "Simulator Post Processing",
-    "messages": "Messages",
-    "statistics": "Statistics",
-    "ignition_points": "Ignition Points",
-    "raster_knapsack": "Raster Knapsack",
-    "clusterize": "Clusterize",
-    "sandbox": "Sandbox",
-    "simulator": "Simulator",
+NAME = {
+    "layer_group": "Output Group",
+    "postsimgroup": "Simulator Post Processing",
+    # "IN_LOG": "Log File",
+    # "post_sim": "Simulator Post Processing",
+    # "messages": "Messages",
+    # "statistics": "Statistics",
+    # "ignition_points": "Ignition Points",
+    # "raster_knapsack": "Raster Knapsack",
+    # "clusterize": "Clusterize",
+    # "sandbox": "Sandbox",
+    # "simulator": "Simulator",
 }
