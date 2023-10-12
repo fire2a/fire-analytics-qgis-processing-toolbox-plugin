@@ -69,10 +69,13 @@ jobs:
          rm fireanalyticstoolbox/cbc/*w64-msvc17*.zip
          # rm fireanalyticstoolbox/simulator/Cell2Fire*.zip
          rm -rf fireanalyticstoolbox/simulator/C2F/.git*
-         git add fireanalyticstoolbox/cbc
-         git add fireanalyticstoolbox/simulator/C2F
          mv fireanalyticstoolbox/fire2a/src/fire2a/* fireanalyticstoolbox/fire2a
          rm -rf fireanalyticstoolbox/fire2a/.git* fireanalyticstoolbox/fire2a/src
+         grep -Rl --include=*py "from fire2a" | tee will.change | xargs -I {} sed -i "s/from fire2a.raster/from .fire2a.raster/" {}
+         cat will.change 
+         rm will.change
+         git add fireanalyticstoolbox/cbc
+         git add fireanalyticstoolbox/simulator/C2F
          git add fireanalyticstoolbox/fire2a
          lestash=`git stash create`
          git archive --output "fireanalyticstoolbox_${{ github.ref_name }}.zip" $lestash fireanalyticstoolbox
