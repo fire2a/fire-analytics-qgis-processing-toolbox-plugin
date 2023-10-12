@@ -299,6 +299,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
                     "propagation_directed_graph",
                     context.project(),
                     "messages",
+                    QgsProcessingUtils.LayerHint.Vector,
                 ),
             )
         # context.temporaryLayerStore().addMapLayer(lyr_out)
@@ -617,7 +618,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         if context.willLoadLayerOnCompletion(output_raster_filename):
             # attach post processor
             display_name = f"{stat_name}_{self.numpy_dt[data_type_idx].__name__}"
-            layer_details = context.LayerDetails(display_name, context.project(), display_name)
+            layer_details = context.LayerDetails(display_name, context.project(), display_name, QgsProcessingUtils.LayerHint.Raster)
             layer_details.groupName = NAME["layer_group"]
             layer_details.layerSortKey = 2
             context.addLayerToLoadOnCompletion(output_raster_filename, layer_details)
@@ -1000,6 +1001,7 @@ def run_alg_styler(
                     fcn.setColorRampItemList(lst)
                     shader = QgsRasterShader()
                     shader.setRasterShaderFunction(fcn)
+                    # windows error argument 1 has unexpected type 'QgsMeshDataProvider'
                     renderer = QgsSingleBandPseudoColorRenderer(prov, band, shader)
                     layer.setRenderer(renderer)
                 # renderer = QgsSingleBandPseudoColorRenderer(layer.dataProvider(), 1, shader)
