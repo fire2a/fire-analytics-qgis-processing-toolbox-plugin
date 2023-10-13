@@ -32,18 +32,19 @@ jobs:
         out-file-path: "fireanalyticstoolbox/cbc"
         extract: true
 
-    - name: CheckoutC2F-W
-      uses: actions/checkout@master
-      with:
-        repository: "fire2a/C2F-W" 
-        path: "fireanalyticstoolbox/simulator/C2F"
-        sparse-checkout: |
-          Cell2FireC/Cell2Fire
-          Cell2FireC/Cell2Fire.exe
-          Cell2FireC/Cell2Fire.Darwin.arm64
-          Cell2FireC/cell2fire.py
-          Cell2FireC/DataGeneratorC.py
-        sparse-checkout-cone-mode: false
+          # - name: CheckoutC2F-W
+          #   uses: actions/checkout@master
+          #   with:
+          #     repository: "fire2a/C2F-W" 
+          #     path: "fireanalyticstoolbox/simulator/C2F"
+          #     sparse-checkout: |
+          #       Cell2FireC/Cell2Fire.exe
+          #       Cell2FireC/Cell2Fire.Linux.x86_64
+          #       Cell2FireC/Cell2Fire.Darwin.x86_64
+          #       Cell2FireC/Cell2Fire.Darwin.arm64
+          #       Cell2FireC/cell2fire.py
+          #       Cell2FireC/DataGeneratorC.py
+          #     sparse-checkout-cone-mode: false
 
     - name: CheckoutFire2a-lib
       uses: actions/checkout@master
@@ -52,26 +53,32 @@ jobs:
         path: "fireanalyticstoolbox/fire2a"
         sparse-checkout: |
           src/fire2a/raster.py
+          src/fire2a/utils.py
           src/fire2a/__init__.py
         sparse-checkout-cone-mode: false
 
-          # - name: download cell2fire
-          #   uses: robinraju/release-downloader@v1.8
-          #   with:
-          #     repository: "fire2a/C2F-W" 
-          #     latest: true
-          #     fileName: "Cell2Fire*.zip"
-          #     out-file-path: "fireanalyticstoolbox/simulator"
-          #     extract: true
+    - name: download cell2fire
+      uses: robinraju/release-downloader@v1.8
+      with:
+        repository: "fire2a/C2F-W" 
+        latest: true
+        fileName: "*.zip"
+        out-file-path: "fireanalyticstoolbox/simulator/C2F"
+        extract: true
+        tarBall: false
+        zipBall: false
 
     - name: git archive
       run: |
          rm fireanalyticstoolbox/cbc/*w64-msvc17*.zip
          # rm fireanalyticstoolbox/simulator/Cell2Fire*.zip
          rm -rf fireanalyticstoolbox/simulator/C2F/.git*
+         rm -rf fireanalyticstoolbox/simulator/C2F/data
+         rm -rf fireanalyticstoolbox/simulator/C2F/Cell2Fire
+         rm -rf fireanalyticstoolbox/simulator/C2F/output
          mv fireanalyticstoolbox/fire2a/src/fire2a/* fireanalyticstoolbox/fire2a
          rm -rf fireanalyticstoolbox/fire2a/.git* fireanalyticstoolbox/fire2a/src
-         grep -Rl --include=*py "from fire2a" | tee will.change | xargs -I {} sed -i "s/from fire2a.raster/from .fire2a.raster/" {}
+         grep -Rl --include=*py "from fire2a" | tee will.change | xargs -I {} sed -i "s/^from fire2a/^from .fire2a/" {}
          cat will.change 
          rm will.change
          git add fireanalyticstoolbox/cbc
