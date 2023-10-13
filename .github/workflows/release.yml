@@ -74,8 +74,10 @@ jobs:
          rm -rf fireanalyticstoolbox/simulator/C2F/.git*
          rm -rf fireanalyticstoolbox/simulator/C2F/data
          rm -rf fireanalyticstoolbox/simulator/C2F/Cell2Fire
-         rm fireanalyticstoolbox/simulator/C2F/Cell2FireC/*[cpp|h|sln|vcxproj]
          rm fireanalyticstoolbox/simulator/C2F/Cell2FireC/makefile*
+         rm fireanalyticstoolbox/simulator/C2F/Cell2FireC/*cpp
+         rm fireanalyticstoolbox/simulator/C2F/Cell2FireC/*h
+         rm fireanalyticstoolbox/simulator/C2F/Cell2FireC/*sln
          rm fireanalyticstoolbox/simulator/C2F/Cell2FireC/*vcxproj*
          rm fireanalyticstoolbox/simulator/C2F/*
          rm -rf fireanalyticstoolbox/simulator/C2F/output
