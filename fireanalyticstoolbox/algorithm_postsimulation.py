@@ -47,6 +47,7 @@ from typing import Any
 
 import processing
 from fire2a.raster import get_geotransform, id2xy, read_raster, transform_coords_to_georef
+from fire2a.utils import loadtxt_nodata
 from grassprovider.Grass7Utils import Grass7Utils
 from matplotlib import colormaps
 from matplotlib.colors import to_rgba_array
@@ -581,7 +582,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         data = []
         for count, afile in enumerate(files):
             sim_id = search("\\d+", afile.stem).group(0)
-            data += [loadtxt(afile, dtype=self.numpy_dt[data_type_idx], skiprows=6)]
+            data += [loadtxt_nodata(afile, dtype=self.numpy_dt[data_type_idx], skiprows=6)]
             feedback.pushDebugInfo(f"simulation id: {sim_id}, data: {data[-1].shape}")
             band = dst_ds.GetRasterBand(count + 1)
             # if 0 != band.SetDescription(f"simulation id: {sim_id}"):
@@ -816,7 +817,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         data = []
         for i, (afile, sim, per) in enumerate(final_grids):
             feedback.pushDebugInfo(f"simulation id: {sim}, period: {per}, file: {afile}")
-            data += [loadtxt(Path(parent2, afile), delimiter=",", dtype=int16)]
+            data += [loadtxt_nodata(Path(parent2, afile), delimiter=",", dtype=int16)]
             band = dst_ds.GetRasterBand(i + 1)
             band.SetUnitType("burned")
             if 0 != band.SetNoDataValue(0):
