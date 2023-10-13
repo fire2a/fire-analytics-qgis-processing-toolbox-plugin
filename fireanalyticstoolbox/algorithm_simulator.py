@@ -116,8 +116,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
 
     def canExecute(self):
         """checks if cell2fire binary is available"""
-        ext = ".exe" if platform_system() == "Windows" else ""
-        c2f_bin = Path(self.c2f_path, f"Cell2Fire{ext}")
+        c2f_bin = Path(self.c2f_path, f"Cell2Fire{get_ext()}")
         if c2f_bin.is_file():
             st = c2f_bin.stat()
             chmod(c2f_bin, st.st_mode | S_IXUSR | S_IXGRP | S_IXOTH)
@@ -631,28 +630,28 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             feedback.pushDebugInfo(f"output: {name} True")
         #
         for st in STATS:
-            files = Path(results_dir, st['dir']).glob(st['file']+"[0-9]*")
+            files = Path(results_dir, st["dir"]).glob(st["file"] + "[0-9]*")
             if sample_file := next(files, None):
-                output_dict[st['name']] = str(sample_file)  
+                output_dict[st["name"]] = str(sample_file)
             else:
-                output_dict[st['name']] = None
+                output_dict[st["name"]] = None
 
         grid = SIM_OUTPUTS[0]
         final_grid = SIM_OUTPUTS[1]
-        files = Path(results_dir).glob(grid['dir']+"[0-9]*"+sep+grid['file']+"[0-9]*")
+        files = Path(results_dir).glob(grid["dir"] + "[0-9]*" + sep + grid["file"] + "[0-9]*")
         if sample_file := next(files, None):
-            output_dict[grid['name']] = str(sample_file)
-            output_dict[final_grid['name']] = str(sample_file)
+            output_dict[grid["name"]] = str(sample_file)
+            output_dict[final_grid["name"]] = str(sample_file)
         else:
-            output_dict[grid['name']] = None
-            output_dict[final_grid['name']] = None
+            output_dict[grid["name"]] = None
+            output_dict[final_grid["name"]] = None
 
         msg = SIM_OUTPUTS[2]
-        files = Path(results_dir, msg['dir']).glob(msg['file']+"*")
-        if sample_file:= next(files, None):
-            output_dict[msg['name']] = str(sample_file)
+        files = Path(results_dir, msg["dir"]).glob(msg["file"] + "*")
+        if sample_file := next(files, None):
+            output_dict[msg["name"]] = str(sample_file)
         else:
-            output_dict[st['name']] = None
+            output_dict[st["name"]] = None
 
         # results_dir = Path().cwd()
         # files = []
@@ -787,3 +786,19 @@ def compare_raster_properties(base: dict, incumbent: dict):
                 ),
             )
     return True, "all ok"
+
+
+def get_ext() -> str:
+    """Get the extension for the executable file based on the platform system and machine"""
+    ext = ""
+    if platform_system() == "Windows":
+        ext = ".exe"
+    else:
+        ext = f".{platform_system()}.{platform_machine()}"
+
+    if ext not in [".exe", ".Linux.x86_64", ".Darwin.arm64", ".Darwin.x86_64"]:
+        QgsMessageLog.logMessage(f"Untested platform: {ext}", tag=TAG, level=Qgis.Warning)
+    if ext not in [".exe", ".Darwin.arm64"]:
+        QgsMessageLog.logMessage(f"Build not automated, may be using old binary: {ext}", tag=TAG, level=Qgis.Warning)
+
+    return ext
