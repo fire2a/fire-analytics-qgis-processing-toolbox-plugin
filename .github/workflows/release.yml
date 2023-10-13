@@ -63,7 +63,7 @@ jobs:
         repository: "fire2a/C2F-W" 
         latest: true
         fileName: "*.zip"
-        out-file-path: "fireanalyticstoolbox/simulator/"
+        out-file-path: "fireanalyticstoolbox/simulator/tmp"
         extract: true
         tarBall: false
         zipBall: false
@@ -71,29 +71,28 @@ jobs:
     - name: git archive
       run: |
          rm fireanalyticstoolbox/cbc/*w64-msvc17*.zip
-         rm -rf fireanalyticstoolbox/simulator/C2F/.git*
-         rm -rf fireanalyticstoolbox/simulator/C2F/data
-         rm -rf fireanalyticstoolbox/simulator/C2F/Cell2Fire
-         rm fireanalyticstoolbox/simulator/C2F/Cell2FireC/makefile*
-         rm fireanalyticstoolbox/simulator/C2F/Cell2FireC/*cpp
-         rm fireanalyticstoolbox/simulator/C2F/Cell2FireC/*h
-         rm fireanalyticstoolbox/simulator/C2F/Cell2FireC/*sln
-         rm fireanalyticstoolbox/simulator/C2F/Cell2FireC/*vcxproj*
-         rm fireanalyticstoolbox/simulator/C2F/*
-         rm -rf fireanalyticstoolbox/simulator/C2F/output
+
+         mkdir  fireanalyticstoolbox/simulator/C2F
+         mv fireanalyticstoolbox/simulator/tmp/C2F/Cell2FireC fireanalyticstoolbox/simulator/tmp/C2F/LICENSE fireanalyticstoolbox/simulator/tmp/C2F/README.md fireanalyticstoolbox/simulator/C2F
+         rm -rf fireanalyticstoolbox/simulator/tmp
+         rm -f fireanalyticstoolbox/simulator/C2F/Cell2FireC/makefile*
+         rm -f fireanalyticstoolbox/simulator/C2F/Cell2FireC/*cpp
+         rm -f fireanalyticstoolbox/simulator/C2F/Cell2FireC/*h
+         rm -f fireanalyticstoolbox/simulator/C2F/Cell2FireC/*sln
+         rm -f fireanalyticstoolbox/simulator/C2F/Cell2FireC/*vcxproj*
+
          mv fireanalyticstoolbox/fire2a/src/fire2a/* fireanalyticstoolbox/fire2a
          rm -rf fireanalyticstoolbox/fire2a/.git* fireanalyticstoolbox/fire2a/src
          grep -Rl --include=*py "from fire2a" | tee will.change | xargs -I {} sed -i "s/^from fire2a/from .fire2a/" {}
          cat will.change 
          rm will.change
+
          git add fireanalyticstoolbox/cbc
          git add fireanalyticstoolbox/simulator/C2F
          git add fireanalyticstoolbox/fire2a
          lestash=`git stash create`
+
          git archive --output "fireanalyticstoolbox_${{ github.ref_name }}.zip" $lestash fireanalyticstoolbox
-         # git archive --prefix=fireanalyticstoolbox/ --add-file=fireanalyticstoolbox/metadata.txt \
-         #          --prefix=fireanalyticstoolbox/cbc --add-file=fireanalyticstoolbox/cbc/* \
-         #          --prefix= --output "fireanalyticstoolbox_${{ github.ref_name }}.zip" HEAD fireanalyticstoolbox
 
     - name: Create Release
       uses: ncipollo/release-action@v1.12.0
