@@ -63,7 +63,7 @@ jobs:
         repository: "fire2a/C2F-W" 
         latest: true
         fileName: "*.zip"
-        out-file-path: "fireanalyticstoolbox/simulator/C2F"
+        out-file-path: "fireanalyticstoolbox/simulator/"
         extract: true
         tarBall: false
         zipBall: false
@@ -71,14 +71,17 @@ jobs:
     - name: git archive
       run: |
          rm fireanalyticstoolbox/cbc/*w64-msvc17*.zip
-         # rm fireanalyticstoolbox/simulator/Cell2Fire*.zip
          rm -rf fireanalyticstoolbox/simulator/C2F/.git*
          rm -rf fireanalyticstoolbox/simulator/C2F/data
          rm -rf fireanalyticstoolbox/simulator/C2F/Cell2Fire
+         rm fireanalyticstoolbox/simulator/C2F/Cell2FireC/*[cpp|h|sln|vcxproj]
+         rm fireanalyticstoolbox/simulator/C2F/Cell2FireC/makefile*
+         rm fireanalyticstoolbox/simulator/C2F/Cell2FireC/*vcxproj*
+         rm fireanalyticstoolbox/simulator/C2F/*
          rm -rf fireanalyticstoolbox/simulator/C2F/output
          mv fireanalyticstoolbox/fire2a/src/fire2a/* fireanalyticstoolbox/fire2a
          rm -rf fireanalyticstoolbox/fire2a/.git* fireanalyticstoolbox/fire2a/src
-         grep -Rl --include=*py "from fire2a" | tee will.change | xargs -I {} sed -i "s/^from fire2a/^from .fire2a/" {}
+         grep -Rl --include=*py "from fire2a" | tee will.change | xargs -I {} sed -i "s/^from fire2a/from .fire2a/" {}
          cat will.change 
          rm will.change
          git add fireanalyticstoolbox/cbc
