@@ -49,8 +49,8 @@ import processing
 from fire2a.raster import get_geotransform, id2xy, read_raster, transform_coords_to_georef
 from fire2a.utils import loadtxt_nodata
 from grassprovider.Grass7Utils import Grass7Utils
-from matplotlib import colormaps
-from matplotlib.colors import to_rgba_array
+# from matplotlib import colormaps
+# from matplotlib.colors import to_rgba_array
 from numpy import any, argsort, array, dtype, float32, fromiter, int16, int32, linspace, loadtxt, unique
 from osgeo import gdal
 from osgeo.gdal import GA_ReadOnly, GCI_PaletteIndex, GDT_Float32, GDT_Int16

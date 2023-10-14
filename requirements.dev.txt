@@ -4,3 +4,4 @@ pylsp-mypy
 python-lsp-black
 pylsp-rope
 qgis-stubs @ git+https://github.com/leonhard-s/qgis-stubs.git
+fire2a-lib @ git+https://github.com/fire2a/fire2a-lib.git
