@@ -226,7 +226,7 @@ tl;dr requirements.txt:
 - https://raw.githubusercontent.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/main/fireanalyticstoolbox/requirements.txt
 NOTICE: Must restart QGIS for the plugin to appear in the processing toolbox panel.</about>
 		<version>0.0.18</version>
-		<qgis_minimum_version>3.2</qgis_minimum_version>
+		<qgis_minimum_version>3.20</qgis_minimum_version>
 		<qgis_maximum_version>6.66</qgis_maximum_version>
 		<homepage>https://fire2a.github.io/docs</homepage>
 		<file_name>fireanalyticstoolbox</file_name>
