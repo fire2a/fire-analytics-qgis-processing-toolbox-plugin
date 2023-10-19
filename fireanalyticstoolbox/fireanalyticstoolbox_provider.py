@@ -34,7 +34,7 @@ from qgis.core import QgsProcessingProvider
 from qgis.PyQt.QtGui import QIcon
 
 from .algorithm_clusterize import ClusterizeAlgorithm
-from .algorithm_postsimulation import IgnitionPointsSIMPP, MessagesSIMPP, PostSimulationAlgorithm, StatisticSIMPP, ScarSIMPP
+from .algorithm_postsimulation import IgnitionPointsSIMPP, MessagesSIMPP, PostSimulationAlgorithm, StatisticSIMPP, ScarSIMPP, BetweennessCentralityMetric
 from .algorithm_raster_knapsack import RasterKnapsackAlgorithm
 from .algorithm_sandbox import SandboxAlgorithm
 from .algorithm_simulator import FireSimulatorAlgorithm

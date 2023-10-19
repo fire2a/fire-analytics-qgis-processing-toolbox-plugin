@@ -40,6 +40,7 @@ METRICS = [
 NAME = {
     "layer_group": "Simulator Post Processing Group",
     "postsimgroup": "Simulator Post Processing",
+    "bc" : "Betweenness Centrality Propagation Metric",
     # "IN_LOG": "Log File",
     # "post_sim": "Simulator Post Processing",
     # "messages": "Messages",
