@@ -49,7 +49,7 @@ from qgis.core import (QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm, Qgs
                        QgsProcessingException, QgsProcessingOutputBoolean, QgsProcessingParameterBoolean,
                        QgsProcessingParameterEnum, QgsProcessingParameterFile, QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterGeometry, QgsProcessingParameterNumber, QgsProcessingParameterRasterLayer,
-                       QgsProcessingParameterVectorLayer, QgsProject, QgsRasterLayer)
+                       QgsProcessingParameterVectorLayer, QgsProject, QgsRasterLayer, QgsUnitTypes)
 from qgis.gui import Qgis
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
@@ -417,8 +417,11 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 continue
             driver = get_gdal_driver_shortname(v)
             if driver != "AAIGrid":
-                return False, f"{k} is not AAIGrid, got {driver}"
+                return False, f'{k} is not AAIGrid, "{v.name()}" is {driver}'
             raster_props = get_qgs_raster_properties(v)
+            if raster_props["units"] != QgsUnitTypes.DistanceMeters:
+                unit_name = Qgis.DistanceUnit(raster_props['units']).name
+                return False, f'{k} units are not meters, "{v.name()}" has "{unit_name}" units, write layer to meters-CRS!'
             ok, msg = compare_raster_properties(fuels_props, raster_props)
             if not ok:
                 return False, msg
@@ -753,6 +756,7 @@ def get_qgs_raster_properties(raster: QgsRasterLayer) -> dict:
         "width": raster.width(),
         "height": raster.height(),
         "crs": raster.crs().authid(),
+        "units": raster.crs().mapUnits(),
         # "extent": raster.extent(),
         "xMinimum": raster.extent().xMinimum(),
         "yMinimum": raster.extent().yMinimum(),
