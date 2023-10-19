@@ -802,7 +802,7 @@ def get_ext() -> str:
 
     if ext not in [".exe", ".Linux.x86_64", ".Darwin.arm64", ".Darwin.x86_64"]:
         QgsMessageLog.logMessage(f"Untested platform: {ext}", tag=TAG, level=Qgis.Warning)
-    if ext not in [".exe", ".Darwin.arm64"]:
+    if ext in [".exe", ".Darwin.arm64"]:
         QgsMessageLog.logMessage(f"Build not automated, may be using old binary: {ext}", tag=TAG, level=Qgis.Warning)
 
     return ext
