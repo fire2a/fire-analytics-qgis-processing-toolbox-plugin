@@ -45,15 +45,17 @@ from pathlib import Path
 from pickle import dump as pickle_dump
 from pickle import load as pickle_load
 from re import findall, search
-from typing import Any
+from typing import Any, Tuple
 
 import processing
 from fire2a.raster import get_geotransform, id2xy, read_raster, transform_coords_to_georef
 from fire2a.utils import loadtxt_nodata
 from grassprovider.Grass7Utils import Grass7Utils
+from networkx import MultiDiGraph, betweenness_centrality
 # from matplotlib import colormaps
 # from matplotlib.colors import to_rgba_array
-from numpy import any, argsort, array, dtype, float32, fromiter, int16, int32, linspace, load, loadtxt, save, unique
+from numpy import (any, argsort, array, dtype, float32, fromiter, int16, int32, loadtxt, min, sqrt, unique, vectorize,
+                   vstack, zeros)
 from osgeo import gdal
 from osgeo.gdal import GA_ReadOnly, GCI_PaletteIndex, GDT_Float32, GDT_Int16
 from qgis.core import (Qgis, QgsApplication, QgsColorRampShader, QgsFeature, QgsFeatureSink, QgsField, QgsFields,
@@ -68,6 +70,7 @@ from qgis.core import (Qgis, QgsApplication, QgsColorRampShader, QgsFeature, Qgs
                        QgsRasterLayer, QgsRasterShader, QgsSingleBandPseudoColorRenderer, QgsTask, QgsVectorLayer)
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QColor
+from scipy import stats as scipy_stats
 
 from .config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
 
@@ -398,7 +401,8 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
             base_raster.crs(),
         )
         # get messages
-        files, msg_dir, msg_name, ext = get_files(Path(self.parameterAsString(parameters, self.IN_MSG, context)))
+        sample_messages_file = Path(self.parameterAsString(parameters, self.IN_MSG, context))
+        files, msg_dir, msg_name, ext = get_files(sample_messages_file)
         if files == []:
             feedback.reportError(f"{msg_dir} does not contain any non-empty '{msg_name}[0-9]*{ext}' files")
             raise QgsProcessingException(f"{msg_dir} does not contain any non-empty '{msg_name}[0-9]*{ext}' files")
@@ -407,7 +411,11 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
         data = []
         for count, afile in enumerate(files):
             sim_id = search("\\d+", afile.stem).group(0)
-            data += [loadtxt(afile, delimiter=",", dtype=int32, usecols=(0, 1, 2), ndmin=2)]
+            data += [
+                loadtxt(
+                    afile, delimiter=",", dtype=[("i", int32), ("j", int32), ("t", int32)], usecols=(0, 1, 2), ndmin=1
+                )
+            ]
             feedback.pushDebugInfo(f"simulation id: {sim_id}, edges: {len(data)}")
             # build line add to sink
             for i, j, time in data[-1]:
@@ -428,21 +436,9 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
                     break
             feedback.setProgress(int(count * len(files)))
 
-        # get folder
-        tmpfolder = context.temporaryFolder()
-        if tmpfolder == '':
-            import tempfile
-            tmpfolder = tempfile.TemporaryDirectory()
-            tmpfolder = Path(tmpfolder.name)
-        feedback.pushDebugInfo(f"tmpfolder: {tmpfolder}")
-        if layer := self.parameterAsLayer(parameters, self.OUTPUT_LAYER, context):
-            if hasattr(layer, "publicSource"):
-                filepath = layer.publicSource()
-                # filepath = layer.dataProvider().dataSourceUri()
-                feedback.pushDebugInfo(f"filepath: {filepath}")
-        # filename = Path(parent, "propagation_digraph_array.npy")
-        # with open(filename, "wb") as f:
-        #     pickle_dump(data, f)
+        filename = Path(sample_messages_file.parent, "messages.pickle")
+        with open(filename, "wb") as f:
+            pickle_dump(data, f)
 
         if context.willLoadLayerOnCompletion(dest_id):
             layer = QgsProcessingUtils.mapLayerFromString(dest_id, context)
@@ -454,7 +450,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
             context.addLayerToLoadOnCompletion(dest_id, layer_details)
             context.layerToLoadOnCompletionDetails(dest_id).setPostProcessor(run_alg_styler_propagation())
 
-        return {self.OUTPUT_LAYER: dest_id, "mmm": tmpfolder}
+        return {self.OUTPUT_LAYER: dest_id, "pickled": str(filename)}
 
     # def postProcessAlgorithm(self, context, feedback):
     #     """Called after processAlgorithm, use it to load the layer and set the symbology"""
@@ -1057,7 +1053,7 @@ def get_files(sample_file: Path) -> list[list[Path], Path, str, str]:
     return files, adir, aname, ext
 
 
-def get_scar_files(sample_file: Path) -> list[list[Path], Path, str, str]:
+def get_scar_files(sample_file: Path) -> Tuple[list[Path], Path, str, str]:
     """Get a list of files with the same name (+ any digit) and extension and the directory and name of the sample file
     sample_file = Path('/home/fdo/source/C2F-W/data/Vilopriu_2013/firesim_231001_145657/results/Grids/Grids1/ForestGrid00.csv')
     """
@@ -1087,8 +1083,9 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
     """Messages Simulation Post Processing Algorithm"""
 
     BASE_LAYER = "BaseLayer"
-    IN = "NumpyArrayFileNPY"
-    OUT = "BetweennessCentrality"
+    IN = "PickledMessages"
+    OUT_R = "BetweennessCentralityRaster"
+    OUT_L = "BetweennessCentralityLayer"
 
     def initAlgorithm(self, config):
         self.addParameter(
@@ -1102,20 +1099,45 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.IN,
-                description=(
-                    "Numpy array file .npy (normally generated by the Post Simulation Propagation Digraph Algorithm"
-                ),
+                description="Pickled messages (normally generated by the Propagation Digraph Algorithm)",
                 behavior=QgsProcessingParameterFile.File,
-                extension="npy",
+                extension="pickle",
                 defaultValue=None,
                 optional=False,
             )
         )
+        # self.addParameter(
+        #     QgsProcessingParameterBoolean(
+        #         name=self.INPUT_bool,
+        #         description=self.tr("Input Boolean"),
+        #         defaultValue=False,
+        #         optional=False,
+        #     )
+        # )
         self.addParameter(
             QgsProcessingParameterFeatureSink(
-                name=self.OUTPUT_LAYER,
-                description=self.tr("Output bc layer"),
+                name=self.OUT_L,
+                description=self.tr("Output BC layer"),
                 type=QgsProcessing.TypeVectorLine,
+                optional=True,
+                createByDefault=True,
+            )
+        )
+        # self.addParameter(
+        #     QgsProcessingParameterBoolean(
+        #         name=self.INPUT_bool,
+        #         description=self.tr("Input Boolean"),
+        #         defaultValue=False,
+        #         optional=False,
+        #     )
+        # )
+        self.addParameter(
+            QgsProcessingParameterRasterDestination(
+                name=self.OUT_R,
+                description=self.tr("Output BC raster"),
+                # defaultValue=None,
+                # optional=False,
+                # createByDefault=True,
             )
         )
 
@@ -1130,11 +1152,68 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
         H = raster_props["RasterYSize"]
 
         data_file = Path(self.parameterAsString(parameters, self.IN, context))
-        feedback.pushDebugInfo(f"data_file: {data_file}")
-        data = load(data_file, allow_pickle=True)
-        feedback.pushDebugInfo(f"data: {data.shape}")
+        with open(data_file, "rb") as f:
+            data = pickle_load(f)
+        feedback.pushDebugInfo(f"data_file: {data_file}, len(data): {len(data)}")
 
-        return {"hello": "world!"}
+        mdg = MultiDiGraph()
+        func = vectorize(lambda x: {"weight": x})
+        for k, dat in enumerate(data):
+            # ebunch_to_add : container of 4-tuples (u, v, k, d) for an edge with data and key k
+            bunch = vstack((dat["i"], dat["j"], [k] * len(dat), func(dat["t"]))).T
+            mdg.add_edges_from(bunch)
+            if feedback.isCanceled():
+                break
+        # QgsMessageLog.logMessage(self.description()+' calculating betweenness_centrality k=int(5*sqrt(|G|))',MESSAGE_CATEGORY, Qgis.Info)
+        # checks for raise ValueError("Sample larger than population or is negative")
+        ksample = min((mdg.number_of_nodes(), int(5 * sqrt(mdg.number_of_nodes()))))
+        centrality = betweenness_centrality(mdg, k=ksample, weight="weight")
+
+        centrality_array = zeros((H, W), dtype=float32)
+        centrality_values = []
+        for cell, value in centrality.items():
+            i, j = id2xy(cell - 1, W, H)
+            centrality_array[j, i] = value
+            centrality_values += [value]
+
+        # raster
+        output_raster_filename = self.parameterAsOutputLayer(parameters, self.OUT_R, context)
+        raster_format = Grass7Utils.getRasterFormatFromFilename(output_raster_filename)
+        feedback.pushDebugInfo(f"output_raster: {output_raster_filename}, {raster_format}")
+
+        dst_ds = gdal.GetDriverByName(raster_format).Create(output_raster_filename, W, H, 1, GDT_Float32)
+        dst_ds.SetGeoTransform(GT)  # specify coords
+        dst_ds.SetProjection(base_raster.crs().authid())  # export coords to file
+        band = dst_ds.GetRasterBand(1)
+        band.SetUnitType("centrality")
+        if 0 != band.SetNoDataValue(0):
+            feedback.pushWarning(f"Set No Data failed for {self.OUT_R}")
+        if 0 != band.WriteArray(centrality_array):
+            feedback.pushWarning(f"WriteArray failed for {self.OUT_R}")
+
+        centrality_stats = scipy_stats.describe(centrality_values, axis=None)
+        stats_min, stats_max = centrality_stats.minmax
+        feedback.pushInfo(f"centrality values stats: {centrality_stats}")
+
+        if context.willLoadLayerOnCompletion(output_raster_filename):
+            # attach post processor
+            display_name = f"{self.OUT_R}"
+            layer_details = context.LayerDetails(
+                display_name, context.project(), display_name, QgsProcessingUtils.LayerHint.Raster
+            )
+            layer_details.groupName = NAME["layer_group"]
+            layer_details.layerSortKey = 3
+            context.addLayerToLoadOnCompletion(output_raster_filename, layer_details)
+            context.layerToLoadOnCompletionDetails(output_raster_filename).setPostProcessor(
+                run_alg_styler(
+                    display_name,
+                    layer_min_val=stats_min,
+                    layer_max_val=stats_max,
+                    layer_bands=1,
+                )
+            )
+        feedback.pushDebugInfo(f"finished")
+        return {self.OUT_R: output_raster_filename}
 
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)
@@ -1142,11 +1221,11 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
     def createInstance(self):
         return BetweennessCentralityMetric()
 
-    def group(self):
-        return self.tr("Simulator Post Processing")
+    # def group(self):
+    #     return self.tr("Simulator Post Processing")
 
-    def groupId(self):
-        return "simulatorpostprocessing"
+    # def groupId(self):
+    #     return "simulatorpostprocessing"
 
     def name(self):
         return jolo(NAME["bc"])

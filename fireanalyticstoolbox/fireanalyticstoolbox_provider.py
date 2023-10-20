@@ -70,6 +70,8 @@ class FireToolboxProvider(QgsProcessingProvider):
         self.addAlgorithm(StatisticSIMPP())
         self.addAlgorithm(IgnitionPointsSIMPP())
         self.addAlgorithm(ScarSIMPP())
+        self.addAlgorithm(BetweennessCentralityMetric())
+
 
     def id(self):
         """

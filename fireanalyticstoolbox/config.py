@@ -37,10 +37,12 @@ METRICS = [
     "Betweenness Centrality",
     "Downstream Protection Value",
 ]
+simpp = "Simulator Post Processing"
 NAME = {
-    "layer_group": "Simulator Post Processing Group",
-    "postsimgroup": "Simulator Post Processing",
-    "bc" : "Betweenness Centrality Propagation Metric",
+    "simpp": simpp,
+    "layer_group": simpp + " Group",
+    "bc": "Betweenness Centrality Propagation Metric",
+    "dpv": "Downstream Protection Value Propagation Metric",
     # "IN_LOG": "Log File",
     # "post_sim": "Simulator Post Processing",
     # "messages": "Messages",
