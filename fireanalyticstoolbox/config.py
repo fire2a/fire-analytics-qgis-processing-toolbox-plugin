@@ -38,8 +38,10 @@ METRICS = [
     "Downstream Protection Value",
 ]
 simpp = "Simulator Post Processing"
+simm = "Simulator Risk Metrics"
 NAME = {
     "simpp": simpp,
+    "simm": simm,
     "layer_group": simpp + " Group",
     "bc": "Betweenness Centrality Propagation Metric",
     "dpv": "Downstream Protection Value Propagation Metric",
