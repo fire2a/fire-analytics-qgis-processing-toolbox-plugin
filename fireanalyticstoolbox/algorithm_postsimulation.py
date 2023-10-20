@@ -1188,7 +1188,7 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
                 break
 
         if self.parameterAsBool(parameters, self.IN_def_k, context):
-            ksample = int(sqrt(mdg.number_of_nodes() / 5))
+            ksample = int(sqrt(mdg.number_of_nodes() * 5))
         elif self.parameterAsBool(parameters, self.IN_k, context):
             ksample = self.parameterAsInt(parameters, self.IN_k, context)
         else:
