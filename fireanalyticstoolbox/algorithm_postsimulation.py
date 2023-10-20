@@ -54,8 +54,8 @@ from grassprovider.Grass7Utils import Grass7Utils
 from networkx import DiGraph, MultiDiGraph, betweenness_centrality, single_source_dijkstra_path
 # from matplotlib import colormaps
 # from matplotlib.colors import to_rgba_array
-from numpy import (any, argsort, array, dtype, float32, fromiter, int16, int32, loadtxt, min, sqrt, unique, vectorize, ones,
-                   vstack, zeros)
+from numpy import (any, argsort, array, dtype, float32, fromiter, int16, int32, loadtxt, min, ones, sqrt, unique,
+                   vectorize, vstack, zeros)
 from osgeo import gdal
 from osgeo.gdal import GA_ReadOnly, GCI_PaletteIndex, GDT_Float32, GDT_Int16
 from qgis.core import (Qgis, QgsApplication, QgsColorRampShader, QgsFeature, QgsFeatureSink, QgsField, QgsFields,
@@ -314,7 +314,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         # context.addLayerToLoadOnCompletion(
         #     lyr_out_str, QgsProcessingContext.LayerDetails("messages", QgsProject.instance(), "")
         # )
-        return {self.OUTPUT_DIR: str(output_directory), "MSG_OUT": msg_out, "IGNITIONS": dest_id}
+        return {self.OUTPUT_DIR: str(output_directory), "MSG_OUT": msg_out}  # , "IGNITIONS": dest_id}
 
     def name(self):
         return "simulationresultsprocessing"
@@ -416,13 +416,15 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
                     afile, delimiter=",", dtype=[("i", int32), ("j", int32), ("t", int32)], usecols=(0, 1, 2), ndmin=1
                 )
             ]
+            data[-1]["i"] -= 1  # 1 based to 0 based
+            data[-1]["j"] -= 1  # 1 based to 0 based
             feedback.pushDebugInfo(f"simulation id: {sim_id}, edges: {len(data)}")
             # build line add to sink
             for i, j, time in data[-1]:
-                i_x_px, i_y_ln = id2xy(i - 1, W, H)
+                i_x_px, i_y_ln = id2xy(i, W, H)
                 i_x_geo, i_y_geo = transform_coords_to_georef(i_x_px + 0.5, i_y_ln + 0.5, GT)
                 # feedback.pushDebugInfo(f"i_x_geo, i_y_geo: {i_x_geo}, {i_y_geo}, time: {time}")
-                j_x_px, j_y_ln = id2xy(j - 1, W, H)
+                j_x_px, j_y_ln = id2xy(j, W, H)
                 j_x_geo, j_y_geo = transform_coords_to_georef(j_x_px + 0.5, j_y_ln + 0.5, GT)
                 # feedback.pushDebugInfo(f"j_x_geo, j_y_geo: {j_x_geo}, {j_y_geo}, time: {time}")
                 # TODO id = int(f"{str(sim_id).zfill(total_sims)}_{i.zfill...}_{j}")
@@ -1084,8 +1086,10 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
 
     BASE_LAYER = "BaseLayer"
     IN = "PickledMessages"
+    IN_def_k = "UseDefaultInputSamples"
+    IN_k = "InputSamples"
+    IN_seed = "InputSamplesRNGSeed"
     OUT_R = "BetweennessCentralityRaster"
-    OUT_L = "BetweennessCentralityLayer"
 
     def initAlgorithm(self, config):
         self.addParameter(
@@ -1106,29 +1110,47 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
                 optional=False,
             )
         )
-        # self.addParameter(
-        #     QgsProcessingParameterBoolean(
-        #         name=self.INPUT_bool,
-        #         description=self.tr("Input Boolean"),
-        #         defaultValue=False,
-        #         optional=False,
-        #     )
-        # )
-        self.addParameter(
-            QgsProcessingParameterFeatureSink(
-                name=self.OUT_L,
-                description=self.tr("Output BC layer"),
-                type=QgsProcessing.TypeVectorLine,
-                optional=True,
-                createByDefault=True,
-            )
+        qppb = QgsProcessingParameterBoolean(
+            name=self.IN_def_k,
+            description=self.tr("Use default sampling ratio K = sqrt(number_of_nodes)/5"),
+            defaultValue=True,
+            optional=False,
         )
+        qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppb)
+        qppn = QgsProcessingParameterNumber(
+            name=self.IN_k,
+            description=self.tr(
+                "K samples to estimate betweenness."
+                "\n Not set and disabled default sampling checkbox means all nodes are used: very slow!"
+                "\n Trade-off between accuracy and running time."
+            ),
+            type=QgsProcessingParameterNumber.Integer,
+            # defaultValue = 0, # <- no se puede quitar
+            optional=True,
+            minValue=1,
+            # maxValue=13,
+        )
+        qppn.setFlags(qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppn)
+        qppn2 = QgsProcessingParameterNumber(
+            name=self.IN_seed,
+            description=self.tr("Random number generator seed for sampling. Used if K is not set."),
+            type=QgsProcessingParameterNumber.Integer,
+            defaultValue = 42,
+            optional=False,
+            # minValue=1,
+            # maxValue=13,
+        )
+        qppn2.setFlags(qppn2.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppn2)
         # self.addParameter(
-        #     QgsProcessingParameterBoolean(
-        #         name=self.INPUT_bool,
-        #         description=self.tr("Input Boolean"),
-        #         defaultValue=False,
-        #         optional=False,
+        #     QgsProcessingParameterFeatureSink(
+        #         name=self.OUT_L,
+        #         description=self.tr("Output BC layer"),
+        #         type=QgsProcessing.TypeVectorLine,
+        #         optional=True,
+        #         createByDefault=True,
         #     )
         # )
         self.addParameter(
@@ -1164,15 +1186,21 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
             mdg.add_edges_from(bunch)
             if feedback.isCanceled():
                 break
-        # QgsMessageLog.logMessage(self.description()+' calculating betweenness_centrality k=int(5*sqrt(|G|))',MESSAGE_CATEGORY, Qgis.Info)
-        # checks for raise ValueError("Sample larger than population or is negative")
-        ksample = min((mdg.number_of_nodes(), int(5 * sqrt(mdg.number_of_nodes()))))
-        centrality = betweenness_centrality(mdg, k=ksample, weight="weight")
+
+        if self.parameterAsBool(parameters, self.IN_def_k, context):
+            ksample = int(sqrt(mdg.number_of_nodes() / 5))
+        elif self.parameterAsBool(parameters, self.IN_k, context):
+            ksample = self.parameterAsInt(parameters, self.IN_k, context)
+        else:
+            ksample = mdg.number_of_nodes()
+        seed = self.parameterAsInt(parameters, self.IN_seed, context)
+        feedback.pushDebugInfo(f"ksample: {ksample}, out of {mdg.number_of_nodes()} nodes, seed: {seed}")
+        centrality = betweenness_centrality(mdg, k=ksample, weight="weight", seed=seed)
 
         centrality_array = zeros((H, W), dtype=float32)
         centrality_values = []
         for cell, value in centrality.items():
-            i, j = id2xy(cell - 1, W, H)
+            i, j = id2xy(cell, W, H)
             centrality_array[j, i] = value
             centrality_values += [value]
 
@@ -1239,8 +1267,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
 
     BASE_LAYER = "ProtectionValueRaster"
     IN = "PickledMessages"
-    OUT_R = "DownStreamProtectionValueRaster"
-    OUT_L = "DownStreamProtectionValueLayer"
+    OUT_R = "RasterOutput"
 
     def initAlgorithm(self, config):
         self.addParameter(
@@ -1261,38 +1288,13 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
                 optional=False,
             )
         )
-        # self.addParameter(
-        #     QgsProcessingParameterBoolean(
-        #         name=self.INPUT_bool,
-        #         description=self.tr("Input Boolean"),
-        #         defaultValue=False,
-        #         optional=False,
-        #     )
-        # )
-        self.addParameter(
-            QgsProcessingParameterFeatureSink(
-                name=self.OUT_L,
-                description=self.tr("Output BC layer"),
-                type=QgsProcessing.TypeVectorLine,
-                optional=True,
-                createByDefault=True,
-            )
-        )
-        # self.addParameter(
-        #     QgsProcessingParameterBoolean(
-        #         name=self.INPUT_bool,
-        #         description=self.tr("Input Boolean"),
-        #         defaultValue=False,
-        #         optional=False,
-        #     )
-        # )
         self.addParameter(
             QgsProcessingParameterRasterDestination(
                 name=self.OUT_R,
-                description=self.tr("Output BC raster"),
+                description=self.tr("Output raster"),
                 # defaultValue=None,
-                # optional=False,
-                # createByDefault=True,
+                optional=False,
+                createByDefault=True,
             )
         )
 
@@ -1315,6 +1317,10 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         dpv = zeros(pv.shape, dtype=pv.dtype)
         nsim = len(data_list)
         for count, data in enumerate(data_list):
+            feedback.setProgress((count + 1) / nsim * 100)
+            feedback.setProgressText(f"Processing {count + 1} of {nsim} simulations")
+            if feedback.isCanceled():
+                break
             # digraph_from_messages(msgfile) -> msgG, root
             msgG = DiGraph()
             msgG.add_weighted_edges_from(data)
@@ -1327,15 +1333,16 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
                 for i, node in enumerate(shopat[:-1]):
                     treeG.add_edge(node, shopat[i + 1])
             # dpv_maskG(G, root, pv, i2n) -> mdpv
-            i2n = [n - 1 for n in treeG]  # TODO change to generator?
+            i2n = [n for n in treeG]  # TODO change to generator?
             mdpv = pv[i2n]
             recursion(treeG, root, pv, mdpv, i2n)
             dpv[i2n] += mdpv
-            feedback.setProgress((count + 1) / nsim * 100)
-            if feedback.isCanceled():
-                break
         dpv = dpv / nsim
-        # creating raster & describing statistics
+
+        # descriptive statistics
+        dpv_stats = scipy_stats.describe(dpv[dpv != 0.0], axis=None)
+        stats_min, stats_max = dpv_stats.minmax
+        feedback.pushInfo(f"stats: {dpv_stats}")
 
         # raster
         output_raster_filename = self.parameterAsOutputLayer(parameters, self.OUT_R, context)
@@ -1352,13 +1359,9 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         if 0 != band.WriteArray(dpv.reshape(H, W)):
             feedback.pushWarning(f"WriteArray failed for {self.OUT_R}")
 
-        dpv_stats = scipy_stats.describe(dpv[dpv != 0.0], axis=None)
-        stats_min, stats_max = dpv_stats.minmax
-        feedback.pushInfo(f"stats: {dpv_stats}")
-
         if context.willLoadLayerOnCompletion(output_raster_filename):
             # attach post processor
-            display_name = f"{self.OUT_R}"
+            display_name = NAME["dpv"]
             layer_details = context.LayerDetails(
                 display_name, context.project(), display_name, QgsProcessingUtils.LayerHint.Raster
             )
@@ -1373,6 +1376,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
                     layer_bands=1,
                 )
             )
+
         feedback.pushDebugInfo(f"finished")
         return {self.OUT_R: output_raster_filename}
 
@@ -1397,5 +1401,5 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
 
 def recursion(G, i, pv, mdpv, i2n):
     for j in G.successors(i):
-        mdpv[i2n.index(i - 1)] += recursion(G, j, pv, mdpv, i2n)
-    return mdpv[i2n.index(i - 1)]
+        mdpv[i2n.index(i)] += recursion(G, j, pv, mdpv, i2n)
+    return mdpv[i2n.index(i)]
