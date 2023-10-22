@@ -5,16 +5,17 @@ def jolo(string: str) -> str:
 
 TAG = "fire2a"
 STATS = [
-    {"name": "Hit Rate Of Spread", "dir": "RateOfSpread", "file": "ROSFile", "arg": "out-ros", "unit": "m/min"},
-    {"name": "Flame Length", "dir": "FlameLength", "file": "FL", "arg": "out-fl", "unit": "m"},
-    {"name": "Byram Intensity", "dir": "Intensity", "file": "Intensity", "arg": "out-intensity", "unit": "kW/m"},
-    {"name": "Crown Fire Scar", "dir": "CrownFire", "file": "Crown", "arg": "out-crown", "unit": "bool"},
+    {"name": "Hit Rate Of Spread", "dir": "RateOfSpread", "file": "ROSFile", "arg": "out-ros", "unit": "m/min", "ext":"asc"},
+    {"name": "Flame Length", "dir": "FlameLength", "file": "FL", "arg": "out-fl", "unit": "m", "ext":"asc"},
+    {"name": "Byram Intensity", "dir": "Intensity", "file": "Intensity", "arg": "out-intensity", "unit": "kW/m", "ext":"asc"},
+    {"name": "Crown Fire Scar", "dir": "CrownFire", "file": "Crown", "arg": "out-crown", "unit": "bool", "ext":"asc"},
     {
         "name": "Crown Fire Fuel Consumption Ratio",
         "dir": "CrownFractionBurn",
         "file": "Cfb",
         "arg": "out-cfb",
         "unit": "ratio",
+        "ext":"asc",
     },
 ]
 # NO CAMBIAR DE ORDEN
