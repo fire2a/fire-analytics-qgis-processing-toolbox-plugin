@@ -69,7 +69,7 @@ from qgis.core import (Qgis, QgsApplication, QgsColorRampShader, QgsFeature, Qgs
                        QgsProcessingParameterVectorLayer, QgsProcessingUtils, QgsProject, QgsRasterBandStats,
                        QgsRasterLayer, QgsRasterShader, QgsSingleBandPseudoColorRenderer, QgsTask, QgsVectorLayer)
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
-from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtGui import QColor, QIcon
 from scipy import stats as scipy_stats
 
 from .config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
@@ -210,15 +210,15 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
     def displayName(self):
         return self.tr("Ignition Points")
 
+    def icon(self):
+        return QIcon(":/plugins/fireanalyticstoolbox/assets/ignitionpoint.svg")
+
 
 class PostSimulationAlgorithm(QgsProcessingAlgorithm):
     """Cell2Fire results post processing bundle"""
 
     BASE_LAYER = "BaseLayer"
-    RESULTS_DIR = "ResultsDirectory"
     OUTPUT_DIR = "OutputDirectory"
-    output_options = SIM_OUTPUTS
-    OUTPUTS = "Outputs"
 
     def initAlgorithm(self, config):
         """inputs and output of the algorithm"""
@@ -230,25 +230,14 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
                 optional=False,
             )
         )
-        project_path = QgsProject().instance().absolutePath()
-        self.addParameter(
-            QgsProcessingParameterFile(
-                name=self.RESULTS_DIR,
-                description="Cell2 Fire Simulator RESULTS directory (normally firesim_yymmdd_HHMMSS/results)",
-                behavior=QgsProcessingParameterFile.Folder,
-                extension="",
-                defaultValue=project_path if project_path != "" else None,
-                optional=False,
-                fileFilter="",
-            )
-        )
-        for sim_out in SIM_OUTPUTS:
+        # project_path = QgsProject().instance().absolutePath()
+        for st in STATS:
             self.addParameter(
-                QgsProcessingParameterBoolean(
-                    name=sim_out["name"].replace(" ", ""),
-                    description=sim_out["name"],
-                    defaultValue=True,
-                    optional=False,
+                QgsProcessingParameterFile(
+                    name=st["name"].replace(" ", ""),
+                    description=f"{st['name']} sample file (normally {st['dir']}{sep}{st['file']}.{st['ext']})",
+                    extension=st["ext"],
+                    optional=True,
                 )
             )
         self.addParameter(
@@ -286,35 +275,38 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         # RESULTS DIR
         results_directory = Path(self.parameterAsString(parameters, self.RESULTS_DIR, context))
 
-        msg_out = None
-        if "Propagation directed-graph" in output_options_strings:
-            msg_out = processing.run(
-                "fire2a:messages",
-                {
-                    "BaseLayer": base_raster,
-                    "MessagesDirectory": str(Path(results_directory, "Messages")),
-                    "PropagationDirectedGraph": QgsProcessing.TEMPORARY_OUTPUT,
-                },
-                context=context,
-                feedback=feedback,
-                is_child_algorithm=True,
-            )
-            context.addLayerToLoadOnCompletion(
-                msg_out["PropagationDirectedGraph"],
-                QgsProcessingContext.LayerDetails(
-                    "propagation_directed_graph",
-                    context.project(),
-                    "messages",
-                    QgsProcessingUtils.LayerHint.Vector,
-                ),
-            )
+        for st in STATS:
+            sample_file = Path(self.parameterAsString(parameters, st["name"].replace(" ", ""), context))
+        # msg_out = None
+        # if "Propagation directed-graph" in output_options_strings:
+        #     msg_out = processing.run(
+        #         "fire2a:messages",
+        #         {
+        #             "BaseLayer": base_raster,
+        #             "MessagesDirectory": str(Path(results_directory, "Messages")),
+        #             "PropagationDirectedGraph": QgsProcessing.TEMPORARY_OUTPUT,
+        #         },
+        #         context=context,
+        #         feedback=feedback,
+        #         is_child_algorithm=True,
+        #     )
+        #     context.addLayerToLoadOnCompletion(
+        #         msg_out["PropagationDirectedGraph"],
+        #         QgsProcessingContext.LayerDetails(
+        #             "propagation_directed_graph",
+        #             context.project(),
+        #             "messages",
+        #             QgsProcessingUtils.LayerHint.Vector,
+        #         ),
+        #     )
         # context.temporaryLayerStore().addMapLayer(lyr_out)
         # lyr_out_str = msg_out["PropagationDirectedGraph"]
         # lyr_out = context.takeResultLayer(lyr_out_str)
         # context.addLayerToLoadOnCompletion(
         #     lyr_out_str, QgsProcessingContext.LayerDetails("messages", QgsProject.instance(), "")
         # )
-        return {self.OUTPUT_DIR: str(output_directory), "MSG_OUT": msg_out}  # , "IGNITIONS": dest_id}
+        # return {self.OUTPUT_DIR: str(output_directory), "MSG_OUT": msg_out}  # , "IGNITIONS": dest_id}
+        return {"hello":"world"}
 
     def name(self):
         return "simulationresultsprocessing"
@@ -480,6 +472,9 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
 
     def displayName(self):
         return self.tr("Propagation DiGraph")
+
+    def icon(self):
+        return QIcon(":/plugins/fireanalyticstoolbox/assets/burntime.svg")
 
 
 class StatisticSIMPP(QgsProcessingAlgorithm):
@@ -1137,7 +1132,7 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
             name=self.IN_seed,
             description=self.tr("Random number generator seed for sampling. Used if K is not set."),
             type=QgsProcessingParameterNumber.Integer,
-            defaultValue = 42,
+            defaultValue=42,
             optional=False,
             # minValue=1,
             # maxValue=13,
@@ -1324,7 +1319,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
             # digraph_from_messages(msgfile) -> msgG, root
             msgG = DiGraph()
             msgG.add_weighted_edges_from(data)
-            root = data[0][0]  # checkar que el primer valor del message sea el punto de ignición
+            root = data[0][0]
             # shortest_propagation_tree(G, root) -> treeG
             shortest_paths = single_source_dijkstra_path(msgG, root, weight="time")
             del shortest_paths[root]
@@ -1333,9 +1328,9 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
                 for i, node in enumerate(shopat[:-1]):
                     treeG.add_edge(node, shopat[i + 1])
             # dpv_maskG(G, root, pv, i2n) -> mdpv
-            i2n = [n for n in treeG]  # TODO change to generator?
+            i2n = [n for n in treeG]
             mdpv = pv[i2n]
-            recursion(treeG, root, pv, mdpv, i2n)
+            recursion(treeG, root, mdpv, i2n)
             dpv[i2n] += mdpv
         dpv = dpv / nsim
 
@@ -1356,7 +1351,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         band.SetUnitType("protection_value")
         if 0 != band.SetNoDataValue(0):
             feedback.pushWarning(f"Set No Data failed for {self.OUT_R}")
-        if 0 != band.WriteArray(dpv.reshape(H, W)):
+        if 0 != band.WriteArray(float32(dpv.reshape(H, W))):
             feedback.pushWarning(f"WriteArray failed for {self.OUT_R}")
 
         if context.willLoadLayerOnCompletion(output_raster_filename):
@@ -1399,7 +1394,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         return self.tr(NAME["dpv"])
 
 
-def recursion(G, i, pv, mdpv, i2n):
+def recursion(G: DiGraph, i: int32, mdpv: array, i2n: list[int]) -> array:
     for j in G.successors(i):
-        mdpv[i2n.index(i)] += recursion(G, j, pv, mdpv, i2n)
+        mdpv[i2n.index(i)] += recursion(G, j, mdpv, i2n)
     return mdpv[i2n.index(i)]

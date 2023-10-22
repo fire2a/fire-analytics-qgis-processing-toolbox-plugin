@@ -5,5 +5,7 @@
         <file>forestfire.svg</file>
         <file>bonfire.svg</file>
         <file>firebreakmap.svg</file>
+        <file>ignitionpoint.svg</file>
+        <file>burntime.svg</file>
     </qresource>
 </RCC>
