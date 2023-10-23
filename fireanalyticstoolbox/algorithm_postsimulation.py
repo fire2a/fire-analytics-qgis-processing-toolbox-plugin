@@ -56,7 +56,7 @@ from networkx import DiGraph, MultiDiGraph, betweenness_centrality, single_sourc
 # from matplotlib.colors import to_rgba_array
 from numpy import (any, argsort, array, dtype, float32, fromiter, int16, int32, loadtxt, min, ones, sqrt, unique,
                    vectorize, vstack, zeros)
-from osgeo import gdal
+from osgeo import gdal, ogr, osr
 from osgeo.gdal import GA_ReadOnly, GCI_PaletteIndex, GDT_Float32, GDT_Int16
 from qgis.core import (Qgis, QgsApplication, QgsColorRampShader, QgsFeature, QgsFeatureSink, QgsField, QgsFields,
                        QgsGeometry, QgsGradientColorRamp, QgsGraduatedSymbolRenderer, QgsLineString, QgsMessageLog,
@@ -306,7 +306,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         #     lyr_out_str, QgsProcessingContext.LayerDetails("messages", QgsProject.instance(), "")
         # )
         # return {self.OUTPUT_DIR: str(output_directory), "MSG_OUT": msg_out}  # , "IGNITIONS": dest_id}
-        return {"hello":"world"}
+        return {"hello": "world"}
 
     def name(self):
         return "simulationresultsprocessing"
@@ -827,6 +827,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         dst_ds.SetGeoTransform(GT)  # specify coords
         dst_ds.SetProjection(base_raster.crs().authid())  # export coords to file
 
+        # FINAL GRIDS
         feedback.setProgressText(f"Processing final scars {len(final_grids)} files")
         data = []
         for i, (afile, sim, per) in enumerate(final_grids):
@@ -851,46 +852,58 @@ class ScarSIMPP(QgsProcessingAlgorithm):
             layer_details.groupName = NAME["layer_group"]
         feedback.pushDebugInfo(f"propagation final scar finished")
 
-        # TODO
-        # msg = f"Processing propagation scars {len(grids)} files"
-        # feedback.setProgressText(msg)
-        # feedback.pushDebugInfo(msg)
-        # orfnp = Path(output_raster_filename)
-        # name, suffix = orfnp.stem, orfnp.suffix
-        # layer_details = []
-        # for i, (files, sim, pers) in enumerate(grids):
-        #     feedback.setProgress(int(i * len(final_grids)))
-        #     file_name = name + "_propagation_" + str(sim) + suffix
-        #     dst_ds = gdal.GetDriverByName(raster_format).Create(file_name, W, H, len(files), GDT_Int16)
-        #     dst_ds.SetGeoTransform(GT)  # specify coords
-        #     dst_ds.SetProjection(base_raster.crs().authid())  # export coords to file
-        #     for j, (afile, per) in enumerate(zip(files, pers)):
-        #         feedback.pushDebugInfo(f"simulation id: {sim}, period: {per}, file: {afile}")
-        #         data = loadtxt(Path(parent2, afile), delimiter=",", dtype=int16)
-        #         if not any(data == 1):
-        #             feedback.pushWarning(f"no fire in {afile} warning! TODO?")
-        #         band = dst_ds.GetRasterBand(j + 1)
-        #         band.SetUnitType("burned")
-        #         if 0 != band.SetNoDataValue(0):
-        #             feedback.pushWarning(f"Set No Data failed for {afile}")
-        #         if 0 != band.WriteArray(data):
-        #             feedback.pushWarning(f"WriteArray failed for {afile}")
-        #         if feedback.isCanceled():
-        #             break
-        #         band = None
-        #         data = None
-        #     dst_ds.FlushCache()  # write to disk
-        #     dst_ds = None
-        #     layer_name = f"propagation_{sim}"
-        #     layer_details += [
-        #         QgsProcessingContext.LayerDetails(
-        #             file_name, context.project(), file_name, QgsProcessingUtils.LayerHint.Raster
-        #         )
-        #     ]
-        #     layer_details[-1].groupName = NAME["layer_group"]
-        #     layer_details[-1].setPostProcessor(run_alg_styler_bin(layer_name))
-        #     context.addLayerToLoadOnCompletion(file_name, layer_details[-1])
+        # GRIDS
+        total_sims = len(files)
+        orfnp = Path(output_raster_filename)
+        parent, name, suffix = orfnp.parent, orfnp.stem, orfnp.suffix
+        output_vector_file = str(parent / (name+".gpkg"))
+        # raster
+        src_ds = gdal.GetDriverByName("MEM").Create(output_vector_file, W, H, total_sims, gdal.GDT_Float32)
+        src_ds.SetGeoTransform(GT)  # specify coords
+        src_ds.SetProjection(base_raster.crs().authid())  # export coords to file
+        # vector
+        # driver = ogr.GetDriverByName('GPKG')
+        # outfile = driver.CreateDataSource(name+".gpkg")
+        outfile = ogr.GetDriverByName("GPKG").CreateDataSource(output_vector_file)
+        # srs
+        sp_ref = osr.SpatialReference()
+        sp_ref.SetFromUserInput(base_raster.crs().authid())
+        msg = "Processing propagation scar"
+        feedback.setProgressText(msg + f"s {len(grids)} files")
+        feedback.pushDebugInfo(msg)
+        count = 1
+        for i, (files, sim, pers) in enumerate(grids):
+            feedback.pushDebugInfo(f"simulation id: {sim}, periods: {pers}, files: {files}, i: {i}")
+            prog = int(i * len(grids))
+            feedback.setProgress(prog)
+            feedback.setProgressText(msg + f" {prog}/{len(grids)}")
+            for j, (afile, per) in enumerate(zip(files, pers)):
+                data = loadtxt(Path(parent2, afile), delimiter=",", dtype=int16)
+                if not any(data == 1):
+                    feedback.pushWarning(f"no fire in {afile}")
+                    continue
+                layer_name = f"{name}_propagation_sim{sim}_per{per}"
+                feedback.pushDebugInfo(f"{layer_name}, file: {afile}")
+                src_band = src_ds.GetRasterBand(count)
+                src_band.SetNoDataValue(0)
+                src_band.WriteArray(data)
+                count += 1
+                # outlayer = outfile.CreateLayer(f'polygonized raster {i}', srs = None)
+                outlayer = outfile.CreateLayer(layer_name, srs=sp_ref)
+                gdal.Polygonize(src_band, src_band, outlayer, -1, ["8CONNECTED=8"])
+            # feedback.pushDebugInfo(f"simulation id: {sim}, periods: {pers}, i: {i}, j: {j}")
+            # dst_ds.FlushCache()  # write to disk
+            # dst_ds = None
 
+        layer_details = context.LayerDetails(
+            name + "propagation evolution",
+            context.project(),
+            name + "propagation evolution",
+            QgsProcessingUtils.LayerHint.Vector,
+        )
+        layer_details.groupName = NAME["layer_group"]
+        layer_details.layerSortKey = 4
+        context.addLayerToLoadOnCompletion(output_vector_file, layer_details)
         feedback.pushDebugInfo(f"finished")
         return {self.OUTPUT_RASTER: output_raster_filename}
 
