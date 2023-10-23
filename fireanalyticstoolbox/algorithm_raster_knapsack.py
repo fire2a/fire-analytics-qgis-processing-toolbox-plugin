@@ -59,6 +59,7 @@ from qgis.core import (Qgis, QgsFeatureSink, QgsMessageLog, QgsProcessing,
                        QgsProcessingParameterString, QgsProject,
                        QgsRasterBlock, QgsRasterFileWriter)
 from qgis.PyQt.QtCore import QByteArray, QCoreApplication
+from qgis.PyQt.QtGui import QIcon
 from scipy import stats
 
 NODATA = -32768
@@ -438,6 +439,9 @@ By using Pyomo, several MIP solvers can be used: CBC, GLPK, Gurobi, CPLEX or Ipo
 
     def helpString(self):
         return self.shortHelpString()
+
+    def icon(self):
+        return QIcon(":/plugins/fireanalyticstoolbox/assets/firebreakmap.svg")
 
 
 class RasterDestinationGpkg(QgsProcessingParameterRasterDestination):

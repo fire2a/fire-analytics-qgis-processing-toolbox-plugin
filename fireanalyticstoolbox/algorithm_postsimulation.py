@@ -42,17 +42,21 @@ __revision__ = "$Format:%H$"
 
 from os import sep
 from pathlib import Path
+from pickle import dump as pickle_dump
+from pickle import load as pickle_load
 from re import findall, search
-from typing import Any
+from typing import Any, Tuple
 
 import processing
 from fire2a.raster import get_geotransform, id2xy, read_raster, transform_coords_to_georef
 from fire2a.utils import loadtxt_nodata
 from grassprovider.Grass7Utils import Grass7Utils
+from networkx import DiGraph, MultiDiGraph, betweenness_centrality, single_source_dijkstra_path
 # from matplotlib import colormaps
 # from matplotlib.colors import to_rgba_array
-from numpy import any, argsort, array, dtype, float32, fromiter, int16, int32, linspace, loadtxt, unique
-from osgeo import gdal
+from numpy import (any, argsort, array, dtype, float32, fromiter, int16, int32, loadtxt, min, ones, sqrt, unique,
+                   vectorize, vstack, zeros)
+from osgeo import gdal, ogr, osr
 from osgeo.gdal import GA_ReadOnly, GCI_PaletteIndex, GDT_Float32, GDT_Int16
 from qgis.core import (Qgis, QgsApplication, QgsColorRampShader, QgsFeature, QgsFeatureSink, QgsField, QgsFields,
                        QgsGeometry, QgsGradientColorRamp, QgsGraduatedSymbolRenderer, QgsLineString, QgsMessageLog,
@@ -65,7 +69,8 @@ from qgis.core import (Qgis, QgsApplication, QgsColorRampShader, QgsFeature, Qgs
                        QgsProcessingParameterVectorLayer, QgsProcessingUtils, QgsProject, QgsRasterBandStats,
                        QgsRasterLayer, QgsRasterShader, QgsSingleBandPseudoColorRenderer, QgsTask, QgsVectorLayer)
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
-from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtGui import QColor, QIcon
+from scipy import stats as scipy_stats
 
 from .config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
 
@@ -205,15 +210,15 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
     def displayName(self):
         return self.tr("Ignition Points")
 
+    def icon(self):
+        return QIcon(":/plugins/fireanalyticstoolbox/assets/ignitionpoint.svg")
+
 
 class PostSimulationAlgorithm(QgsProcessingAlgorithm):
     """Cell2Fire results post processing bundle"""
 
     BASE_LAYER = "BaseLayer"
-    RESULTS_DIR = "ResultsDirectory"
     OUTPUT_DIR = "OutputDirectory"
-    output_options = SIM_OUTPUTS
-    OUTPUTS = "Outputs"
 
     def initAlgorithm(self, config):
         """inputs and output of the algorithm"""
@@ -225,25 +230,14 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
                 optional=False,
             )
         )
-        project_path = QgsProject().instance().absolutePath()
-        self.addParameter(
-            QgsProcessingParameterFile(
-                name=self.RESULTS_DIR,
-                description="Cell2 Fire Simulator RESULTS directory (normally firesim_yymmdd_HHMMSS/results)",
-                behavior=QgsProcessingParameterFile.Folder,
-                extension="",
-                defaultValue=project_path if project_path != "" else None,
-                optional=False,
-                fileFilter="",
-            )
-        )
-        for sim_out in SIM_OUTPUTS:
+        # project_path = QgsProject().instance().absolutePath()
+        for st in STATS:
             self.addParameter(
-                QgsProcessingParameterBoolean(
-                    name=sim_out["name"].replace(" ", ""),
-                    description=sim_out["name"],
-                    defaultValue=True,
-                    optional=False,
+                QgsProcessingParameterFile(
+                    name=st["name"].replace(" ", ""),
+                    description=f"{st['name']} sample file (normally {st['dir']}{sep}{st['file']}.{st['ext']})",
+                    extension=st["ext"],
+                    optional=True,
                 )
             )
         self.addParameter(
@@ -281,35 +275,38 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         # RESULTS DIR
         results_directory = Path(self.parameterAsString(parameters, self.RESULTS_DIR, context))
 
-        msg_out = None
-        if "Propagation directed-graph" in output_options_strings:
-            msg_out = processing.run(
-                "fire2a:messages",
-                {
-                    "BaseLayer": base_raster,
-                    "MessagesDirectory": str(Path(results_directory, "Messages")),
-                    "PropagationDirectedGraph": QgsProcessing.TEMPORARY_OUTPUT,
-                },
-                context=context,
-                feedback=feedback,
-                is_child_algorithm=True,
-            )
-            context.addLayerToLoadOnCompletion(
-                msg_out["PropagationDirectedGraph"],
-                QgsProcessingContext.LayerDetails(
-                    "propagation_directed_graph",
-                    context.project(),
-                    "messages",
-                    QgsProcessingUtils.LayerHint.Vector,
-                ),
-            )
+        for st in STATS:
+            sample_file = Path(self.parameterAsString(parameters, st["name"].replace(" ", ""), context))
+        # msg_out = None
+        # if "Propagation directed-graph" in output_options_strings:
+        #     msg_out = processing.run(
+        #         "fire2a:messages",
+        #         {
+        #             "BaseLayer": base_raster,
+        #             "MessagesDirectory": str(Path(results_directory, "Messages")),
+        #             "PropagationDirectedGraph": QgsProcessing.TEMPORARY_OUTPUT,
+        #         },
+        #         context=context,
+        #         feedback=feedback,
+        #         is_child_algorithm=True,
+        #     )
+        #     context.addLayerToLoadOnCompletion(
+        #         msg_out["PropagationDirectedGraph"],
+        #         QgsProcessingContext.LayerDetails(
+        #             "propagation_directed_graph",
+        #             context.project(),
+        #             "messages",
+        #             QgsProcessingUtils.LayerHint.Vector,
+        #         ),
+        #     )
         # context.temporaryLayerStore().addMapLayer(lyr_out)
         # lyr_out_str = msg_out["PropagationDirectedGraph"]
         # lyr_out = context.takeResultLayer(lyr_out_str)
         # context.addLayerToLoadOnCompletion(
         #     lyr_out_str, QgsProcessingContext.LayerDetails("messages", QgsProject.instance(), "")
         # )
-        return {self.OUTPUT_DIR: str(output_directory), "MSG_OUT": msg_out, "IGNITIONS": dest_id}
+        # return {self.OUTPUT_DIR: str(output_directory), "MSG_OUT": msg_out}  # , "IGNITIONS": dest_id}
+        return {"hello": "world"}
 
     def name(self):
         return "simulationresultsprocessing"
@@ -318,10 +315,10 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         return self.tr("All together bundle")
 
     def group(self):
-        return self.tr("Simulator Post Processing")
+        return self.tr(self.groupId())
 
     def groupId(self):
-        return "simulatorpostprocessing"
+        return "zexperimental"
 
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)
@@ -396,22 +393,30 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
             base_raster.crs(),
         )
         # get messages
-        files, msg_dir, msg_name, ext = get_files(Path(self.parameterAsString(parameters, self.IN_MSG, context)))
+        sample_messages_file = Path(self.parameterAsString(parameters, self.IN_MSG, context))
+        files, msg_dir, msg_name, ext = get_files(sample_messages_file)
         if files == []:
             feedback.reportError(f"{msg_dir} does not contain any non-empty '{msg_name}[0-9]*{ext}' files")
             raise QgsProcessingException(f"{msg_dir} does not contain any non-empty '{msg_name}[0-9]*{ext}' files")
         feedback.pushDebugInfo(f"{len(files)} messages files, first: {files[0]}...")
         # build digraphs
+        data = []
         for count, afile in enumerate(files):
             sim_id = search("\\d+", afile.stem).group(0)
-            data = loadtxt(afile, delimiter=",", dtype=int32, usecols=(0, 1, 2), ndmin=2)
+            data += [
+                loadtxt(
+                    afile, delimiter=",", dtype=[("i", int32), ("j", int32), ("t", int32)], usecols=(0, 1, 2), ndmin=1
+                )
+            ]
+            data[-1]["i"] -= 1  # 1 based to 0 based
+            data[-1]["j"] -= 1  # 1 based to 0 based
             feedback.pushDebugInfo(f"simulation id: {sim_id}, edges: {len(data)}")
             # build line add to sink
-            for i, j, time in data:
-                i_x_px, i_y_ln = id2xy(i - 1, W, H)
+            for i, j, time in data[-1]:
+                i_x_px, i_y_ln = id2xy(i, W, H)
                 i_x_geo, i_y_geo = transform_coords_to_georef(i_x_px + 0.5, i_y_ln + 0.5, GT)
                 # feedback.pushDebugInfo(f"i_x_geo, i_y_geo: {i_x_geo}, {i_y_geo}, time: {time}")
-                j_x_px, j_y_ln = id2xy(j - 1, W, H)
+                j_x_px, j_y_ln = id2xy(j, W, H)
                 j_x_geo, j_y_geo = transform_coords_to_georef(j_x_px + 0.5, j_y_ln + 0.5, GT)
                 # feedback.pushDebugInfo(f"j_x_geo, j_y_geo: {j_x_geo}, {j_y_geo}, time: {time}")
                 # TODO id = int(f"{str(sim_id).zfill(total_sims)}_{i.zfill...}_{j}")
@@ -425,6 +430,10 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
                     break
             feedback.setProgress(int(count * len(files)))
 
+        filename = Path(sample_messages_file.parent, "messages.pickle")
+        with open(filename, "wb") as f:
+            pickle_dump(data, f)
+
         if context.willLoadLayerOnCompletion(dest_id):
             layer = QgsProcessingUtils.mapLayerFromString(dest_id, context)
             layer_details = context.LayerDetails(
@@ -435,7 +444,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
             context.addLayerToLoadOnCompletion(dest_id, layer_details)
             context.layerToLoadOnCompletionDetails(dest_id).setPostProcessor(run_alg_styler_propagation())
 
-        return {self.OUTPUT_LAYER: dest_id}
+        return {self.OUTPUT_LAYER: dest_id, "pickled": str(filename)}
 
     # def postProcessAlgorithm(self, context, feedback):
     #     """Called after processAlgorithm, use it to load the layer and set the symbology"""
@@ -463,6 +472,9 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
 
     def displayName(self):
         return self.tr("Propagation DiGraph")
+
+    def icon(self):
+        return QIcon(":/plugins/fireanalyticstoolbox/assets/burntime.svg")
 
 
 class StatisticSIMPP(QgsProcessingAlgorithm):
@@ -619,7 +631,9 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         if context.willLoadLayerOnCompletion(output_raster_filename):
             # attach post processor
             display_name = f"{stat_name}_{self.numpy_dt[data_type_idx].__name__}"
-            layer_details = context.LayerDetails(display_name, context.project(), display_name, QgsProcessingUtils.LayerHint.Raster)
+            layer_details = context.LayerDetails(
+                display_name, context.project(), display_name, QgsProcessingUtils.LayerHint.Raster
+            )
             layer_details.groupName = NAME["layer_group"]
             layer_details.layerSortKey = 2
             context.addLayerToLoadOnCompletion(output_raster_filename, layer_details)
@@ -705,7 +719,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
 
     IN_SCAR = "SampleScarFile"
     BASE_LAYER = "BaseLayer"
-    OUTPUT_RASTER = "OutputRaster"
+    OUTPUT_RASTER = "OutputScar"
 
     def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
         files, scar_dir, scar_name, ext = get_scar_files(
@@ -813,6 +827,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         dst_ds.SetGeoTransform(GT)  # specify coords
         dst_ds.SetProjection(base_raster.crs().authid())  # export coords to file
 
+        # FINAL GRIDS
         feedback.setProgressText(f"Processing final scars {len(final_grids)} files")
         data = []
         for i, (afile, sim, per) in enumerate(final_grids):
@@ -837,46 +852,58 @@ class ScarSIMPP(QgsProcessingAlgorithm):
             layer_details.groupName = NAME["layer_group"]
         feedback.pushDebugInfo(f"propagation final scar finished")
 
-        # TODO
-        # msg = f"Processing propagation scars {len(grids)} files"
-        # feedback.setProgressText(msg)
-        # feedback.pushDebugInfo(msg)
-        # orfnp = Path(output_raster_filename)
-        # name, suffix = orfnp.stem, orfnp.suffix
-        # layer_details = []
-        # for i, (files, sim, pers) in enumerate(grids):
-        #     feedback.setProgress(int(i * len(final_grids)))
-        #     file_name = name + "_propagation_" + str(sim) + suffix
-        #     dst_ds = gdal.GetDriverByName(raster_format).Create(file_name, W, H, len(files), GDT_Int16)
-        #     dst_ds.SetGeoTransform(GT)  # specify coords
-        #     dst_ds.SetProjection(base_raster.crs().authid())  # export coords to file
-        #     for j, (afile, per) in enumerate(zip(files, pers)):
-        #         feedback.pushDebugInfo(f"simulation id: {sim}, period: {per}, file: {afile}")
-        #         data = loadtxt(Path(parent2, afile), delimiter=",", dtype=int16)
-        #         if not any(data == 1):
-        #             feedback.pushWarning(f"no fire in {afile} warning! TODO?")
-        #         band = dst_ds.GetRasterBand(j + 1)
-        #         band.SetUnitType("burned")
-        #         if 0 != band.SetNoDataValue(0):
-        #             feedback.pushWarning(f"Set No Data failed for {afile}")
-        #         if 0 != band.WriteArray(data):
-        #             feedback.pushWarning(f"WriteArray failed for {afile}")
-        #         if feedback.isCanceled():
-        #             break
-        #         band = None
-        #         data = None
-        #     dst_ds.FlushCache()  # write to disk
-        #     dst_ds = None
-        #     layer_name = f"propagation_{sim}"
-        #     layer_details += [
-        #         QgsProcessingContext.LayerDetails(
-        #             file_name, context.project(), file_name, QgsProcessingUtils.LayerHint.Raster
-        #         )
-        #     ]
-        #     layer_details[-1].groupName = NAME["layer_group"]
-        #     layer_details[-1].setPostProcessor(run_alg_styler_bin(layer_name))
-        #     context.addLayerToLoadOnCompletion(file_name, layer_details[-1])
+        # GRIDS
+        total_sims = len(files)
+        orfnp = Path(output_raster_filename)
+        parent, name, suffix = orfnp.parent, orfnp.stem, orfnp.suffix
+        output_vector_file = str(parent / (name+".gpkg"))
+        # raster
+        src_ds = gdal.GetDriverByName("MEM").Create(output_vector_file, W, H, total_sims, gdal.GDT_Float32)
+        src_ds.SetGeoTransform(GT)  # specify coords
+        src_ds.SetProjection(base_raster.crs().authid())  # export coords to file
+        # vector
+        # driver = ogr.GetDriverByName('GPKG')
+        # outfile = driver.CreateDataSource(name+".gpkg")
+        outfile = ogr.GetDriverByName("GPKG").CreateDataSource(output_vector_file)
+        # srs
+        sp_ref = osr.SpatialReference()
+        sp_ref.SetFromUserInput(base_raster.crs().authid())
+        msg = "Processing propagation scar"
+        feedback.setProgressText(msg + f"s {len(grids)} files")
+        feedback.pushDebugInfo(msg)
+        count = 1
+        for i, (files, sim, pers) in enumerate(grids):
+            feedback.pushDebugInfo(f"simulation id: {sim}, periods: {pers}, files: {files}, i: {i}")
+            prog = int(i * len(grids))
+            feedback.setProgress(prog)
+            feedback.setProgressText(msg + f" {prog}/{len(grids)}")
+            for j, (afile, per) in enumerate(zip(files, pers)):
+                data = loadtxt(Path(parent2, afile), delimiter=",", dtype=int16)
+                if not any(data == 1):
+                    feedback.pushWarning(f"no fire in {afile}")
+                    continue
+                layer_name = f"{name}_propagation_sim{sim}_per{per}"
+                feedback.pushDebugInfo(f"{layer_name}, file: {afile}")
+                src_band = src_ds.GetRasterBand(count)
+                src_band.SetNoDataValue(0)
+                src_band.WriteArray(data)
+                count += 1
+                # outlayer = outfile.CreateLayer(f'polygonized raster {i}', srs = None)
+                outlayer = outfile.CreateLayer(layer_name, srs=sp_ref)
+                gdal.Polygonize(src_band, src_band, outlayer, -1, ["8CONNECTED=8"])
+            # feedback.pushDebugInfo(f"simulation id: {sim}, periods: {pers}, i: {i}, j: {j}")
+            # dst_ds.FlushCache()  # write to disk
+            # dst_ds = None
 
+        layer_details = context.LayerDetails(
+            name + "propagation evolution",
+            context.project(),
+            name + "propagation evolution",
+            QgsProcessingUtils.LayerHint.Vector,
+        )
+        layer_details.groupName = NAME["layer_group"]
+        layer_details.layerSortKey = 4
+        context.addLayerToLoadOnCompletion(output_vector_file, layer_details)
         feedback.pushDebugInfo(f"finished")
         return {self.OUTPUT_RASTER: output_raster_filename}
 
@@ -1019,7 +1046,7 @@ def run_alg_styler(
     return LayerPostProcessor.create()
 
 
-def get_files(sample_file: Path) -> list[list[Path], Path, str, str]:
+def get_files(sample_file: Path) -> tuple[list[Path], Path, str, str]:
     """Get a list of files with the same name (+ any digit) and extension and the directory and name of the sample file"""
     ext = sample_file.suffix
     if numg := search("(\\d+)$", sample_file.stem):
@@ -1036,7 +1063,7 @@ def get_files(sample_file: Path) -> list[list[Path], Path, str, str]:
     return files, adir, aname, ext
 
 
-def get_scar_files(sample_file: Path) -> list[list[Path], Path, str, str]:
+def get_scar_files(sample_file: Path) -> Tuple[list[Path], Path, str, str]:
     """Get a list of files with the same name (+ any digit) and extension and the directory and name of the sample file
     sample_file = Path('/home/fdo/source/C2F-W/data/Vilopriu_2013/firesim_231001_145657/results/Grids/Grids1/ForestGrid00.csv')
     """
@@ -1060,3 +1087,327 @@ def get_scar_files(sample_file: Path) -> list[list[Path], Path, str, str]:
             files += [afile.relative_to(parent2)]
     # QgsMessageLog.logMessage(f"files: {files}, adir: {adir}, aname: {aname}, ext: {ext}", "fire2a", Qgis.Info)
     return files, parent2, file_name, ext
+
+
+class BetweennessCentralityMetric(QgsProcessingAlgorithm):
+    """Messages Simulation Post Processing Algorithm"""
+
+    BASE_LAYER = "BaseLayer"
+    IN = "PickledMessages"
+    IN_def_k = "UseDefaultInputSamples"
+    IN_k = "InputSamples"
+    IN_seed = "InputSamplesRNGSeed"
+    OUT_R = "BetweennessCentralityRaster"
+
+    def initAlgorithm(self, config):
+        self.addParameter(
+            QgsProcessingParameterRasterLayer(
+                name=self.BASE_LAYER,
+                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform"),
+                defaultValue=[QgsProcessing.TypeRaster],
+                optional=False,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterFile(
+                name=self.IN,
+                description="Pickled messages (normally generated by the Propagation Digraph Algorithm)",
+                behavior=QgsProcessingParameterFile.File,
+                extension="pickle",
+                defaultValue=None,
+                optional=False,
+            )
+        )
+        qppb = QgsProcessingParameterBoolean(
+            name=self.IN_def_k,
+            description=self.tr("Use default sampling ratio K = sqrt(number_of_nodes)/5"),
+            defaultValue=True,
+            optional=False,
+        )
+        qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppb)
+        qppn = QgsProcessingParameterNumber(
+            name=self.IN_k,
+            description=self.tr(
+                "K samples to estimate betweenness."
+                "\n Not set and disabled default sampling checkbox means all nodes are used: very slow!"
+                "\n Trade-off between accuracy and running time."
+            ),
+            type=QgsProcessingParameterNumber.Integer,
+            # defaultValue = 0, # <- no se puede quitar
+            optional=True,
+            minValue=1,
+            # maxValue=13,
+        )
+        qppn.setFlags(qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppn)
+        qppn2 = QgsProcessingParameterNumber(
+            name=self.IN_seed,
+            description=self.tr("Random number generator seed for sampling. Used if K is not set."),
+            type=QgsProcessingParameterNumber.Integer,
+            defaultValue=42,
+            optional=False,
+            # minValue=1,
+            # maxValue=13,
+        )
+        qppn2.setFlags(qppn2.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppn2)
+        # self.addParameter(
+        #     QgsProcessingParameterFeatureSink(
+        #         name=self.OUT_L,
+        #         description=self.tr("Output BC layer"),
+        #         type=QgsProcessing.TypeVectorLine,
+        #         optional=True,
+        #         createByDefault=True,
+        #     )
+        # )
+        self.addParameter(
+            QgsProcessingParameterRasterDestination(
+                name=self.OUT_R,
+                description=self.tr("Output BC raster"),
+                # defaultValue=None,
+                # optional=False,
+                # createByDefault=True,
+            )
+        )
+
+    def processAlgorithm(self, parameters, context, feedback):
+        """Here is where the processing itself takes place."""
+        # BASE LAYER
+        base_raster = self.parameterAsRasterLayer(parameters, self.BASE_LAYER, context)
+        _, raster_props = read_raster(base_raster.publicSource(), data=False)
+        feedback.pushDebugInfo(f"base_raster.crs(): {base_raster.crs()}")
+        GT = raster_props["Transform"]
+        W = raster_props["RasterXSize"]
+        H = raster_props["RasterYSize"]
+
+        data_file = Path(self.parameterAsString(parameters, self.IN, context))
+        with open(data_file, "rb") as f:
+            data_list = pickle_load(f)
+        feedback.pushDebugInfo(f"data_file: {data_file}, len(data_list): {len(data_list)}")
+
+        mdg = MultiDiGraph()
+        func = vectorize(lambda x: {"weight": x})
+        for k, data in enumerate(data_list):
+            # ebunch_to_add : container of 4-tuples (u, v, k, d) for an edge with data and key k
+            bunch = vstack((data["i"], data["j"], [k] * len(data), func(data["t"]))).T
+            mdg.add_edges_from(bunch)
+            if feedback.isCanceled():
+                break
+
+        if self.parameterAsBool(parameters, self.IN_def_k, context):
+            ksample = int(sqrt(mdg.number_of_nodes() * 5))
+        elif self.parameterAsBool(parameters, self.IN_k, context):
+            ksample = self.parameterAsInt(parameters, self.IN_k, context)
+        else:
+            ksample = mdg.number_of_nodes()
+        seed = self.parameterAsInt(parameters, self.IN_seed, context)
+        feedback.pushDebugInfo(f"ksample: {ksample}, out of {mdg.number_of_nodes()} nodes, seed: {seed}")
+        centrality = betweenness_centrality(mdg, k=ksample, weight="weight", seed=seed)
+
+        centrality_array = zeros((H, W), dtype=float32)
+        centrality_values = []
+        for cell, value in centrality.items():
+            i, j = id2xy(cell, W, H)
+            centrality_array[j, i] = value
+            centrality_values += [value]
+
+        # raster
+        output_raster_filename = self.parameterAsOutputLayer(parameters, self.OUT_R, context)
+        raster_format = Grass7Utils.getRasterFormatFromFilename(output_raster_filename)
+        feedback.pushDebugInfo(f"output_raster: {output_raster_filename}, {raster_format}")
+
+        dst_ds = gdal.GetDriverByName(raster_format).Create(output_raster_filename, W, H, 1, GDT_Float32)
+        dst_ds.SetGeoTransform(GT)  # specify coords
+        dst_ds.SetProjection(base_raster.crs().authid())  # export coords to file
+        band = dst_ds.GetRasterBand(1)
+        band.SetUnitType("centrality")
+        if 0 != band.SetNoDataValue(0):
+            feedback.pushWarning(f"Set No Data failed for {self.OUT_R}")
+        if 0 != band.WriteArray(centrality_array):
+            feedback.pushWarning(f"WriteArray failed for {self.OUT_R}")
+
+        centrality_stats = scipy_stats.describe(centrality_values, axis=None)
+        stats_min, stats_max = centrality_stats.minmax
+        feedback.pushInfo(f"centrality values stats: {centrality_stats}")
+
+        if context.willLoadLayerOnCompletion(output_raster_filename):
+            # attach post processor
+            display_name = f"{self.OUT_R}"
+            layer_details = context.LayerDetails(
+                display_name, context.project(), display_name, QgsProcessingUtils.LayerHint.Raster
+            )
+            layer_details.groupName = NAME["layer_group"]
+            layer_details.layerSortKey = 3
+            context.addLayerToLoadOnCompletion(output_raster_filename, layer_details)
+            context.layerToLoadOnCompletionDetails(output_raster_filename).setPostProcessor(
+                run_alg_styler(
+                    display_name,
+                    layer_min_val=stats_min,
+                    layer_max_val=stats_max,
+                    layer_bands=1,
+                )
+            )
+        feedback.pushDebugInfo(f"finished")
+        return {self.OUT_R: output_raster_filename}
+
+    def tr(self, string):
+        return QCoreApplication.translate("Processing", string)
+
+    def createInstance(self):
+        return BetweennessCentralityMetric()
+
+    def group(self):
+        return self.tr(NAME["simm"])
+
+    def groupId(self):
+        return jolo(NAME["simm"])
+
+    def name(self):
+        return jolo(NAME["bc"])
+
+    def displayName(self):
+        return self.tr(NAME["bc"])
+
+
+class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
+    """Messages Simulation Post Processing Algorithm"""
+
+    BASE_LAYER = "ProtectionValueRaster"
+    IN = "PickledMessages"
+    OUT_R = "RasterOutput"
+
+    def initAlgorithm(self, config):
+        self.addParameter(
+            QgsProcessingParameterRasterLayer(
+                name=self.BASE_LAYER,
+                description=self.tr("Protection Value Raster (get values & geotransform"),
+                defaultValue=[QgsProcessing.TypeRaster],
+                optional=False,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterFile(
+                name=self.IN,
+                description="Pickled messages (normally generated by the Propagation Digraph Algorithm)",
+                behavior=QgsProcessingParameterFile.File,
+                extension="pickle",
+                defaultValue=None,
+                optional=False,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterRasterDestination(
+                name=self.OUT_R,
+                description=self.tr("Output raster"),
+                # defaultValue=None,
+                optional=False,
+                createByDefault=True,
+            )
+        )
+
+    def processAlgorithm(self, parameters, context, feedback):
+        """Here is where the processing itself takes place."""
+        # BASE LAYER
+        base_raster = self.parameterAsRasterLayer(parameters, self.BASE_LAYER, context)
+        pv, raster_props = read_raster(base_raster.publicSource(), data=True)
+        feedback.pushDebugInfo(f"base_raster.crs(): {base_raster.crs()}")
+        GT = raster_props["Transform"]
+        W = raster_props["RasterXSize"]
+        H = raster_props["RasterYSize"]
+
+        data_file = Path(self.parameterAsString(parameters, self.IN, context))
+        with open(data_file, "rb") as f:
+            data_list = pickle_load(f)
+        feedback.pushDebugInfo(f"data_file: {data_file}, len(data_list): {len(data_list)}")
+
+        pv = pv.ravel()
+        dpv = zeros(pv.shape, dtype=pv.dtype)
+        nsim = len(data_list)
+        for count, data in enumerate(data_list):
+            feedback.setProgress((count + 1) / nsim * 100)
+            feedback.setProgressText(f"Processing {count + 1} of {nsim} simulations")
+            if feedback.isCanceled():
+                break
+            # digraph_from_messages(msgfile) -> msgG, root
+            msgG = DiGraph()
+            msgG.add_weighted_edges_from(data)
+            root = data[0][0]
+            # shortest_propagation_tree(G, root) -> treeG
+            shortest_paths = single_source_dijkstra_path(msgG, root, weight="time")
+            del shortest_paths[root]
+            treeG = DiGraph()
+            for node, shopat in shortest_paths.items():
+                for i, node in enumerate(shopat[:-1]):
+                    treeG.add_edge(node, shopat[i + 1])
+            # dpv_maskG(G, root, pv, i2n) -> mdpv
+            i2n = [n for n in treeG]
+            mdpv = pv[i2n]
+            recursion(treeG, root, mdpv, i2n)
+            dpv[i2n] += mdpv
+        dpv = dpv / nsim
+
+        # descriptive statistics
+        dpv_stats = scipy_stats.describe(dpv[dpv != 0.0], axis=None)
+        stats_min, stats_max = dpv_stats.minmax
+        feedback.pushInfo(f"stats: {dpv_stats}")
+
+        # raster
+        output_raster_filename = self.parameterAsOutputLayer(parameters, self.OUT_R, context)
+        raster_format = Grass7Utils.getRasterFormatFromFilename(output_raster_filename)
+        feedback.pushDebugInfo(f"output_raster: {output_raster_filename}, {raster_format}")
+
+        dst_ds = gdal.GetDriverByName(raster_format).Create(output_raster_filename, W, H, 1, GDT_Float32)
+        dst_ds.SetGeoTransform(GT)  # specify coords
+        dst_ds.SetProjection(base_raster.crs().authid())  # export coords to file
+        band = dst_ds.GetRasterBand(1)
+        band.SetUnitType("protection_value")
+        if 0 != band.SetNoDataValue(0):
+            feedback.pushWarning(f"Set No Data failed for {self.OUT_R}")
+        if 0 != band.WriteArray(float32(dpv.reshape(H, W))):
+            feedback.pushWarning(f"WriteArray failed for {self.OUT_R}")
+
+        if context.willLoadLayerOnCompletion(output_raster_filename):
+            # attach post processor
+            display_name = NAME["dpv"]
+            layer_details = context.LayerDetails(
+                display_name, context.project(), display_name, QgsProcessingUtils.LayerHint.Raster
+            )
+            layer_details.groupName = NAME["layer_group"]
+            layer_details.layerSortKey = 3
+            context.addLayerToLoadOnCompletion(output_raster_filename, layer_details)
+            context.layerToLoadOnCompletionDetails(output_raster_filename).setPostProcessor(
+                run_alg_styler(
+                    display_name,
+                    layer_min_val=stats_min,
+                    layer_max_val=stats_max,
+                    layer_bands=1,
+                )
+            )
+
+        feedback.pushDebugInfo(f"finished")
+        return {self.OUT_R: output_raster_filename}
+
+    def tr(self, string):
+        return QCoreApplication.translate("Processing", string)
+
+    def createInstance(self):
+        return DownStreamProtectionValueMetric()
+
+    def group(self):
+        return self.tr(NAME["simm"])
+
+    def groupId(self):
+        return jolo(NAME["simm"])
+
+    def name(self):
+        return jolo(NAME["dpv"])
+
+    def displayName(self):
+        return self.tr(NAME["dpv"])
+
+
+def recursion(G: DiGraph, i: int32, mdpv: array, i2n: list[int]) -> array:
+    for j in G.successors(i):
+        mdpv[i2n.index(i)] += recursion(G, j, mdpv, i2n)
+    return mdpv[i2n.index(i)]
