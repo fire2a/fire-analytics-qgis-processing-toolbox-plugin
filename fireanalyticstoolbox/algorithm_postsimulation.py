@@ -719,7 +719,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
 
     IN_SCAR = "SampleScarFile"
     BASE_LAYER = "BaseLayer"
-    OUTPUT_RASTER = "OutputRaster"
+    OUTPUT_RASTER = "OutputScar"
 
     def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
         files, scar_dir, scar_name, ext = get_scar_files(
