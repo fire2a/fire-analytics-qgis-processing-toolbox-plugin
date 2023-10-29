@@ -38,6 +38,7 @@ from .algorithm_postsimulation import (BetweennessCentralityMetric, DownStreamPr
                                        IgnitionPointsSIMPP, MessagesSIMPP, PostSimulationAlgorithm, ScarSIMPP,
                                        StatisticSIMPP)
 from .algorithm_raster_knapsack import RasterKnapsackAlgorithm
+from .algorithm_raster_tutorial import RasterTutorial
 from .algorithm_sandbox import SandboxAlgorithm
 from .algorithm_simulator import FireSimulatorAlgorithm
 from .assets.resources import *
@@ -74,6 +75,7 @@ class FireToolboxProvider(QgsProcessingProvider):
         self.addAlgorithm(ScarSIMPP())
         self.addAlgorithm(BetweennessCentralityMetric())
         self.addAlgorithm(DownStreamProtectionValueMetric())
+        self.addAlgorithm(RasterTutorial())
 
     def id(self):
         """
