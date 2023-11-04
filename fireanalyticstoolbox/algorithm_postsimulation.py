@@ -195,6 +195,8 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
             layer_details.groupName = NAME["layer_group"]
             layer_details.layerSortKey = 0
             context.addLayerToLoadOnCompletion(dest_id, layer_details)
+
+        write_log(feedback, name=self.name())
         return {self.OUT_LAYER: dest_id}
 
     def tr(self, string):
@@ -311,6 +313,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         #     lyr_out_str, QgsProcessingContext.LayerDetails("messages", QgsProject.instance(), "")
         # )
         # return {self.OUTPUT_DIR: str(output_directory), "MSG_OUT": msg_out}  # , "IGNITIONS": dest_id}
+        write_log(feedback, name=self.name())
         return {"hello": "world"}
 
     def name(self):
@@ -449,6 +452,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
             context.addLayerToLoadOnCompletion(dest_id, layer_details)
             context.layerToLoadOnCompletionDetails(dest_id).setPostProcessor(run_alg_styler_propagation())
 
+        write_log(feedback, name=self.name())
         return {self.OUTPUT_LAYER: dest_id, "pickled": str(filename)}
 
     # def postProcessAlgorithm(self, context, feedback):
@@ -687,8 +691,8 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
                 layer_details.layerSortKey = 3
         else:
             output_dict[self.OUTPUT_RASTER_2] = None
-        feedback.pushDebugInfo(f"finished")
 
+        write_log(feedback, name=self.name())
         return output_dict
 
     # def postProcessAlgorithm(self, context, feedback):
@@ -992,7 +996,6 @@ class ScarSIMPP(QgsProcessingAlgorithm):
             pickle_dump(data, f)
 
         write_log(feedback, name=self.name())
-        feedback.pushDebugInfo(f"finished")
         return {self.OUTPUT_RASTER: output_raster_filename, self.OUTPUT_LAYER: output_vector_file}
 
     def name(self):
@@ -1339,7 +1342,7 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
                     layer_bands=1,
                 )
             )
-        feedback.pushDebugInfo(f"finished")
+        write_log(feedback, name=self.name())
         return {self.OUT_R: output_raster_filename}
 
     def tr(self, string):
@@ -1476,7 +1479,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
                 )
             )
 
-        feedback.pushDebugInfo(f"finished")
+        write_log(feedback, name=self.name())
         return {self.OUT_R: output_raster_filename}
 
     def tr(self, string):
