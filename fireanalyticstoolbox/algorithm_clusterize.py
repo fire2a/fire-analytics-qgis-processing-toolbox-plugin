@@ -45,6 +45,7 @@ from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 
 from .assets.resources import *
+from .algorithm_utils import write_log
 
 
 class ClusterizeAlgorithm(QgsProcessingAlgorithm):
@@ -224,6 +225,7 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
             # Update the progress bar
             feedback.setProgress(int(current * total))
 
+        write_log(feedback, name=self.name())
         return {self.OUTPUT: dest_id}
 
     def name(self):
