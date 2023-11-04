@@ -47,8 +47,9 @@ from numpy import array
 from osgeo import gdal
 from qgis.core import (QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm, QgsProcessingContext,
                        QgsProcessingException, QgsProcessingOutputBoolean, QgsProcessingParameterBoolean,
-                       QgsProcessingParameterEnum, QgsProcessingParameterFile, QgsProcessingParameterFolderDestination,
-                       QgsProcessingParameterGeometry, QgsProcessingParameterNumber, QgsProcessingParameterRasterLayer,
+                       QgsProcessingParameterDefinition, QgsProcessingParameterEnum, QgsProcessingParameterFile,
+                       QgsProcessingParameterFolderDestination, QgsProcessingParameterGeometry,
+                       QgsProcessingParameterNumber, QgsProcessingParameterRasterLayer, QgsProcessingParameterString,
                        QgsProcessingParameterVectorLayer, QgsProject, QgsRasterLayer, QgsUnitTypes)
 from qgis.gui import Qgis
 from qgis.PyQt.QtCore import QCoreApplication
@@ -108,6 +109,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     LDFMCS = "LiveAndDeadFuelMoistureContentScenario"
     SIM_THREADS = "SimulationThreads"
     RNG_SEED = "RandomNumberGeneratorSeed"
+    ADD_ARGS = "OtherCliArgs"
 
     # def validateInputCrs(self, parameters, context):
     #    """ prints friendly warning if input crs dont match across all inputs
@@ -391,6 +393,14 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 createByDefault=True,
             )
         )
+        # advanced
+        qpps = QgsProcessingParameterString(
+            name=self.ADD_ARGS,
+            description="Append additional command-line parameters (i.e., '--verbose', use with caution!)",
+            optional=True,
+        )
+        qpps.setFlags(qpps.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qpps)
 
     def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
         if parameters[self.IGNITION_MODE] == 1 and parameters[self.IGNIPROBMAP] is None:
@@ -420,8 +430,11 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 return False, f'{k} is not AAIGrid, "{v.name()}" is {driver}'
             raster_props = get_qgs_raster_properties(v)
             if raster_props["units"] != QgsUnitTypes.DistanceMeters:
-                unit_name = Qgis.DistanceUnit(raster_props['units']).name
-                return False, f'{k} units are not meters, "{v.name()}" has "{unit_name}" units, write layer to meters-CRS!'
+                unit_name = Qgis.DistanceUnit(raster_props["units"]).name
+                return (
+                    False,
+                    f'{k} units are not meters, "{v.name()}" has "{unit_name}" units, write layer to meters-CRS!',
+                )
             ok, msg = compare_raster_properties(fuels_props, raster_props)
             if not ok:
                 return False, msg
@@ -586,6 +599,8 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             if v is False or v is None:
                 continue
             cmd += f" --{k} {v if v is not True else ''}"
+        # append cli args
+        cmd += " " + self.parameterAsString(parameters, self.ADD_ARGS, context)
         # feedback.pushDebugInfo(f"command: {cmd}\n")
 
         # RUN
