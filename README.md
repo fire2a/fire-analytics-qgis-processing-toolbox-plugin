@@ -21,11 +21,12 @@ User tutorials are at [fire2a/docs](https://fire2a.github.io/docs/)
  - or as a [standalone](https://raw.githubusercontent.com/fdobad/fire-analytics-qgis-processing-toolbox-plugin/main/script_samples/standalone.py) script  
 
 ### Development
-- Check a release for directory structure
+- Check a release for directory structure (`fireanalyticstoolbox` is the plugin dir)
 - [Fork], Clone
+  - helper algorithms library [fire2a-lib](https://www.github.com/fire2a/fire2a-lib/), install editable `pip install -e .`
   - if simulating fires: submodule-add [C2F-W](https://www.github.com/fire2a/C2F-W/)
-  - if firebreak placing get a MIP solver
-- [branch]
+  - if placing firebreaks (knapsack algorithm) get a MIP solver (coinor-cbc, cplex or gurobi)
+- [branch] `git checkout -b myfeature`
 - Symlink `fireanalyticstoolbox` into your qgis-plugins directory
 - Install "Fire Analytics Toolbox" & "Plugin Reloader" in QGIS Plugin Manager
 - Done! (Do a change, reload the plugin, test, ...)
