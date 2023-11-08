@@ -557,12 +557,13 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         if paint_fuels:
             feedback.pushDebugInfo(f"painting fuel layer: {raster['fuels'].name()}, with style {self.fuel_models[fuel_model]}")
             processing.run(
-                "qgis:setstyleforvectorlayer",
+                "native:setlayerstyle",
                 {"INPUT": raster["fuels"], "STYLE": str(Path(self.plugin_dir,"simulator",f"fuel_{fuel_model}_layerStyle.qml"))},
                 context=context,
                 feedback=feedback,
                 is_child_algorithm=True,
             )
+            feedback.pushDebugInfo(f"painted\n")
 
         # IGNITION
         _, raster_props = read_raster(raster["fuels"].publicSource(), data=False)
