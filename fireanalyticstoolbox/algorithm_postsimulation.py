@@ -226,6 +226,8 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
 
     BASE_LAYER = "BaseLayer"
     OUTPUT_DIR = "OutputDirectory"
+    RESULTS_DIR = "ResultsDirectory"
+    MSGS = "EnablePropagationDiGraph"
 
     def initAlgorithm(self, config):
         """inputs and output of the algorithm"""
@@ -237,16 +239,28 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
                 optional=False,
             )
         )
-        # project_path = QgsProject().instance().absolutePath()
-        for st in STATS:
-            self.addParameter(
-                QgsProcessingParameterFile(
-                    name=st["name"].replace(" ", ""),
-                    description=f"{st['name']} sample file (normally {st['dir']}{sep}{st['file']}.{st['ext']})",
-                    extension=st["ext"],
-                    optional=True,
-                )
+        self.addParameter(
+            QgsProcessingParameterBoolean(
+                name=self.MSGS,
+                description=(
+                    "Enable propagation directed graph (ui gets slowish, use propagation fire scars for large"
+                    " simulations)"
+                ),
+                defaultValue=False,
+                optional=True,
             )
+        )
+        project_path = QgsProject().instance().absolutePath()
+        project_path = project_path if project_path != "" else None
+        self.addParameter(
+            QgsProcessingParameterFile(
+                name=self.RESULTS_DIR,
+                description="Simulation Results directory (normally firesim_yymmdd_HHMMSS/results)",
+                behavior=QgsProcessingParameterFile.Folder,
+                defaultValue=project_path,
+                optional=False,
+            )
+        )
         self.addParameter(
             QgsProcessingParameterFolderDestination(
                 name=self.OUTPUT_DIR,
@@ -261,60 +275,197 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         results_directory = Path(self.parameterAsString(parameters, self.RESULTS_DIR, context))
         if not results_directory.is_dir():
             return False, f"provided results is not a directory: {results_directory}"
-        if not np_any(results_directory.iterdir()):
+        if next(results_directory.iterdir(), None) is None:
             return False, f"provided results is empty: {results_directory}"
         return True, ""
 
     def processAlgorithm(self, parameters, context, feedback):
         """Here is where the processing itself takes place."""
-        feedback.pushDebugInfo("processAlgorithm start")
-        feedback.pushDebugInfo(f"context args: {context.asQgisProcessArguments()}")
+        # feedback.pushDebugInfo("processAlgorithm start")
+        # feedback.pushDebugInfo(f"context args: {context.asQgisProcessArguments()}")
         # feedback.pushDebugInfo(f"parameters {parameters}")
-        # GET OPTIONS
-        output_options = self.parameterAsEnums(parameters, self.OUTPUTS, context)
-        output_options_strings = array(self.output_options)[output_options]
-        feedback.pushDebugInfo(f"output_options: {output_options_strings}\n")
+        output_dict = {}
         # OUTPUT DIR
-        output_directory = Path(self.parameterAsString(parameters, self.OUTPUT_DIR, context))
+        output_dir = Path(self.parameterAsString(parameters, self.OUTPUT_DIR, context))
+        out_is = output_dir.is_dir()
+        feedback.pushDebugInfo(f"output_dir: {output_dir}, {output_dir.is_dir()}")
+        output_dict[self.OUTPUT_DIR] = output_dir
         # BASE LAYER
         base_raster = self.parameterAsRasterLayer(parameters, self.BASE_LAYER, context)
-        # _, raster_props = read_raster(base_raster.publicSource(), data=False)
+        sp_ref = osr.SpatialReference()
+        sp_ref.SetFromUserInput(base_raster.crs().authid())
         # RESULTS DIR
-        results_directory = Path(self.parameterAsString(parameters, self.RESULTS_DIR, context))
+        results_dir = Path(self.parameterAsString(parameters, self.RESULTS_DIR, context))
 
-        for st in STATS:
-            sample_file = Path(self.parameterAsString(parameters, st["name"].replace(" ", ""), context))
-        # msg_out = None
-        # if "Propagation directed-graph" in output_options_strings:
-        #     msg_out = processing.run(
-        #         "fire2a:messages",
-        #         {
-        #             "BaseLayer": base_raster,
-        #             "MessagesDirectory": str(Path(results_directory, "Messages")),
-        #             "PropagationDirectedGraph": QgsProcessing.TEMPORARY_OUTPUT,
-        #         },
-        #         context=context,
-        #         feedback=feedback,
-        #         is_child_algorithm=True,
-        #     )
-        #     context.addLayerToLoadOnCompletion(
-        #         msg_out["PropagationDirectedGraph"],
-        #         QgsProcessingContext.LayerDetails(
-        #             "propagation_directed_graph",
-        #             context.project(),
-        #             "messages",
-        #             QgsProcessingUtils.LayerHint.Vector,
-        #         ),
-        #     )
-        # context.temporaryLayerStore().addMapLayer(lyr_out)
-        # lyr_out_str = msg_out["PropagationDirectedGraph"]
-        # lyr_out = context.takeResultLayer(lyr_out_str)
-        # context.addLayerToLoadOnCompletion(
-        #     lyr_out_str, QgsProcessingContext.LayerDetails("messages", QgsProject.instance(), "")
-        # )
-        # return {self.OUTPUT_DIR: str(output_directory), "MSG_OUT": msg_out}  # , "IGNITIONS": dest_id}
+        # stats
+        for stat in STATS:
+            if sample_file := next(Path(results_dir).glob(stat["dir"] + sep + stat["file"] + "*" + stat["ext"]), None):
+                stat_out = processing.run(
+                    f"fire2a:statistic",
+                    {
+                        "BaseLayer": base_raster,
+                        "SampleStatisticFile": str(sample_file),
+                        "DataType": stat["dtype"],
+                        "OutputRaster": QgsProcessing.TEMPORARY_OUTPUT,
+                        "OutputRasterStats": QgsProcessing.TEMPORARY_OUTPUT,
+                    },
+                    context=context,
+                    feedback=feedback,
+                    is_child_algorithm=True,
+                )
+                # ui load
+                # each sim in a band
+                layer_details = context.LayerDetails(
+                    stat["name"],
+                    context.project(),
+                    stat["name"],
+                    QgsProcessingUtils.LayerHint.Raster,
+                )
+                layer_details.groupName = NAME["layer_group"]
+                layer_details.layerSortKey = 5
+                context.addLayerToLoadOnCompletion(stat_out["OutputRaster"], layer_details)
+                if stat["dtype"] == "float32":
+                    context.layerToLoadOnCompletionDetails(stat_out["OutputRaster"]).setPostProcessor(
+                        run_alg_styler(
+                            stat["name"],
+                        )
+                    )
+                else:
+                    context.layerToLoadOnCompletionDetails(stat_out["OutputRaster"]).setPostProcessor(
+                        run_alg_styler_bin(
+                            stat["name"],
+                        )
+                    )
+                output_dict[stat["name"]] = stat_out["OutputRaster"]
+                # mean & stddev
+                layer_details = context.LayerDetails(
+                    "Mean&StdDev " + stat["name"],
+                    context.project(),
+                    "Mean&StdDev " + stat["name"],
+                    QgsProcessingUtils.LayerHint.Raster,
+                )
+                layer_details.groupName = NAME["layer_group"]
+                layer_details.layerSortKey = 4
+                context.addLayerToLoadOnCompletion(stat_out["OutputRasterStats"], layer_details)
+                context.layerToLoadOnCompletionDetails(stat_out["OutputRasterStats"]).setPostProcessor(
+                    run_alg_styler(
+                        "Mean&StdDev " + stat["name"],
+                    )
+                )
+                output_dict[stat["name"] + "Stats"] = stat_out["OutputRasterStats"]
+
+        # grids
+        grids = [item for item in SIM_OUTPUTS if item["name"] == "Propagation Fire Scars"][0]
+        if sample_file:= next(Path(results_dir).glob(grids["dir"] + "*" + sep + grids["file"] + "*" + grids["ext"]), None):  # fmt: skip
+            scar_out = processing.run(
+                "fire2a:scar",
+                {
+                    "BaseLayer": base_raster,
+                    "SampleScarFile": str(sample_file),
+                    "OutputScarRaster": QgsProcessing.TEMPORARY_OUTPUT,
+                    "OutputScarPolygon": QgsProcessing.TEMPORARY_OUTPUT,
+                },
+                context=context,
+                feedback=feedback,
+                is_child_algorithm=True,
+            )
+            # final scars raster
+            layer_details = context.layerToLoadOnCompletionDetails(scar_out["OutputScarRaster"])
+            layer_details.setPostProcessor(run_alg_styler_bin("Final Scar(s)"))
+            layer_details.groupName = NAME["layer_group"]
+            layer_details.layerSortKey = 1
+            context.addLayerToLoadOnCompletion(scar_out["OutputScarRaster"], layer_details)
+            output_dict["OutputScarRaster"] = scar_out["OutputScarRaster"]
+            # grids polygons
+            layer_details = context.LayerDetails(
+                scar_out["OutputScarPolygon"],
+                context.project(),
+                scar_out["OutputScarPolygon"],
+                QgsProcessingUtils.LayerHint.Vector,
+            )
+            layer_details.groupName = NAME["layer_group"]
+            layer_details.layerSortKey = 2
+            context.addLayerToLoadOnCompletion(scar_out["OutputScarPolygon"], layer_details)
+            output_dict["OutputScarPolygon"] = scar_out["OutputScarPolygon"]
+            # burnprob
+            if bplayer := scar_out.get("BurnProbability"):
+                layer_details = context.layerToLoadOnCompletionDetails(bplayer)
+                layer_details.setPostProcessor(run_alg_styler("BurnProbability"))
+                layer_details.groupName = NAME["layer_group"]
+                layer_details.layerSortKey = 3
+                context.addLayerToLoadOnCompletion(bplayer, layer_details)
+                output_dict["BurnProbability"] = bplayer
+
+        # messages
+        if self.parameterAsBool(parameters, self.MSGS, context):
+            msgs = [item for item in SIM_OUTPUTS if item["name"] == "Propagation Directed Graph"][0]
+            if sample_file := next(Path(results_dir, msgs["dir"]).glob(msgs["file"] + "*" + msgs["ext"]), None):
+                msg_out = processing.run(
+                    "fire2a:propagationdigraph",
+                    {
+                        "BaseLayer": base_raster,
+                        "SampleMessagesFile": str(sample_file),
+                        "PropagationDirectedGraph": QgsProcessing.TEMPORARY_OUTPUT,
+                    },
+                    context=context,
+                    feedback=feedback,
+                    is_child_algorithm=True,
+                )
+                layer_details = QgsProcessingContext.LayerDetails(
+                    "PropagationDirectedGraph",
+                    context.project(),
+                    "PropagationDirectedGraph",
+                    QgsProcessingUtils.LayerHint.Vector,
+                )
+                layer_details.groupName = NAME["layer_group"]
+                layer_details.layerSortKey = 1
+                context.addLayerToLoadOnCompletion(
+                    msg_out["PropagationDirectedGraph"],
+                    layer_details,
+                )
+                context.layerToLoadOnCompletionDetails(msg_out["PropagationDirectedGraph"]).setPostProcessor(
+                    run_alg_styler_propagation()
+                )
+                output_dict["PropagationDirectedGraph"] = msg_out["PropagationDirectedGraph"]
+
+        # IgnitionPoints
+        log_file = Path(results_dir, "LogFile.txt")
+        if log_file.is_file() and log_file.stat().st_size > 0:
+            feedback.pushDebugInfo(log_file.read_text())
+            if out_is:
+                out = (output_dir / "IgnitionPointsLayer").touch()
+            else:
+                out = QgsProcessing.TEMPORARY_OUTPUT
+            igpt_out = processing.run(
+                "fire2a:ignitionpoints",
+                {
+                    "BaseLayer": base_raster,
+                    "IgnitionPointsLayer": out,
+                    "LogFile": str(results_dir / "LogFile.txt"),
+                },
+                context=context,
+                feedback=feedback,
+                is_child_algorithm=True,
+            )
+            layer_details = QgsProcessingContext.LayerDetails(
+                "IgnitionPointsLayer",
+                context.project(),
+                "IgnitionPointsLayer",
+                QgsProcessingUtils.LayerHint.Vector,
+            )
+            layer_details.groupName = NAME["layer_group"]
+            layer_details.layerSortKey = 0
+            context.addLayerToLoadOnCompletion(
+                igpt_out["IgnitionPointsLayer"],
+                layer_details,
+            )
+            output_dict["IgnitionPoints"] = igpt_out["IgnitionPointsLayer"]
+        else:
+            feedback.reportError(f"{log_file} not found or empty!")
+            raise QgsProcessingException(f"{log_file} not found or empty!")
+
         write_log(feedback, name=self.name())
-        return {"hello": "world"}
+        return output_dict
 
     def name(self):
         return "simulationresultsprocessing"
@@ -787,6 +938,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
     def processAlgorithm(self, parameters, context, feedback):
         """Here is where the processing itself takes place."""
         # feedback.pushDebugInfo("processAlgorithm start")
+        output_dict = {}
         # get base map
         base_raster = self.parameterAsRasterLayer(parameters, self.BASE_LAYER, context)
         _, raster_props = read_raster(base_raster.publicSource(), data=False)
@@ -877,6 +1029,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         with open(Path(parent2, "final_grids.pickle"), "wb") as f:
             pickle_dump(data, f)
         feedback.pushDebugInfo(f"Final scar finished\n")
+        output_dict[self.OUTPUT_RASTER] = output_raster_filename
 
         if data.shape[0] > 1:
             burn_prob_data = data.mean(axis=0)
@@ -916,6 +1069,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
                     layer_bands=1,
                 )
             )
+            output_dict["BurnProbability"] = burn_prob_fname
 
         #
         # GRIDS
@@ -989,6 +1143,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
             layer_details.groupName = NAME["layer_group"]
             layer_details.layerSortKey = 3
             context.addLayerToLoadOnCompletion(output_vector_file, layer_details)
+        output_dict[self.OUTPUT_LAYER] = output_vector_file
 
         # store grids
         data = array(data)
@@ -996,7 +1151,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
             pickle_dump(data, f)
 
         write_log(feedback, name=self.name())
-        return {self.OUTPUT_RASTER: output_raster_filename, self.OUTPUT_LAYER: output_vector_file}
+        return output_dict
 
     def name(self):
         return "scar"
@@ -1087,7 +1242,12 @@ def run_alg_styler_bin(display_name, layer_bands=1):
 
 
 def run_alg_styler(
-    display_name, layer_color1=(68, 1, 84), layer_color2=(253, 231, 37), layer_min_val=0, layer_max_val=1, layer_bands=1
+    display_name,
+    layer_color1=(68, 1, 84),
+    layer_color2=(253, 231, 37),
+    layer_min_val=None,
+    layer_max_val=None,
+    layer_bands=None,
 ):
     """Create a New Post Processor class and returns it
 
@@ -1108,9 +1268,12 @@ def run_alg_styler(
             feedback.pushInfo(f"Inside postProcessLayer: {self.name}")
             if layer.isValid():
                 prov = layer.dataProvider()
-                # stats = prov.bandStatistics(1, QgsRasterBandStats.All, layer.extent(), 0)
-                # min_value = stats.minimumValue
-                # max_value = stats.maximumValue
+                if self.min_val is None or self.max_val is None:
+                    stats = prov.bandStatistics(1, QgsRasterBandStats.All, layer.extent(), 0)
+                    self.min_val = stats.minimumValue if self.min_val is None else self.min_val
+                    self.max_val = stats.maximumValue if self.max_val is None else self.max_val
+                if self.bands is None:
+                    self.bands = layer.bandCount()
                 feedback.pushInfo(f"Layer valid: {self.name}")
                 layer.setName(self.name)
                 for band in range(1, self.bands + 1)[::-1]:
@@ -1172,7 +1335,7 @@ def get_scar_files(sample_file: Path) -> Tuple[list[Path], Path, str, str]:
     if match := search("(\\d+)$", parent1.name):
         num = match.group()
     else:
-        raise ValueError(f"sample_file: {sample_file} does not contain a number at the end")
+        raise ValueError(f"sample_file parent: {sample_file} does not contain a number at the end")
     parent1name = parent1.name[: -len(num)]
     file_gen = parent2.rglob(parent1name + "[0-9]*" + sep + file_name + "[0-9]*" + ext)
     files = []
