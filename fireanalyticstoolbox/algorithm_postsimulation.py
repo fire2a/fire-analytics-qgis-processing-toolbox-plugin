@@ -1227,6 +1227,7 @@ def run_alg_styler_propagation():
 
         def postProcessLayer(self, layer, context, feedback):
             if layer.isValid():
+                # QgsProject.instance().layerTreeRoot().findLayer(layer.id()).setItemVisibilityChecked(False)
                 processing.run(
                     "qgis:setstyleforvectorlayer",
                     {"INPUT": layer, "STYLE": str(Path(assets_dir, "messages.qml"))},
@@ -1235,11 +1236,16 @@ def run_alg_styler_propagation():
                     is_child_algorithm=True,
                 )
                 renderer = layer.renderer()
+                # FIXME DeprecationWarning
                 renderer.updateClasses(layer, QgsGraduatedSymbolRenderer.Mode.Jenks, 10)
                 # enum : EqualInterval , Quantile , Jenks , StdDev , Pretty , Custom
                 # layer.triggerRepaint()
+                layer.setSubsetString('"time"<=120  AND "simulation" = 1')
+                QgsMessageLog.logMessage(f"propagation styling done! {layer.name()}", TAG, Qgis.Info)
             else:
-                feedback.pushInfo(f"Layer not valid: {self.name}")
+                QgsMessageLog.logMessage(
+                    f"propagation styling failed! layer not valid: {layer.name()}", TAG, Qgis.Critical
+                )
 
         # Hack to work around sip bug!
         @staticmethod
