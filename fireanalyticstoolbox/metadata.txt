@@ -21,7 +21,8 @@ repository=https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plug
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-changelog=Optional checkbox to paint the fuel raster when simulating
+changelog=Simulator post processor bundle
+
 
 
 # Tags are comma separated with spaces allowed
@@ -39,7 +40,7 @@ deprecated=False
 # Since QGIS 3.8, a comma separated list of plugins to be installed
 # (or upgraded) can be specified.
 # Check the documentation for more information.
-plugin_dependencies=numpy,pandas,pyomo
+plugin_dependencies=numpy,pandas,scipy,pyomo,networkx
 
 Category of the plugin: Raster, Vector, Database or Web
 # category=

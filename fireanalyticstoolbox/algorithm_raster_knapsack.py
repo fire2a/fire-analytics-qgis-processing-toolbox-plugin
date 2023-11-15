@@ -19,6 +19,14 @@
  *   (at your option) any later version.                                   *
  *                                                                         *
  ***************************************************************************/
+ pyomo.common.errors.ApplicationError: No Python bindings available for solver plugin
+Traceback (most recent call last):
+  File "/home/fdo/.local/share/QGIS/QGIS3/profiles/default/python/plugins/fireanalyticstoolbox/algorithm_raster_knapsack.py", line 164, in initAlgorithm
+    if SolverFactory(solver).available():
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/fdo/pyenv/pyv/lib/python3.11/site-packages/pyomo/solvers/plugins/solvers/direct_or_persistent_solver.py", line 313, in available
+    raise ApplicationError(
+pyomo.common.errors.ApplicationError: No Python bindings available for  solver plugin
 """
 __author__ = "fdo"
 __date__ = "2023-07-12"
@@ -114,6 +122,8 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
     INPUT_ratio = "INPUT_ratio"
     INPUT_executable = 'INPUT_executable_path'
 
+    solver_exception_msg = ""
+
     if platform_system() == 'Windows':
         add_cbc_to_path()
 
@@ -161,8 +171,11 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         # check availability
         solver_available = [False] * len(SOLVER)
         for i, solver in enumerate(SOLVER):
-            if SolverFactory(solver).available():
-                solver_available[i] = True
+            try:
+                if SolverFactory(solver).available():
+                    solver_available[i] = True
+            except Exception as e:
+                self.solver_exception_msg += f"solver:{solver}, problem:{e}\n"
         # prepare hints
         value_hints = []
         for i, (k, v) in enumerate(SOLVER.items()):
@@ -213,6 +226,9 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         # ?
         # feedback.reportError(f"context.logLevel(): {context.logLevel()}")
         # context.setLogLevel(context.logLevel()+1)
+
+        # report solver unavailability
+        feedback.pushInfo(f"Solver unavailability:\n{self.solver_exception_msg}\n")
 
         # get raster data
         value_layer = self.parameterAsRasterLayer(parameters, self.INPUT_value, context)
@@ -476,11 +492,13 @@ def get_raster_data(layer):
         return np.frombuffer(qByteArray)  # ,dtype=float)
 
 
-def get_raster_nodata(layer):
+def get_raster_nodata(layer, feedback):
     if layer:
         dp = layer.dataProvider()
         if dp.sourceHasNoDataValue(1):
-            return dp.sourceNoDataValue(1)
+            ndv = dp.sourceNoDataValue(1)
+            feedback.pushInfo(f"nodata: {ndv}")
+            return ndv
 
 
 def get_raster_info(layer):
