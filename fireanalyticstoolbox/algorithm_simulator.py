@@ -438,6 +438,24 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             ok, msg = compare_raster_properties(fuels_props, raster_props)
             if not ok:
                 return False, msg
+
+        # output dirs
+        project_path = QgsProject().instance().absolutePath()
+        # INSTANCE DIR
+        if self.parameterAsBool(parameters, self.INSTANCE_IN_PROJECT, context) and project_path != "":
+            instance_dir = Path(project_path, "firesim_" + datetime.now().strftime("%y%m%d_%H%M%S"))
+        else:
+            instance_dir = Path(self.parameterAsString(parameters, self.INSTANCE_DIR, context))
+        if next(instance_dir.glob("*"), None) is not None:
+            return False, f"{instance_dir} is not empty!"
+        # RESULTS DIR
+        if self.parameterAsBool(parameters, self.RESULTS_IN_INSTANCE, context) and project_path != "":
+            results_dir = Path(instance_dir, "results")
+        else:
+            results_dir = Path(self.parameterAsString(parameters, self.RESULTS_DIR, context))
+        if next(results_dir.glob("*"), None) is not None:
+            return False, f"{results_dir} is not empty!"
+
         return True, "all ok"
 
     def processAlgorithm(self, parameters, context, feedback):
@@ -500,8 +518,6 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         else:
             instance_dir = Path(self.parameterAsString(parameters, self.INSTANCE_DIR, context))
         instance_dir.mkdir(parents=True, exist_ok=True)
-        for afile in instance_dir.glob("*"):
-            afile.unlink(missing_ok=True)
         feedback.pushDebugInfo(
             f"instance_dir: {str(instance_dir)}\n"
             f"_exists: {instance_dir.exists()}\n"
@@ -515,8 +531,6 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             results_dir = Path(self.parameterAsString(parameters, self.RESULTS_DIR, context))
         self.results_dir = results_dir
         results_dir.mkdir(parents=True, exist_ok=True)
-        for afile in results_dir.glob("*"):
-            afile.unlink(missing_ok=True)
         feedback.pushDebugInfo(
             f"results_dir: {str(results_dir)}\n"
             f"_exists: {results_dir.exists()}\n"
