@@ -1030,6 +1030,9 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         for i, (afile, _, _) in enumerate(final_grids):
             data += [loadtxt_nodata(Path(parent2, afile), delimiter=",", dtype=int16)]
         data = array(data)
+        if not np_any(data[data != 0]):
+            feedback.reportError(f"Nothing burned!")
+            return {}
         # store
         with open(Path(parent2, "final_grids.pickle"), "wb") as f:
             pickle_dump(data, f)
