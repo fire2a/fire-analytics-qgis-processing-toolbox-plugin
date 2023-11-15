@@ -70,7 +70,7 @@ from qgis.core import (Qgis, QgsApplication, QgsColorRampShader, QgsFeature, Qgs
                        QgsProcessingParameterRasterLayer, QgsProcessingParameterString,
                        QgsProcessingParameterVectorLayer, QgsProcessingUtils, QgsProject, QgsRasterBandStats,
                        QgsRasterFileWriter, QgsRasterLayer, QgsRasterShader, QgsSingleBandPseudoColorRenderer, QgsTask,
-                       QgsVectorLayer)
+                       QgsVectorFileWriter, QgsVectorLayer)
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QColor, QIcon
 from scipy import stats as scipy_stats
@@ -297,6 +297,42 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         # RESULTS DIR
         results_dir = Path(self.parameterAsString(parameters, self.RESULTS_DIR, context))
 
+        # IgnitionPoints
+        log_file = Path(results_dir, "LogFile.txt")
+        if log_file.is_file() and log_file.stat().st_size > 0:
+            feedback.pushDebugInfo(log_file.read_text())
+            if out_is:
+                out = (output_dir / "IgnitionPointsLayer").touch()
+            else:
+                out = QgsProcessing.TEMPORARY_OUTPUT
+            igpt_out = processing.run(
+                "fire2a:ignitionpoints",
+                {
+                    "BaseLayer": base_raster,
+                    "IgnitionPointsLayer": out,
+                    "LogFile": str(results_dir / "LogFile.txt"),
+                },
+                context=context,
+                feedback=feedback,
+                is_child_algorithm=True,
+            )
+            layer_details = QgsProcessingContext.LayerDetails(
+                "IgnitionPointsLayer",
+                context.project(),
+                "IgnitionPointsLayer",
+                QgsProcessingUtils.LayerHint.Vector,
+            )
+            layer_details.groupName = NAME["layer_group"]
+            layer_details.layerSortKey = 0
+            context.addLayerToLoadOnCompletion(
+                igpt_out["IgnitionPointsLayer"],
+                layer_details,
+            )
+            output_dict["IgnitionPoints"] = igpt_out["IgnitionPointsLayer"]
+        else:
+            feedback.reportError(f"{log_file} not found or empty!")
+            raise QgsProcessingException(f"{log_file} not found or empty!")
+
         # stats
         for stat in STATS:
             if sample_file := next(Path(results_dir).glob(stat["dir"] + sep + stat["file"] + "*" + stat["ext"]), None):
@@ -362,31 +398,32 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
                 {
                     "BaseLayer": base_raster,
                     "SampleScarFile": str(sample_file),
-                    "OutputScarRaster": QgsProcessing.TEMPORARY_OUTPUT,
-                    "OutputScarPolygon": QgsProcessing.TEMPORARY_OUTPUT,
+                    "ScarRaster": QgsProcessing.TEMPORARY_OUTPUT,
+                    "ScarPolygon": QgsProcessing.TEMPORARY_OUTPUT,
+                    "BurnProbability": QgsProcessing.TEMPORARY_OUTPUT,
                 },
                 context=context,
                 feedback=feedback,
                 is_child_algorithm=True,
             )
             # final scars raster
-            layer_details = context.layerToLoadOnCompletionDetails(scar_out["OutputScarRaster"])
+            layer_details = context.layerToLoadOnCompletionDetails(scar_out["ScarRaster"])
             layer_details.setPostProcessor(run_alg_styler_bin("Final Scar(s)"))
             layer_details.groupName = NAME["layer_group"]
             layer_details.layerSortKey = 1
-            context.addLayerToLoadOnCompletion(scar_out["OutputScarRaster"], layer_details)
-            output_dict["OutputScarRaster"] = scar_out["OutputScarRaster"]
+            context.addLayerToLoadOnCompletion(scar_out["ScarRaster"], layer_details)
+            output_dict["ScarRaster"] = scar_out["ScarRaster"]
             # grids polygons
             layer_details = context.LayerDetails(
-                scar_out["OutputScarPolygon"],
+                scar_out["ScarPolygon"],
                 context.project(),
-                scar_out["OutputScarPolygon"],
+                scar_out["ScarPolygon"],
                 QgsProcessingUtils.LayerHint.Vector,
             )
             layer_details.groupName = NAME["layer_group"]
             layer_details.layerSortKey = 2
-            context.addLayerToLoadOnCompletion(scar_out["OutputScarPolygon"], layer_details)
-            output_dict["OutputScarPolygon"] = scar_out["OutputScarPolygon"]
+            context.addLayerToLoadOnCompletion(scar_out["ScarPolygon"], layer_details)
+            output_dict["ScarPolygon"] = scar_out["ScarPolygon"]
             # burnprob
             if bplayer := scar_out.get("BurnProbability"):
                 layer_details = context.layerToLoadOnCompletionDetails(bplayer)
@@ -427,42 +464,6 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
                     run_alg_styler_propagation()
                 )
                 output_dict["PropagationDirectedGraph"] = msg_out["PropagationDirectedGraph"]
-
-        # IgnitionPoints
-        log_file = Path(results_dir, "LogFile.txt")
-        if log_file.is_file() and log_file.stat().st_size > 0:
-            feedback.pushDebugInfo(log_file.read_text())
-            if out_is:
-                out = (output_dir / "IgnitionPointsLayer").touch()
-            else:
-                out = QgsProcessing.TEMPORARY_OUTPUT
-            igpt_out = processing.run(
-                "fire2a:ignitionpoints",
-                {
-                    "BaseLayer": base_raster,
-                    "IgnitionPointsLayer": out,
-                    "LogFile": str(results_dir / "LogFile.txt"),
-                },
-                context=context,
-                feedback=feedback,
-                is_child_algorithm=True,
-            )
-            layer_details = QgsProcessingContext.LayerDetails(
-                "IgnitionPointsLayer",
-                context.project(),
-                "IgnitionPointsLayer",
-                QgsProcessingUtils.LayerHint.Vector,
-            )
-            layer_details.groupName = NAME["layer_group"]
-            layer_details.layerSortKey = 0
-            context.addLayerToLoadOnCompletion(
-                igpt_out["IgnitionPointsLayer"],
-                layer_details,
-            )
-            output_dict["IgnitionPoints"] = igpt_out["IgnitionPointsLayer"]
-        else:
-            feedback.reportError(f"{log_file} not found or empty!")
-            raise QgsProcessingException(f"{log_file} not found or empty!")
 
         write_log(feedback, name=self.name())
         return output_dict
@@ -593,15 +594,16 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
         with open(filename, "wb") as f:
             pickle_dump(data, f)
 
-        if context.willLoadLayerOnCompletion(dest_id):
-            layer = QgsProcessingUtils.mapLayerFromString(dest_id, context)
-            layer_details = context.LayerDetails(
-                layer.name(), context.project(), dest_id, QgsProcessingUtils.LayerHint.Vector
-            )
-            layer_details.groupName = NAME["layer_group"]
-            layer_details.layerSortKey = 1
-            context.addLayerToLoadOnCompletion(dest_id, layer_details)
-            context.layerToLoadOnCompletionDetails(dest_id).setPostProcessor(run_alg_styler_propagation())
+        handle_post_processing(context, feedback, layer_id=dest_id, style="propagation")
+        # if context.willLoadLayerOnCompletion(dest_id):
+        #     layer = QgsProcessingUtils.mapLayerFromString(dest_id, context)
+        #     layer_details = context.LayerDetails(
+        #         layer.name(), context.project(), dest_id, QgsProcessingUtils.LayerHint.Vector
+        #     )
+        #     layer_details.groupName = NAME["layer_group"]
+        #     layer_details.layerSortKey = 1
+        #     context.addLayerToLoadOnCompletion(dest_id, layer_details)
+        #     context.layerToLoadOnCompletionDetails(dest_id).setPostProcessor(run_alg_styler_propagation())
 
         write_log(feedback, name=self.name())
         return {self.OUTPUT_LAYER: dest_id, "pickled": str(filename)}
@@ -882,8 +884,9 @@ class ScarSIMPP(QgsProcessingAlgorithm):
 
     IN_SCAR = "SampleScarFile"
     BASE_LAYER = "BaseLayer"
-    OUTPUT_RASTER = "OutputScarRaster"
-    OUTPUT_LAYER = "OutputScarPolygon"
+    OUT_RASTER = "ScarRaster"
+    OUT_POLY = "ScarPolygon"
+    OUT_BP = "BurnProbability"
 
     def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
         files, scar_dir, scar_name, ext = get_scar_files(
@@ -891,9 +894,20 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         )
         if files == []:
             return False, f"{scar_dir} does not contain any non-empty '{scar_name}[0-9]*{ext}' files"
-        dst_ext = Path(self.parameterAsOutputLayer(parameters, self.OUTPUT_RASTER, context)).suffix[1:]
-        if dst_ext not in QgsRasterFileWriter.supportedFormatExtensions(QgsRasterFileWriter.RasterFormatOptions()):
-            return False, f"{self.OUTPUT_RASTER} format .{dst_ext} not supported"
+        scar_raster = self.parameterAsOutputLayer(parameters, self.OUT_RASTER, context)
+        burn_prob = self.parameterAsOutputLayer(parameters, self.OUT_BP, context)
+        for afile in [scar_raster, burn_prob]:
+            if afile != "":
+                ext = Path(afile).suffix[1:]
+                if ext not in QgsRasterFileWriter.supportedFormatExtensions(QgsRasterFileWriter.RasterFormatOptions()):
+                    return False, f"{self.OUT_RASTER} format .{ext} not supported"
+        # TODO check poly format
+        scar_poly = self.parameterAsOutputLayer(parameters, self.OUT_POLY, context)
+        # if scar_poly != "":
+        #     if not scar_poly.startswith("memory:Output") or not scar_poly.endswith(".gpkg"):
+        #         return False, f"{self.OUT_POLY} should be a memory layer or a .gpkg file"
+        if scar_poly == "" and scar_raster == "" and burn_prob == "":
+            return False, f"No output selected!"
         return True, ""
 
     def initAlgorithm(self, config):
@@ -920,18 +934,36 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         )
         self.addParameter(
             QgsProcessingParameterRasterDestination(
-                name=self.OUTPUT_RASTER,
-                description=self.tr("Output raster"),
-                # defaultValue=None,
-                # optional=False,
-                # createByDefault=True,
+                name=self.OUT_RASTER,
+                description=self.tr(
+                    'Output final scar(s) raster (requires simulation ran with "final or propagation fire scar"'
+                    " options)"
+                ),
+                optional=True,
+                createByDefault=True,
             )
         )
         self.addParameter(
             QgsProcessingParameterFeatureSink(
-                name=self.OUTPUT_LAYER,
-                description=self.tr("Output propagation polygons"),
+                name=self.OUT_POLY,
+                description=self.tr(
+                    'Output propagation scars polygons (gpkg formatted, requires simulation ran with "propagation fire'
+                    ' scar" options)'
+                ),
                 type=QgsProcessing.TypeVectorPolygon,
+                optional=True,
+                createByDefault=True,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterRasterDestination(
+                name=self.OUT_BP,
+                description=self.tr(
+                    'Output burn probability raster (requires >1 simulations and "final or propagation fire scar"'
+                    " options)"
+                ),
+                optional=True,
+                createByDefault=True,
             )
         )
 
@@ -994,52 +1026,56 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         # feedback.pushDebugInfo(f"grids: {grids}")
 
         # FINAL GRIDS
-        # raster
-        output_raster_filename = self.parameterAsOutputLayer(parameters, self.OUTPUT_RASTER, context)
-        raster_format = Grass7Utils.getRasterFormatFromFilename(output_raster_filename)
-        feedback.pushDebugInfo(f"Final grid(s)(output_raster): {output_raster_filename}, {raster_format}")
-        dst_ds = gdal.GetDriverByName(raster_format).Create(output_raster_filename, W, H, len(final_grids), GDT_Int16)
-        dst_ds.SetGeoTransform(GT)  # specify coords
-        dst_ds.SetProjection(base_raster.crs().authid())  # export coords to file
-
-        feedback.setProgressText(f"Processing final scar(s): {len(final_grids)} files")
         data = []
-        for i, (afile, sim, per) in enumerate(final_grids):
-            if feedback.isCanceled():
-                break
-            feedback.setProgress(int(i * len(final_grids)))
-            feedback.pushDebugInfo(f"sim: {sim}, per: {per}, file: {afile}")
+        for i, (afile, _, _) in enumerate(final_grids):
             data += [loadtxt_nodata(Path(parent2, afile), delimiter=",", dtype=int16)]
-            band = dst_ds.GetRasterBand(i + 1)
-            band.SetUnitType("burned")
-            if 0 != band.SetNoDataValue(0):
-                feedback.pushWarning(f"Set No Data failed for {afile}")
-            if 0 != band.WriteArray(data[-1]):
-                feedback.pushWarning(f"WriteArray failed for {afile}")
         data = array(data)
-        dst_ds.FlushCache()  # write to disk
-        dst_ds = None
-        # rename if showing
-        if context.willLoadLayerOnCompletion(output_raster_filename):
-            layer_details = context.layerToLoadOnCompletionDetails(output_raster_filename)
-            layer_details.setPostProcessor(run_alg_styler_bin("Final Scar(s)"))
-            layer_details.groupName = NAME["layer_group"]
-            layer_details.layerSortKey = 2
-        # store final grids
+        # store
         with open(Path(parent2, "final_grids.pickle"), "wb") as f:
             pickle_dump(data, f)
-        feedback.pushDebugInfo(f"Final scar finished\n")
-        output_dict[self.OUTPUT_RASTER] = output_raster_filename
+        # raster
+        output_raster_filename = self.parameterAsOutputLayer(parameters, self.OUT_RASTER, context)
+        if output_raster_filename != "":
+            raster_format = Grass7Utils.getRasterFormatFromFilename(output_raster_filename)
+            feedback.pushDebugInfo(f"Final grid(s) raster: {output_raster_filename}, {raster_format}")
+            dst_ds = gdal.GetDriverByName(raster_format).Create(
+                output_raster_filename, W, H, len(final_grids), GDT_Int16
+            )
+            dst_ds.SetGeoTransform(GT)  # specify coords
+            dst_ds.SetProjection(base_raster.crs().authid())  # export coords to file
 
-        if data.shape[0] > 1:
+            feedback.setProgressText(f"Processing final scar(s): {len(final_grids)} files")
+            for i, (afile, sim, per) in enumerate(final_grids):
+                if feedback.isCanceled():
+                    break
+                feedback.setProgress(int(i * len(final_grids)))
+                feedback.pushDebugInfo(f"sim: {sim}, per: {per}, file: {afile}")
+                band = dst_ds.GetRasterBand(i + 1)
+                band.SetUnitType("burned")
+                if 0 != band.SetNoDataValue(0):
+                    feedback.pushWarning(f"Set No Data failed for {afile}")
+                if 0 != band.WriteArray(data[i]):
+                    feedback.pushWarning(f"WriteArray failed for {afile}")
+            dst_ds.FlushCache()  # write to disk
+            dst_ds = None
+            # if showing
+            if context.willLoadLayerOnCompletion(output_raster_filename):
+                layer_details = context.layerToLoadOnCompletionDetails(output_raster_filename)
+                layer_details.setPostProcessor(run_alg_styler_bin("Final Scar(s)"))
+                layer_details.groupName = NAME["layer_group"]
+                layer_details.layerSortKey = 2
+            feedback.pushDebugInfo(f"Final scar finished\n")
+            output_dict[self.OUT_RASTER] = output_raster_filename
+
+        burn_prob_fname = self.parameterAsOutputLayer(parameters, self.OUT_BP, context)
+        if data.shape[0] > 1 and burn_prob_fname != "":
             burn_prob_data = data.mean(axis=0)
             burn_prob_stats = scipy_stats.describe(burn_prob_data[burn_prob_data != 0], axis=None)
             stats_min, stats_max = burn_prob_stats.minmax
             feedback.pushInfo(f"Burn Probability (!=0) stats: {burn_prob_stats}\n")
 
-            path = Path(output_raster_filename)
-            burn_prob_fname = str(path.parent) + sep + "burn_probability" + str(path.suffix)
-            burn_prob_ds = gdal.GetDriverByName(raster_format).Create(burn_prob_fname, W, H, 1, GDT_Float32)
+            burn_prob_format = Grass7Utils.getRasterFormatFromFilename(burn_prob_fname)
+            burn_prob_ds = gdal.GetDriverByName(burn_prob_format).Create(burn_prob_fname, W, H, 1, GDT_Float32)
             burn_prob_ds.SetGeoTransform(GT)  # specify coords
             burn_prob_ds.SetProjection(base_raster.crs().authid())  # export coords to file
             band = burn_prob_ds.GetRasterBand(1)
@@ -1050,105 +1086,108 @@ class ScarSIMPP(QgsProcessingAlgorithm):
                 feedback.pushWarning(f"WriteArray failed for {afile}")
             burn_prob_ds.FlushCache()  # write to disk
             burn_prob_ds = None
-
-            layer_name = "BurnProbability"
-            layer_details = context.LayerDetails(
-                layer_name,
-                context.project(),
-                layer_name,
-                QgsProcessingUtils.LayerHint.Raster,
-            )
-            layer_details.groupName = NAME["layer_group"]
-            layer_details.layerSortKey = 4
-            context.addLayerToLoadOnCompletion(burn_prob_fname, layer_details)
-            context.layerToLoadOnCompletionDetails(burn_prob_fname).setPostProcessor(
-                run_alg_styler(
+            # if showing
+            if context.willLoadLayerOnCompletion(burn_prob_fname):
+                layer_name = "Burn Probability"
+                layer_details = context.LayerDetails(
                     layer_name,
-                    layer_min_val=stats_min,
-                    layer_max_val=stats_max,
-                    layer_bands=1,
+                    context.project(),
+                    layer_name,
+                    QgsProcessingUtils.LayerHint.Raster,
                 )
-            )
+                layer_details.groupName = NAME["layer_group"]
+                layer_details.layerSortKey = 4
+                context.addLayerToLoadOnCompletion(burn_prob_fname, layer_details)
+                context.layerToLoadOnCompletionDetails(burn_prob_fname).setPostProcessor(
+                    run_alg_styler(
+                        layer_name,
+                        layer_min_val=stats_min,
+                        layer_max_val=stats_max,
+                        layer_bands=1,
+                    )
+                )
             output_dict["BurnProbability"] = burn_prob_fname
 
         #
         # GRIDS
         #
         # vector
-        output_vector_file = self.parameterAsOutputLayer(parameters, self.OUTPUT_LAYER, context)
-        feedback.pushInfo(f"Propagation polygons (output_vector_file): {output_vector_file}")
-        # raster for each grid
-        src_ds = gdal.GetDriverByName("MEM").Create("", W, H, len(files), gdal.GDT_Float32)
-        src_ds.SetGeoTransform(GT)  # specify coords
-        src_ds.SetProjection(base_raster.crs().authid())  # export coords to file
-        # datasource for shadow geometry vector layer (polygonize output)
-        ogr_ds = ogr.GetDriverByName("Memory").CreateDataSource("")
-        # srs
-        sp_ref = osr.SpatialReference()
-        sp_ref.SetFromUserInput(base_raster.crs().authid())
-        # otro
-        otrods = ogr.GetDriverByName("GPKG").CreateDataSource(output_vector_file)
-        otrolyr = otrods.CreateLayer("", srs=sp_ref, geom_type=ogr.wkbPolygon)
-        otrolyr.CreateField(ogr.FieldDefn("sim", ogr.OFTInteger))
-        otrolyr.CreateField(ogr.FieldDefn("per", ogr.OFTInteger))
-        otrolyr.CreateField(ogr.FieldDefn("area", ogr.OFTInteger))
-        otrolyr.CreateField(ogr.FieldDefn("perimeter", ogr.OFTInteger))
+        output_vector_file = self.parameterAsOutputLayer(parameters, self.OUT_POLY, context)
+        feedback.pushDebugInfo(f"output_vector_file: {output_vector_file}")
+        if output_vector_file != "":
+            feedback.pushInfo(f"Propagation polygons (output_vector_file): {output_vector_file}")
+            # raster for each grid
+            src_ds = gdal.GetDriverByName("MEM").Create("", W, H, len(files), gdal.GDT_Float32)
+            src_ds.SetGeoTransform(GT)  # specify coords
+            src_ds.SetProjection(base_raster.crs().authid())  # export coords to file
+            # datasource for shadow geometry vector layer (polygonize output)
+            ogr_ds = ogr.GetDriverByName("Memory").CreateDataSource("")
+            # srs
+            sp_ref = osr.SpatialReference()
+            sp_ref.SetFromUserInput(base_raster.crs().authid())
+            # otro
+            otrods = ogr.GetDriverByName("GPKG").CreateDataSource(output_vector_file)
+            otrolyr = otrods.CreateLayer("", srs=sp_ref, geom_type=ogr.wkbPolygon)
+            otrolyr.CreateField(ogr.FieldDefn("sim", ogr.OFTInteger))
+            otrolyr.CreateField(ogr.FieldDefn("per", ogr.OFTInteger))
+            otrolyr.CreateField(ogr.FieldDefn("area", ogr.OFTInteger))
+            otrolyr.CreateField(ogr.FieldDefn("perimeter", ogr.OFTInteger))
 
-        msg = f"Processing propagation scar polygons, {len(grids)} simulations"
-        feedback.setProgressText(msg)
-        data = []
-        count = 0
-        for i, (files, sim, pers) in enumerate(grids):
-            feedback.pushDebugInfo(f"simulation id: {sim}, total periods: {len(pers)}")
-            for j, (afile, per) in enumerate(zip(files[::-1], pers[::-1])):
-                feedback.setProgress(int(count * len(files)))
-                if feedback.isCanceled():
-                    break
-                data += [loadtxt(Path(parent2, afile), delimiter=",", dtype=int16)]
-                if not np_any(data[-1] == 1):
-                    feedback.pushWarning(f"no fire in {afile}")
-                    continue
-                count += 1
-                layer_name = f"propagation_sim{sim}_per{per}"
-                # feedback.pushDebugInfo(f"{layer_name}, file: {afile}")
-                feedback.pushDebugInfo(f"sim: {sim}, per: {per}, file: {afile}")
+            msg = f"Processing propagation scar polygons, {len(grids)} simulations"
+            feedback.setProgressText(msg)
+            data = []
+            count = 0
+            for i, (files, sim, pers) in enumerate(grids):
+                feedback.pushDebugInfo(f"simulation id: {sim}, total periods: {len(pers)}")
+                for j, (afile, per) in enumerate(zip(files[::-1], pers[::-1])):
+                    feedback.setProgress(int(count * len(files)))
+                    if feedback.isCanceled():
+                        break
+                    data += [loadtxt(Path(parent2, afile), delimiter=",", dtype=int16)]
+                    if not np_any(data[-1] == 1):
+                        feedback.pushWarning(f"no fire in {afile}")
+                        continue
+                    count += 1
+                    layer_name = f"propagation_sim{sim}_per{per}"
+                    # feedback.pushDebugInfo(f"{layer_name}, file: {afile}")
+                    feedback.pushDebugInfo(f"sim: {sim}, per: {per}, file: {afile}")
 
-                # raster polygonize
-                src_band = src_ds.GetRasterBand(count)
-                src_band.SetNoDataValue(0)
-                src_band.WriteArray(data[-1])
-                ogr_layer = ogr_ds.CreateLayer("", srs=sp_ref)
-                gdal.Polygonize(src_band, src_band, ogr_layer, -1, ["8CONNECTED=8"])
-                # assumes only one feature : 8 neighbors provides that
-                feat = ogr_layer.GetNextFeature()
-                geom = feat.GetGeometryRef()
+                    # raster polygonize
+                    src_band = src_ds.GetRasterBand(count)
+                    src_band.SetNoDataValue(0)
+                    src_band.WriteArray(data[-1])
+                    ogr_layer = ogr_ds.CreateLayer("", srs=sp_ref)
+                    gdal.Polygonize(src_band, src_band, ogr_layer, -1, ["8CONNECTED=8"])
+                    # assumes only one feature : 8 neighbors provides that
+                    feat = ogr_layer.GetNextFeature()
+                    geom = feat.GetGeometryRef()
 
-                # create the feature and set values
-                featureDefn = otrolyr.GetLayerDefn()
-                feature = ogr.Feature(featureDefn)
-                feature.SetGeometry(geom)
-                feature.SetField("sim", int(sim))
-                feature.SetField("per", int(per))
-                feature.SetField("area", int(geom.GetArea()))
-                feature.SetField("perimeter", int(geom.Boundary().Length()))
-                otrolyr.CreateFeature(feature)
+                    # create the feature and set values
+                    featureDefn = otrolyr.GetLayerDefn()
+                    feature = ogr.Feature(featureDefn)
+                    feature.SetGeometry(geom)
+                    feature.SetField("sim", int(sim))
+                    feature.SetField("per", int(per))
+                    feature.SetField("area", int(geom.GetArea()))
+                    feature.SetField("perimeter", int(geom.Boundary().Length()))
+                    otrolyr.CreateFeature(feature)
 
-        if context.willLoadLayerOnCompletion(output_vector_file):
-            layer_details = context.LayerDetails(
-                output_vector_file,
-                context.project(),
-                output_vector_file,
-                QgsProcessingUtils.LayerHint.Vector,
-            )
-            layer_details.groupName = NAME["layer_group"]
-            layer_details.layerSortKey = 3
-            context.addLayerToLoadOnCompletion(output_vector_file, layer_details)
-        output_dict[self.OUTPUT_LAYER] = output_vector_file
+            if context.willLoadLayerOnCompletion(output_vector_file):
+                layer_details = context.LayerDetails(
+                    "Propagation Scars",
+                    context.project(),
+                    layerTypeHint=QgsProcessingUtils.LayerHint.Vector,
+                )
+                layer_details.forceName = True
+                layer_details.groupName = NAME["layer_group"]
+                layer_details.layerSortKey = 3
+                context.addLayerToLoadOnCompletion(output_vector_file, layer_details)
+            output_dict[self.OUT_POLY] = output_vector_file
 
-        # store grids
-        data = array(data)
-        with open(Path(parent2, "grids.pickle"), "wb") as f:
-            pickle_dump(data, f)
+            # store grids
+            data = array(data)
+            with open(Path(parent2, "grids.pickle"), "wb") as f:
+                pickle_dump(data, f)
 
         write_log(feedback, name=self.name())
         return output_dict
@@ -1301,6 +1340,16 @@ def run_alg_styler(
             return LayerPostProcessor.instance
 
     return LayerPostProcessor.create()
+
+
+class Renamer(QgsProcessingLayerPostProcessorInterface):
+    def __init__(self, layer_name):
+        super().__init__()
+        self.name = layer_name
+
+    def postProcessLayer(self, layer, context, feedback):
+        if layer.isValid():
+            layer.setName(self.name)
 
 
 def get_files(sample_file: Path) -> tuple[list[Path], Path, str, str]:
@@ -1668,3 +1717,26 @@ def recursion(G: DiGraph, i: int32, mdpv: ndarray, i2n: list[int]) -> ndarray:
     for j in G.successors(i):
         mdpv[i2n.index(i)] += recursion(G, j, mdpv, i2n)
     return mdpv[i2n.index(i)]
+
+
+def handle_post_processing(context, feedback, layer=None, layer_id=None, display_name="", style=None, **kwargs) -> None:
+    if not layer:
+        layer = QgsProcessingUtils.mapLayerFromString(layer_id, context)
+    if display_name == "":
+        display_name = layer.name()
+    layer_details = context.LayerDetails(display_name, context.project(), display_name)
+    context.addLayerToLoadOnCompletion(
+        display_name,
+        layer_details,
+    )
+    if context.willLoadLayerOnCompletion(layer_id):
+        if style == "pseudocolor":
+            context.layerToLoadOnCompletionDetails(layer_id).setPostProcessor(
+                run_alg_styler(display_name, (0, 0, 255), (255, 0, 0), **kwargs)
+            )
+        elif style == "bin":
+            context.layerToLoadOnCompletionDetails(layer_id).setPostProcessor(
+                run_alg_styler_bin(display_name, (0, 0, 255), (255, 0, 0), **kwargs)
+            )
+        elif style == "propagation":
+            context.layerToLoadOnCompletionDetails(layer_id).setPostProcessor(run_alg_styler_propagation())
