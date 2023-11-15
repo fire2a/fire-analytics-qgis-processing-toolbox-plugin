@@ -54,6 +54,7 @@ from qgis.core import (QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm, Qgs
 from qgis.gui import Qgis
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
+import processing
 
 from .config import METRICS, SIM_OUTPUTS, STATS, TAG, jolo
 from .simulator.c2fqprocess import C2F
@@ -91,6 +92,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     RESULTS_IN_INSTANCE = "ResultsInInstance"
     FUEL_MODEL = "FuelModel"
     FUEL = "FuelRaster"
+    PAINTFUELS = "SetFuelLayerStyle"
     ELEVATION = "ElevationRaster"
     PV = "PvRaster"
     CBH = "CbhRaster"
@@ -152,6 +154,14 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 description=self.tr("Surface fuel"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterBoolean(
+                name=self.PAINTFUELS,
+                description="Style Fuel raster with selected surface fuel model (native:setlayerstyle)",
+                defaultValue=True,
+                optional=True,
             )
         )
         self.addParameter(
@@ -479,6 +489,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             f"selected_output_strings: {selected_output_strings}\n"
         )
         is_crown = self.parameterAsBool(parameters, self.CROWN, context)
+        paint_fuels = self.parameterAsBool(parameters, self.PAINTFUELS, context)
         # BUILD ARGS
         # output_options = [item["name"] for item in SIM_OUTPUTS]
         args = {key: None for key in output_args}
@@ -556,6 +567,17 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 copy(v.publicSource(), Path(instance_dir, f"{k}.asc"))
             else:
                 feedback.pushDebugInfo(f"NO copy: {k}:{v}")
+
+        if paint_fuels:
+            feedback.pushDebugInfo(f"painting fuel layer: {raster['fuels'].name()}, with style {self.fuel_models[fuel_model]}")
+            processing.run(
+                "native:setlayerstyle",
+                {"INPUT": raster["fuels"], "STYLE": str(Path(self.plugin_dir,"simulator",f"fuel_{fuel_model}_layerStyle.qml"))},
+                context=context,
+                feedback=feedback,
+                is_child_algorithm=True,
+            )
+            feedback.pushDebugInfo(f"painted\n")
 
         # IGNITION
         _, raster_props = read_raster(raster["fuels"].publicSource(), data=False)

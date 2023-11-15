@@ -24,6 +24,7 @@ hasProcessingProvider=yes
 changelog=Simulator post processor bundle
 
 
+
 # Tags are comma separated with spaces allowed
 tags=python,fire,forest fires,wildfires,fire simulator,prescriptive analytics
 
