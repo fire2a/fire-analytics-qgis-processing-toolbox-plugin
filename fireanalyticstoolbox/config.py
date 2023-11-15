@@ -1,5 +1,7 @@
 #!python3
 from os import sep
+
+
 def jolo(string: str) -> str:
     return string.replace(" ", "").lower()
 
@@ -57,7 +59,7 @@ STATS = [
 SIM_OUTPUTS = [
     {
         "name": "Final Fire Scar",
-        "dir": "Grids"+sep+"Grids",
+        "dir": "Grids" + sep + "Grids",
         "file": "ForestGrid",
         "ext": "csv",
         "arg": "final-grid",
@@ -65,7 +67,7 @@ SIM_OUTPUTS = [
     },
     {
         "name": "Propagation Fire Scars",
-        "dir": "Grids"+sep+"Grids",
+        "dir": "Grids" + sep + "Grids",
         "file": "ForestGrid",
         "ext": "csv",
         "arg": "grids",

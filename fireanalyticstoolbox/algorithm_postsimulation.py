@@ -141,10 +141,15 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         # BASE LAYER
         base_raster = self.parameterAsRasterLayer(parameters, self.BASE_LAYER, context)
         _, raster_props = read_raster(base_raster.publicSource(), data=False)
-        feedback.pushDebugInfo(f"base_raster.crs(): {base_raster.crs()}")
+        feedback.pushDebugInfo(f"base_raster.crs.authid: {base_raster.crs().authid()}\n")
         # log file
         log_text = Path(self.parameterAsString(parameters, self.IN_LOG, context)).read_text(encoding="utf-8")
-        feedback.pushDebugInfo(f"sample of simulation log: {log_text[-30:30]}")
+        preview_from, preview_to = 34, 256 * 2 - 34
+        if len(log_text) < preview_from:
+            preview_from = 0
+        if len(log_text) < preview_to:
+            preview_to = len(log_text)
+        feedback.pushDebugInfo(f"preview of simulation log:\n{log_text[preview_from: preview_to]}\n")
         # create layer
         fields = QgsFields()
         fields.append(QgsField(name="simulation", type=QVariant.Int, len=10))
@@ -159,8 +164,9 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
             Qgis.WkbType.Point,
             base_raster.crs(),
         )
-        feedback.pushDebugInfo(f"dest_id: {dest_id}, type: {type(dest_id)}")
-        feedback.pushDebugInfo(f"sink: {sink}, type: {type(sink)}, dir: {dir(sink)}")
+        # feedback.pushDebugInfo(f"dest_id: {dest_id}, type: {type(dest_id)}")
+        # feedback.pushDebugInfo(f"sink: {sink}, type: {type(sink)}, dir: {dir(sink)}")
+        feedback.pushDebugInfo(f"output layer id: {dest_id}\n")
         # parse log file
         simulation_id, ignition_cell = fromiter(
             findall("ignition point for Year [0-9]*, sim ([0-9]+): ([0-9]+)", log_text), dtype=dtype((int32, 2))
@@ -179,7 +185,8 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
             feedback.pushDebugInfo(f"simulation id: {sim_id}, ignition cell: {cell}, x: {x}, y: {y}, i: {i}, j: {j}")
             if feedback.isCanceled():
                 break
-        feedback.pushDebugInfo(f"addFeatures: {sink}, {type(sink)}")
+        # feedback.pushDebugInfo(f"addFeatures: {sink}, {type(sink)}")
+        feedback.pushDebugInfo("\n")
         processing.run(
             "qgis:setstyleforvectorlayer",
             {"INPUT": dest_id, "STYLE": str(Path(assets_dir, "ignition_points.qml"))},
@@ -190,7 +197,11 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         if context.willLoadLayerOnCompletion(dest_id):
             layer = QgsProcessingUtils.mapLayerFromString(dest_id, context)
             layer_details = context.LayerDetails(
-                layer.name(), context.project(), dest_id, QgsProcessingUtils.LayerHint.Vector
+                "Ignition Points",
+                context.project(),
+                dest_id,
+                QgsProcessingUtils.LayerHint.Vector,
+                # layer.name(), context.project(), dest_id, QgsProcessingUtils.LayerHint.Vector
             )
             layer_details.groupName = NAME["layer_group"]
             layer_details.layerSortKey = 0
@@ -317,9 +328,9 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
                 is_child_algorithm=True,
             )
             layer_details = QgsProcessingContext.LayerDetails(
-                "IgnitionPointsLayer",
+                "Ignition Points",
                 context.project(),
-                "IgnitionPointsLayer",
+                "Ignition Points",
                 QgsProcessingUtils.LayerHint.Vector,
             )
             layer_details.groupName = NAME["layer_group"]
@@ -407,31 +418,48 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
                 is_child_algorithm=True,
             )
             # final scars raster
-            layer_details = context.layerToLoadOnCompletionDetails(scar_out["ScarRaster"])
-            layer_details.setPostProcessor(run_alg_styler_bin("Final Scar(s)"))
-            layer_details.groupName = NAME["layer_group"]
-            layer_details.layerSortKey = 1
-            context.addLayerToLoadOnCompletion(scar_out["ScarRaster"], layer_details)
-            output_dict["ScarRaster"] = scar_out["ScarRaster"]
-            # grids polygons
-            layer_details = context.LayerDetails(
-                scar_out["ScarPolygon"],
-                context.project(),
-                scar_out["ScarPolygon"],
-                QgsProcessingUtils.LayerHint.Vector,
-            )
-            layer_details.groupName = NAME["layer_group"]
-            layer_details.layerSortKey = 2
-            context.addLayerToLoadOnCompletion(scar_out["ScarPolygon"], layer_details)
-            output_dict["ScarPolygon"] = scar_out["ScarPolygon"]
+            if scar_raster := scar_out.get("ScarRaster"):
+                # layer_details = context.layerToLoadOnCompletionDetails(scar_raster)
+                layer_details = context.LayerDetails(
+                    "Final Scars",
+                    context.project(),
+                    "Final Scars",
+                    QgsProcessingUtils.LayerHint.Raster,
+                )
+                layer_details.setPostProcessor(run_alg_styler_bin("Final Scars"))
+                layer_details.forceName = True
+                layer_details.groupName = NAME["layer_group"]
+                layer_details.layerSortKey = 1
+                context.addLayerToLoadOnCompletion(scar_raster, layer_details)
+                output_dict["ScarRaster"] = scar_raster
             # burnprob
             if bplayer := scar_out.get("BurnProbability"):
-                layer_details = context.layerToLoadOnCompletionDetails(bplayer)
-                layer_details.setPostProcessor(run_alg_styler("BurnProbability"))
+                # layer_details = context.layerToLoadOnCompletionDetails(bplayer)
+                layer_details = context.LayerDetails(
+                    "BurnProbability",
+                    context.project(),
+                    "BurnProbability",
+                    QgsProcessingUtils.LayerHint.Raster,
+                )
+                layer_details.setPostProcessor(run_alg_styler("Burn Probability"))
+                layer_details.forceName = True
                 layer_details.groupName = NAME["layer_group"]
                 layer_details.layerSortKey = 3
                 context.addLayerToLoadOnCompletion(bplayer, layer_details)
                 output_dict["BurnProbability"] = bplayer
+            # grids polygons
+            if scar_poly := scar_out.get("ScarPolygon"):
+                layer_details = context.LayerDetails(
+                    "Propagation Scars",
+                    context.project(),
+                    "Propagation Scars",
+                    QgsProcessingUtils.LayerHint.Vector,
+                )
+                layer_details.forceName = True
+                layer_details.groupName = NAME["layer_group"]
+                layer_details.layerSortKey = 3
+                context.addLayerToLoadOnCompletion(scar_poly, layer_details)
+                output_dict["ScarPolygon"] = scar_poly
 
         # messages
         if self.parameterAsBool(parameters, self.MSGS, context):
@@ -472,13 +500,13 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         return "simulationresultsprocessing"
 
     def displayName(self):
-        return self.tr("All together bundle")
+        return self.tr("Bundle")
 
     def group(self):
         return self.tr(self.groupId())
 
     def groupId(self):
-        return "zexperimental"
+        return "simulatorpostprocessing"
 
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)
@@ -488,7 +516,9 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
 
 
 class MessagesSIMPP(QgsProcessingAlgorithm):
-    """Messages Simulation Post Processing Algorithm"""
+    """Messages Simulation Post Processing Algorithm
+    TODO QgsProject.instance().layerTreeRoot().findLayer(layer.id()).setItemVisibilityChecked(False)
+    """
 
     BASE_LAYER = "BaseLayer"
     IN_MSG = "SampleMessagesFile"
@@ -594,16 +624,16 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
         with open(filename, "wb") as f:
             pickle_dump(data, f)
 
-        handle_post_processing(context, feedback, layer_id=dest_id, style="propagation")
-        # if context.willLoadLayerOnCompletion(dest_id):
-        #     layer = QgsProcessingUtils.mapLayerFromString(dest_id, context)
-        #     layer_details = context.LayerDetails(
-        #         layer.name(), context.project(), dest_id, QgsProcessingUtils.LayerHint.Vector
-        #     )
-        #     layer_details.groupName = NAME["layer_group"]
-        #     layer_details.layerSortKey = 1
-        #     context.addLayerToLoadOnCompletion(dest_id, layer_details)
-        #     context.layerToLoadOnCompletionDetails(dest_id).setPostProcessor(run_alg_styler_propagation())
+        # handle_post_processing(context, feedback, layer_id=dest_id, style="propagation")
+        if context.willLoadLayerOnCompletion(dest_id):
+            layer = QgsProcessingUtils.mapLayerFromString(dest_id, context)
+            layer_details = context.LayerDetails(
+                layer.name(), context.project(), dest_id, QgsProcessingUtils.LayerHint.Vector
+            )
+            layer_details.groupName = NAME["layer_group"]
+            layer_details.layerSortKey = 1
+            context.addLayerToLoadOnCompletion(dest_id, layer_details)
+            context.layerToLoadOnCompletionDetails(dest_id).setPostProcessor(run_alg_styler_propagation())
 
         write_log(feedback, name=self.name())
         return {self.OUTPUT_LAYER: dest_id, "pickled": str(filename)}
@@ -889,9 +919,11 @@ class ScarSIMPP(QgsProcessingAlgorithm):
     OUT_BP = "BurnProbability"
 
     def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
-        files, scar_dir, scar_name, ext = get_scar_files(
+        retval, retmsg, files, scar_dir, scar_name, ext = get_scar_files(
             Path(self.parameterAsString(parameters, self.IN_SCAR, context))
         )
+        if not retval:
+            return False, retmsg
         if files == []:
             return False, f"{scar_dir} does not contain any non-empty '{scar_name}[0-9]*{ext}' files"
         scar_raster = self.parameterAsOutputLayer(parameters, self.OUT_RASTER, context)
@@ -984,14 +1016,18 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         if match := search("(\\d+)$", sample_file.stem):
             num = match.group()
         else:
-            raise ValueError(f"sample_file: {sample_file} does not contain a number at the end")
+            feedback.reportError(f"sample_file: {sample_file} does not contain a number at the end")
+            return {}
         file_name = sample_file.stem[: -len(num)]
         parent1 = sample_file.absolute().parent
         parent2 = sample_file.absolute().parent.parent
         if match := search("(\\d+)$", parent1.name):
             num = match.group()
         else:
-            raise ValueError(f"sample_file: {sample_file} parent does not contain a number at the end")
+            feedback.reportError(
+                f"sample_file parent directory: {sample_file.absolute()} does not contain a number at the end"
+            )
+            return {}
         parent1name = parent1.name[: -len(num)]
         file_gen = parent2.rglob(parent1name + "[0-9]*" + sep + file_name + "[0-9]*" + ext)
         files = []
@@ -1033,6 +1069,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         if not np_any(data[data != 0]):
             feedback.reportError(f"Nothing burned!")
             return {}
+
         # store
         with open(Path(parent2, "final_grids.pickle"), "wb") as f:
             pickle_dump(data, f)
@@ -1064,7 +1101,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
             # if showing
             if context.willLoadLayerOnCompletion(output_raster_filename):
                 layer_details = context.layerToLoadOnCompletionDetails(output_raster_filename)
-                layer_details.setPostProcessor(run_alg_styler_bin("Final Scar(s)"))
+                layer_details.setPostProcessor(run_alg_styler_bin("Final Scars"))
                 layer_details.groupName = NAME["layer_group"]
                 layer_details.layerSortKey = 2
             feedback.pushDebugInfo(f"Final scar finished\n")
@@ -1133,8 +1170,8 @@ class ScarSIMPP(QgsProcessingAlgorithm):
             # otro
             otrods = ogr.GetDriverByName("GPKG").CreateDataSource(output_vector_file)
             otrolyr = otrods.CreateLayer("", srs=sp_ref, geom_type=ogr.wkbPolygon)
-            otrolyr.CreateField(ogr.FieldDefn("sim", ogr.OFTInteger))
-            otrolyr.CreateField(ogr.FieldDefn("per", ogr.OFTInteger))
+            otrolyr.CreateField(ogr.FieldDefn("simulation", ogr.OFTInteger))
+            otrolyr.CreateField(ogr.FieldDefn("time", ogr.OFTInteger))
             otrolyr.CreateField(ogr.FieldDefn("area", ogr.OFTInteger))
             otrolyr.CreateField(ogr.FieldDefn("perimeter", ogr.OFTInteger))
 
@@ -1171,8 +1208,8 @@ class ScarSIMPP(QgsProcessingAlgorithm):
                     featureDefn = otrolyr.GetLayerDefn()
                     feature = ogr.Feature(featureDefn)
                     feature.SetGeometry(geom)
-                    feature.SetField("sim", int(sim))
-                    feature.SetField("per", int(per))
+                    feature.SetField("simulation", int(sim))
+                    feature.SetField("time", int(per))
                     feature.SetField("area", int(geom.GetArea()))
                     feature.SetField("perimeter", int(geom.Boundary().Length()))
                     otrolyr.CreateFeature(feature)
@@ -1181,6 +1218,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
                 layer_details = context.LayerDetails(
                     "Propagation Scars",
                     context.project(),
+                    "Propagation Scars",
                     layerTypeHint=QgsProcessingUtils.LayerHint.Vector,
                 )
                 layer_details.forceName = True
@@ -1384,18 +1422,19 @@ def get_scar_files(sample_file: Path) -> Tuple[list[Path], Path, str, str]:
     """Get a list of files with the same name (+ any digit) and extension and the directory and name of the sample file
     sample_file = Path('/home/fdo/source/C2F-W/data/Vilopriu_2013/firesim_231001_145657/results/Grids/Grids1/ForestGrid00.csv')
     """
+    retval = 0
     ext = sample_file.suffix
     if match := search("(\\d+)$", sample_file.stem):
         num = match.group()
     else:
-        raise ValueError(f"sample_file: {sample_file} does not contain a number at the end")
+        return False, f"sample_file: {sample_file} does not contain a number at the end", [], None, None, None
     file_name = sample_file.stem[: -len(num)]
     parent1 = sample_file.absolute().parent
     parent2 = sample_file.absolute().parent.parent
     if match := search("(\\d+)$", parent1.name):
         num = match.group()
     else:
-        raise ValueError(f"sample_file parent: {sample_file} does not contain a number at the end")
+        return False, f"sample_file parent: {sample_file} does not contain a number at the end", [], None, None, None
     parent1name = parent1.name[: -len(num)]
     file_gen = parent2.rglob(parent1name + "[0-9]*" + sep + file_name + "[0-9]*" + ext)
     files = []
@@ -1403,7 +1442,8 @@ def get_scar_files(sample_file: Path) -> Tuple[list[Path], Path, str, str]:
         if afile.is_file() and afile.stat().st_size > 0:
             files += [afile.relative_to(parent2)]
     # QgsMessageLog.logMessage(f"files: {files}, adir: {adir}, aname: {aname}, ext: {ext}", "fire2a", Qgis.Info)
-    return files, parent2, file_name, ext
+
+    return True, "", files, parent2, file_name, ext
 
 
 class BetweennessCentralityMetric(QgsProcessingAlgorithm):
@@ -1730,9 +1770,13 @@ def recursion(G: DiGraph, i: int32, mdpv: ndarray, i2n: list[int]) -> ndarray:
     return mdpv[i2n.index(i)]
 
 
-def handle_post_processing(context, feedback, layer=None, layer_id=None, display_name="", style=None, **kwargs) -> None:
+def handle_post_processing(
+    context, feedback, layer=None, layer_id=None, display_name="", style=None, group_name=NAME["layer_group"], **kwargs
+) -> None:
     if not layer:
         layer = QgsProcessingUtils.mapLayerFromString(layer_id, context)
+    if not layer_id:
+        layer_id = layer.id()
     if display_name == "":
         display_name = layer.name()
     layer_details = context.LayerDetails(display_name, context.project(), display_name)
