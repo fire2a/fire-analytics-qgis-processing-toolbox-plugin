@@ -1071,7 +1071,9 @@ class ScarSIMPP(QgsProcessingAlgorithm):
             output_dict[self.OUT_RASTER] = output_raster_filename
 
         burn_prob_fname = self.parameterAsOutputLayer(parameters, self.OUT_BP, context)
-        if data.shape[0] > 1 and burn_prob_fname != "":
+        if burn_prob_fname != "":
+            if data.shape[0] == 1:
+                feedback.pushWarning("Only 1 simulation, burn probability doesnt make sense!")
             burn_prob_data = data.mean(axis=0)
             burn_prob_stats = scipy_stats.describe(burn_prob_data[burn_prob_data != 0], axis=None)
             stats_min, stats_max = burn_prob_stats.minmax
