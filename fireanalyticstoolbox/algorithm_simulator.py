@@ -42,6 +42,7 @@ from signal import SIGTERM
 from stat import S_IXGRP, S_IXOTH, S_IXUSR
 from typing import Any
 
+import processing
 from fire2a.raster import read_raster, transform_georef_to_coords, xy2id
 from numpy import array
 from osgeo import gdal
@@ -54,7 +55,6 @@ from qgis.core import (QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm, Qgs
 from qgis.gui import Qgis
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
-import processing
 
 from .config import METRICS, SIM_OUTPUTS, STATS, TAG, jolo
 from .simulator.c2fqprocess import C2F
@@ -569,10 +569,15 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 feedback.pushDebugInfo(f"NO copy: {k}:{v}")
 
         if paint_fuels:
-            feedback.pushDebugInfo(f"painting fuel layer: {raster['fuels'].name()}, with style {self.fuel_models[fuel_model]}")
+            feedback.pushDebugInfo(
+                f"painting fuel layer: {raster['fuels'].name()}, with style {self.fuel_models[fuel_model]}"
+            )
             processing.run(
                 "native:setlayerstyle",
-                {"INPUT": raster["fuels"], "STYLE": str(Path(self.plugin_dir,"simulator",f"fuel_{fuel_model}_layerStyle.qml"))},
+                {
+                    "INPUT": raster["fuels"],
+                    "STYLE": str(Path(self.plugin_dir, "simulator", f"fuel_{fuel_model}_layerStyle.qml")),
+                },
                 context=context,
                 feedback=feedback,
                 is_child_algorithm=True,
@@ -672,9 +677,10 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         # CHECK RESULTS
         log_file = Path(results_dir, "LogFile.txt")
         if log_file.is_file() and log_file.stat().st_size > 0:
-            feedback.pushDebugInfo(log_file.read_text())
+            # feedback.pushDebugInfo(log_file.read_text())
+            feedback.pushInfo(f"simulator log {log_file.absolute()} ready...")
         else:
-            feedback.reportError(f"{log_file} not found or empty!")
+            feedback.reportError(f"log {log_file} not found or empty!")
             raise QgsProcessingException(f"{log_file} not found or empty!")
         output_dict["LogFile"] = str(log_file)
         #
