@@ -536,8 +536,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             instance_dir = Path(project_path, "firesim_" + datetime.now().strftime("%y%m%d_%H%M%S"))
         else:
             instance_dir = Path(self.parameterAsString(parameters, self.INSTANCE_DIR, context))
-        if not self.parameterAsBool(parameters, self.DRYRUN, context):
-            instance_dir.mkdir(parents=True, exist_ok=True)
+        instance_dir.mkdir(parents=True, exist_ok=True)
         feedback.pushDebugInfo(
             f"instance_dir: {str(instance_dir)}\n"
             f"_exists: {instance_dir.exists()}\n"
@@ -550,8 +549,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         else:
             results_dir = Path(self.parameterAsString(parameters, self.RESULTS_DIR, context))
         self.results_dir = results_dir
-        if not self.parameterAsBool(parameters, self.DRYRUN, context):
-            results_dir.mkdir(parents=True, exist_ok=True)
+        results_dir.mkdir(parents=True, exist_ok=True)
         feedback.pushDebugInfo(
             f"results_dir: {str(results_dir)}\n"
             f"_exists: {results_dir.exists()}\n"
@@ -561,8 +559,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
 
         # COPY
         # fuel table
-        if not self.parameterAsBool(parameters, self.DRYRUN, context):
-            copy(Path(self.plugin_dir, "simulator", self.fuel_tables[fuel_model]), instance_dir)
+        copy(Path(self.plugin_dir, "simulator", self.fuel_tables[fuel_model]), instance_dir)
         # layers
         feedback.pushDebugInfo("\n")
         raster = get_rasters(self, parameters, context)
@@ -613,9 +610,8 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 feedback.pushDebugInfo(f"raster coords {i}, {j}")
                 cell = xy2id(i, j, W) + 1
                 feedback.pushDebugInfo(f"cell coord: {cell}")
-                if not self.parameterAsBool(parameters, self.DRYRUN, context):
-                    with open(Path(instance_dir, "Ignitions.csv"), "w") as f:
-                        f.write(f"Year,Ncell\n1,{cell}")
+                with open(Path(instance_dir, "Ignitions.csv"), "w") as f:
+                    f.write(f"Year,Ncell\n1,{cell}")
                 feedback.pushDebugInfo(f"point: {point.asWkt()}, {i}, {j}, {cell}")
             feedback.pushDebugInfo("\n")
 
@@ -627,18 +623,15 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 # feedback.reportError("Single weather file scenario requires a file!")
                 raise QgsProcessingException(self.tr("Single weather file scenario requires a file!"))
             weafileout = Path(instance_dir, "Weather.csv")
-            if not self.parameterAsBool(parameters, self.DRYRUN, context):
-                copy(weafile, weafileout)
+            copy(weafile, weafileout)
             feedback.pushDebugInfo(f"copy: {weafile} to {weafileout}\n")
         else:
             weadir = Path(self.parameterAsFile(parameters, self.WEADIR, context))
             weadirout = Path(instance_dir, "Weathers")
-            if not self.parameterAsBool(parameters, self.DRYRUN, context):
-                weadirout.mkdir(parents=True, exist_ok=True)
+            weadirout.mkdir(parents=True, exist_ok=True)
             c = 0
             for wfile in weadir.glob("Weather[0-9]*.csv"):
-                if not self.parameterAsBool(parameters, self.DRYRUN, context):
-                    copy(wfile, weadirout)
+                copy(wfile, weadirout)
                 c += 1
             if c == 0:
                 # feedback.reportError("Multiple weathers requires a directory with Weather[0-9]*.csv files!")
@@ -698,7 +691,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     def postProcessAlgorithm(self, context, feedback):
         # feedback.pushDebugInfo("postProcessAlgorithm start")
         output_dict = self.output_dict
-        if output_dict[self.DRYRUN]:
+        if output_dict.get(self.DRYRUN):
             feedback.pushWarning("dryrun, no postprocessing")
             return output_dict
         instance_dir = output_dict[self.INSTANCE_DIR]
