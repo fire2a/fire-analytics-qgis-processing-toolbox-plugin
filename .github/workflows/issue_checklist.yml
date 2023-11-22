@@ -9,7 +9,15 @@ jobs:
     runs-on: ubuntu-latest
     name: Job for commenting on new issue
     steps:
-      - name: Comment
-        uses: jd-0001/gh-action-comment-on-new-issue@v2.0.3
+      - name: Create comment
+        uses: peter-evans/create-or-update-comment@v3
         with:
-          message: "Welcome! please follow the guideline to get help\ntl;dr:\n- update os, qgis, plugin, retry\n- upload zipped instance, results, log"
+          issue-number: 1
+            # issue_id:  ${{ github.event.issue.issue_id}}
+          body: |
+            This is a multi-line test comment
+            - With GitHub **Markdown** :sparkles:
+            - Created by [create-or-update-comment][1]
+
+            [1]: https://github.com/peter-evans/create-or-update-comment
+          reactions: '+1'
