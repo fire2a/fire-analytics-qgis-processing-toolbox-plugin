@@ -752,7 +752,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         #     f.write(feedback.htmlLog())
         # QgsMessageLog.logMessage(f"{self.name()}, OUTPUT: {self.output_dict}", tag=TAG, level=Qgis.Info)
         feedback.pushInfo(f"output dictionary: {output_dict}")
-        write_log(feedback, name=self.name(), file_name=str(Path(self.results_dir, "qgis_log.html")))
+        write_log(feedback, name=self.name(), file_name=Path(results_dir, "qgis_log.html"))
         return self.output_dict
 
     def icon(self):
