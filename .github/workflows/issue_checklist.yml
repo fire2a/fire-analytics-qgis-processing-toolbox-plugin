@@ -1,23 +1,25 @@
-name: issue-checklist
+name: Reply to new issues with guidelines message
 
 on:
-  issues:
+  issue_opened:
     types: [opened]
 
 jobs:
-  comment_on_new_issue:
+  reply-to-issue:
     runs-on: ubuntu-latest
-    name: Job for commenting on new issue
-    steps:
-      - name: Create comment
-        uses: peter-evans/create-or-update-comment@v3
-        with:
-          issue-number: 1
-            # issue_id:  ${{ github.event.issue.issue_id}}
-          body: |
-            This is a multi-line test comment
-            - With GitHub **Markdown** :sparkles:
-            - Created by [create-or-update-comment][1]
 
-            [1]: https://github.com/peter-evans/create-or-update-comment
-          reactions: '+1'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Reply to issue
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.issues.createComment({
+              issue_number: context.payload.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "Please check the guidelines before submitting an issue: [link to guidelines]"
+            })
+
