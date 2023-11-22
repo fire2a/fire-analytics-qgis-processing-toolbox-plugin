@@ -1,0 +1,15 @@
+name: issue-checklist
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: ben-z/actions-comment-on-issue@1.0.2
+      with:
+        message: "Gentle reminder:\n* Did you go through all of the troubleshooting steps outlined in Getting Help?\ntl;dr:\n-update os, qgis, our plugin, restart, retry\n- post versions: os, qgis, plugin\n- attach a .zip with the offending instance, results and or qgis_log.html\n- describe your objective, steps and desired outcome."
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
