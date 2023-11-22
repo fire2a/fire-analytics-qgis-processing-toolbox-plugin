@@ -1,7 +1,7 @@
 name: Reply to new issues with guidelines message
 
 on:
-  issue:
+  issues:
     types: [opened]
 
 jobs:
