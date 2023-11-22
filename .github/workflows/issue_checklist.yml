@@ -7,9 +7,11 @@ on:
 jobs:
   comment:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: ben-z/actions-comment-on-issue@1.0.2
-      with:
-        message: "Gentle reminder:"
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: rytswd/respost@v0.1.0
+        with:
+          title: Respost Custom Title from step 1, for Issue
+          body: "Hello, World! Respost is here, making your GitHub Actions workflow even easier!"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
