@@ -1,7 +1,7 @@
 name: Reply to new issues with guidelines message
 
 on:
-  issue_opened:
+  issue:
     types: [opened]
 
 jobs:
@@ -22,4 +22,6 @@ jobs:
               repo: context.repo.repo,
               body: "Please check the guidelines before submitting an issue: [link to guidelines]"
             })
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
