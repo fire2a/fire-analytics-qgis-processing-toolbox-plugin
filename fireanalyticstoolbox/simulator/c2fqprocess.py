@@ -24,7 +24,7 @@ ProcessError = {
 
 
 def nlog(*args, **kwargs):
-    QgsMessageLog.logMessage(f"{args} {kwargs}", "fire2a", Qgis.Info)
+    QgsMessageLog.logMessage(f"{args} {kwargs}", "Cell2FireQProcess", Qgis.Info)
 
 
 class C2F(QProcess):

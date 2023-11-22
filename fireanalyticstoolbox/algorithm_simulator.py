@@ -56,6 +56,7 @@ from qgis.gui import Qgis
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 
+from .algorithm_utils import write_log
 from .config import METRICS, SIM_OUTPUTS, STATS, TAG, jolo
 from .simulator.c2fqprocess import C2F
 
@@ -413,7 +414,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(qpps)
         qppb = QgsProcessingParameterBoolean(
             name=self.DRYRUN,
-            description="Don't simulate, just print the command to run",
+            description="Don't simulate! Build instance folder, print the command to run, stop.",
             defaultValue=False,
             optional=True,
         )
@@ -481,7 +482,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         Here is where the processing itself takes place.
         """
         # feedback.pushDebugInfo("processAlgorithm start")
-        QgsMessageLog.logMessage(f"{self.name()}, in: {parameters}", tag=TAG, level=Qgis.Info)
+        # QgsMessageLog.logMessage(f"{self.name()}, INPUT: {parameters}", tag=TAG, level=Qgis.Info)
         # feedback.pushDebugInfo(f"parameters {parameters}")
         # feedback.pushDebugInfo(f"context args: {context.asQgisProcessArguments()}")
         # GET USER INPUT
@@ -573,8 +574,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 or (k == "py" and ignition_mode == 1)
             ):
                 feedback.pushDebugInfo(f"copy: {k}:{v}")
-                if not self.parameterAsBool(parameters, self.DRYRUN, context):
-                    copy(v.publicSource(), Path(instance_dir, f"{k}.asc"))
+                copy(v.publicSource(), Path(instance_dir, f"{k}.asc"))
             else:
                 feedback.pushDebugInfo(f"NO copy: {k}:{v}")
         feedback.pushDebugInfo("\n")
@@ -656,7 +656,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         cmd += " " + self.parameterAsString(parameters, self.ADD_ARGS, context)
 
         if self.parameterAsBool(parameters, self.DRYRUN, context):
-            feedback.pushDebugInfo(f"DRY RUN!, command:\n{cmd}\n")
+            feedback.pushWarning(f"DRY RUN!, command:\n{cmd}\n")
             self.output_dict = {
                 self.INSTANCE_DIR: str(instance_dir),
                 self.RESULTS_DIR: str(results_dir),
@@ -693,6 +693,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         output_dict = self.output_dict
         if output_dict.get(self.DRYRUN):
             feedback.pushWarning("dryrun, no postprocessing")
+            write_log(feedback, name=self.name())
             return output_dict
         instance_dir = output_dict[self.INSTANCE_DIR]
         results_dir = output_dict[self.RESULTS_DIR]
@@ -747,9 +748,11 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         #         files += [str(afile)]
         #         print(afile.name,new_parent,len(files),len(parent))
         # output_dict["files"] = files
-        with open(Path(self.results_dir, "qgis_log.html"), "w") as f:
-            f.write(feedback.htmlLog())
-        QgsMessageLog.logMessage(f"{self.name()}, out: {self.output_dict}", tag=TAG, level=Qgis.Info)
+        # with open(Path(self.results_dir, "qgis_log.html"), "w") as f:
+        #     f.write(feedback.htmlLog())
+        # QgsMessageLog.logMessage(f"{self.name()}, OUTPUT: {self.output_dict}", tag=TAG, level=Qgis.Info)
+        feedback.pushInfo(f"output dictionary: {output_dict}")
+        write_log(feedback, name=self.name(), file_name=str(Path(self.results_dir, "qgis_log.html")))
         return self.output_dict
 
     def icon(self):
