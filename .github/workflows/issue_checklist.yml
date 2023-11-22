@@ -8,10 +8,8 @@ jobs:
   comment:
     runs-on: ubuntu-latest
     steps:
-      - uses: rytswd/respost@v0.1.0
+      - name: Comment on issue by current pull request
+        uses: alexrogalskiy/github-action-issue-commenter@master
         with:
-          title: Respost Custom Title from step 1, for Issue
-          body: "Hello, World! Respost is here, making your GitHub Actions workflow even easier!"
-        env:
+          message: 'Commenting on issue to testify its valid resolution'
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
