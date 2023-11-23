@@ -233,12 +233,12 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         # get raster data
         value_layer = self.parameterAsRasterLayer(parameters, self.INPUT_value, context)
         value_data = get_raster_data(value_layer)
-        value_nodata = get_raster_nodata(value_layer)
+        value_nodata = get_raster_nodata(value_layer, feedback)
         value_map_info = get_raster_info(value_layer)
 
         weight_layer = self.parameterAsRasterLayer(parameters, self.INPUT_weight, context)
         weight_data = get_raster_data(weight_layer)
-        weight_nodata = get_raster_nodata(weight_layer)
+        weight_nodata = get_raster_nodata(weight_layer, feedback)
         weight_map_info = get_raster_info(weight_layer)
 
         # raster(s) conditions
@@ -450,7 +450,18 @@ This raster knapsack problem is NP-hard, so a MIP solver engine is used to find 
 
 By using Pyomo, several MIP solvers can be used: CBC, GLPK, Gurobi, CPLEX or Ipopt; If they're accessible through the system PATH, else the executable file can be selected by the user. Installation of solvers is up to the user, although the windows version is bundled with CBC unsigned binaries, so their users will face a "Windows protected your PC" warning, please avoid pressing the "Don't run" button, follow the "More info" link, scroll then press "Run anyway".
 
-(*): Complexity can be reduced greatly by rescaling and/or rounding values into integers, or even better coarsing the raster resolution (see gdal translate resolution)."""
+(*): Complexity can be reduced greatly by rescaling and/or rounding values into integers, or even better coarsing the raster resolution (see gdal translate resolution).
+
+----
+
+USE CASE:
+
+If you want to determine where to allocate fuel treatments through out the landscape to protect and specific value that is affected by both, the fire and the fuel treatments use: 
+
+    - Values: Downstream Protection Value layer calculated with the respective value that you want to protect. 
+    
+    - Weights: The layer that contains the value that you want to protect and that is affected also by the fuel treatments (e.g. animal habitat).  
+"""
         )
 
     def helpString(self):
@@ -495,6 +506,7 @@ def get_raster_data(layer):
 def get_raster_nodata(layer, feedback):
     if layer:
         dp = layer.dataProvider()
+        print(f'dp = {dp}')
         if dp.sourceHasNoDataValue(1):
             ndv = dp.sourceNoDataValue(1)
             feedback.pushInfo(f"nodata: {ndv}")
