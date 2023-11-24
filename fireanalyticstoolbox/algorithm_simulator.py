@@ -273,9 +273,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterEnum(
                 name=self.WEATHER_MODE,
-                description=self.tr(
-                    "\nWEATHER SECTION\nsource (use the weather builder algorithm if missing, must match Fuel Model)"
-                ),
+                description=self.tr("\nWEATHER SECTION\nsource mode"),
                 options=self.weather_modes,
                 allowMultiple=False,
                 defaultValue=0,
@@ -359,9 +357,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterEnum(
                 name=self.OUTPUTS,
-                description=self.tr(
-                    "\nOUTPUTS SECTION\nOptions (TODO: separar output de procesamiento en varios algoritmos)"
-                ),
+                description=self.tr("\nOUTPUTS SECTION\noptions"),
                 options=[item["name"] for item in SIM_OUTPUTS],
                 allowMultiple=True,
                 defaultValue=[0, 2, 3],
@@ -371,8 +367,8 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterBoolean(
                 name=self.INSTANCE_IN_PROJECT,
                 description=(
-                    "Override instance directory to 'project home/firesim_yymmdd_HHMMSS' (project must be saved"
-                    " locally)"
+                    "Override instance directory to '$(Project Home)/firesim_yymmdd_HHMMSS' (project must be open and"
+                    " saved locally)"
                 ),
                 defaultValue=False,
                 optional=False,
@@ -390,7 +386,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterBoolean(
                 name=self.RESULTS_IN_INSTANCE,
-                description="Override results directory to '$INSTANCE_DIR/results' (project must be saved locally)",
+                description="Override results directory to '$(instance directory)/results'",
                 defaultValue=True,
                 optional=False,
             )
