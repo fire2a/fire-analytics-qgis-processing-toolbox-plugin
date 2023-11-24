@@ -804,7 +804,8 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
 def get_rasters(self, parameters, context):
     raster = dict(
         zip(
-            ["fuels", "elevation", "cbh", "cbd", "ccf", "py"],
+            SIM_INPUTS.keys(),
+            # ["fuels", "elevation", "cbh", "cbd", "ccf", "py"],
             # ["fuels", "elevation", "pv", "cbh", "cbd", "ccf", "py"],
             map(
                 lambda x: self.parameterAsRasterLayer(parameters, x, context),
