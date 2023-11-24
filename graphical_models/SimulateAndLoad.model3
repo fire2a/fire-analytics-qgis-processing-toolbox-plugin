@@ -1,0 +1,299 @@
+<!DOCTYPE model>
+<Option type="Map">
+  <Option type="Map" name="children">
+    <Option type="Map" name="fire2a:cell2firesimulator_1">
+      <Option value="true" type="bool" name="active"/>
+      <Option name="alg_config"/>
+      <Option value="fire2a:cell2firesimulator" type="QString" name="alg_id"/>
+      <Option value="" type="QString" name="color"/>
+      <Option type="Map" name="comment">
+        <Option value="" type="QString" name="color"/>
+        <Option value="" type="QString" name="component_description"/>
+        <Option value="60" type="double" name="component_height"/>
+        <Option value="320" type="double" name="component_pos_x"/>
+        <Option value="115" type="double" name="component_pos_y"/>
+        <Option value="100" type="double" name="component_width"/>
+        <Option value="true" type="bool" name="outputs_collapsed"/>
+        <Option value="true" type="bool" name="parameters_collapsed"/>
+      </Option>
+      <Option value="Cell2 Fire Simulator" type="QString" name="component_description"/>
+      <Option value="30" type="double" name="component_height"/>
+      <Option value="120" type="double" name="component_pos_x"/>
+      <Option value="160" type="double" name="component_pos_y"/>
+      <Option value="200" type="double" name="component_width"/>
+      <Option name="dependencies"/>
+      <Option value="fire2a:cell2firesimulator_1" type="QString" name="id"/>
+      <Option name="outputs"/>
+      <Option value="true" type="bool" name="outputs_collapsed"/>
+      <Option value="true" type="bool" name="parameters_collapsed"/>
+      <Option type="Map" name="params">
+        <Option type="List" name="CbdRaster">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="cbd_13b0d37c_4e55_41ba_88ff_46964740ee5f" type="QString" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="CbhRaster">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="cbd_13b0d37c_4e55_41ba_88ff_46964740ee5f" type="QString" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="CcfRaster">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option type="invalid" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="DryRun">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="false" type="bool" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="ElevationRaster">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="elevation_dd0ddff2_e1b9_43e7_8494_5a3d7c43fa07" type="QString" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="EnableCrownFire">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="false" type="bool" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="FoliarMoistureContent">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="66" type="int" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="FuelModel">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="0" type="int" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="FuelRaster">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="fuels_8053302f_24a4_4157_9d1d_ff887ee3e73c" type="QString" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="IgnitionMode">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="0" type="int" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="IgnitionPointVectorLayer">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option type="invalid" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="IgnitionProbabilityMap">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option type="invalid" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="IgnitionRadius">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="0" type="int" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="InstanceInProject">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="true" type="bool" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="LiveAndDeadFuelMoistureContentScenario">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="2" type="int" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="NumberOfSimulations">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="2" type="int" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="OtherCliArgs">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="" type="QString" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="OutputOptions">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option type="List" name="static_value">
+              <Option value="0" type="int"/>
+              <Option value="3" type="int"/>
+              <Option value="4" type="int"/>
+              <Option value="5" type="int"/>
+              <Option value="6" type="int"/>
+              <Option value="7" type="int"/>
+            </Option>
+          </Option>
+        </Option>
+        <Option type="List" name="RandomNumberGeneratorSeed">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="123" type="int" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="ResultsInInstance">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="true" type="bool" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="SetFuelLayerStyle">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="false" type="bool" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="SimulationThreads">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="3" type="int" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="WeatherDirectory">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="/home/fdo/source/C2F-W/data/Zona_60/Weathers" type="QString" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="WeatherFile">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="/home/fdo/source/C2F-W/data/Zona_60/Weather.csv" type="QString" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="WeatherMode">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="1" type="int" name="static_value"/>
+          </Option>
+        </Option>
+      </Option>
+    </Option>
+    <Option type="Map" name="fire2a:simulationresultsprocessing_1">
+      <Option value="true" type="bool" name="active"/>
+      <Option name="alg_config"/>
+      <Option value="fire2a:simulationresultsprocessing" type="QString" name="alg_id"/>
+      <Option value="" type="QString" name="color"/>
+      <Option type="Map" name="comment">
+        <Option value="" type="QString" name="color"/>
+        <Option value="" type="QString" name="component_description"/>
+        <Option value="60" type="double" name="component_height"/>
+        <Option value="540" type="double" name="component_pos_x"/>
+        <Option value="215" type="double" name="component_pos_y"/>
+        <Option value="100" type="double" name="component_width"/>
+        <Option value="true" type="bool" name="outputs_collapsed"/>
+        <Option value="true" type="bool" name="parameters_collapsed"/>
+      </Option>
+      <Option value="Bundle" type="QString" name="component_description"/>
+      <Option value="30" type="double" name="component_height"/>
+      <Option value="340" type="double" name="component_pos_x"/>
+      <Option value="260" type="double" name="component_pos_y"/>
+      <Option value="200" type="double" name="component_width"/>
+      <Option type="List" name="dependencies">
+        <Option type="Map">
+          <Option value="fire2a:cell2firesimulator_1" type="QString" name="child_id"/>
+          <Option value="" type="QString" name="conditional_branch"/>
+        </Option>
+      </Option>
+      <Option value="fire2a:simulationresultsprocessing_1" type="QString" name="id"/>
+      <Option type="Map" name="outputs">
+        <Option type="Map" name="results">
+          <Option value="fire2a:simulationresultsprocessing_1" type="QString" name="child_id"/>
+          <Option value="" type="QString" name="color"/>
+          <Option type="Map" name="comment">
+            <Option value="" type="QString" name="color"/>
+            <Option value="" type="QString" name="component_description"/>
+            <Option value="60" type="double" name="component_height"/>
+            <Option value="0" type="double" name="component_pos_x"/>
+            <Option value="0" type="double" name="component_pos_y"/>
+            <Option value="100" type="double" name="component_width"/>
+            <Option value="true" type="bool" name="outputs_collapsed"/>
+            <Option value="true" type="bool" name="parameters_collapsed"/>
+          </Option>
+          <Option value="results" type="QString" name="component_description"/>
+          <Option value="30" type="double" name="component_height"/>
+          <Option value="540" type="double" name="component_pos_x"/>
+          <Option value="305" type="double" name="component_pos_y"/>
+          <Option value="200" type="double" name="component_width"/>
+          <Option type="invalid" name="default_value"/>
+          <Option value="false" type="bool" name="mandatory"/>
+          <Option value="results" type="QString" name="name"/>
+          <Option value="OutputDirectory" type="QString" name="output_name"/>
+          <Option value="true" type="bool" name="outputs_collapsed"/>
+          <Option value="true" type="bool" name="parameters_collapsed"/>
+        </Option>
+      </Option>
+      <Option value="true" type="bool" name="outputs_collapsed"/>
+      <Option value="true" type="bool" name="parameters_collapsed"/>
+      <Option type="Map" name="params">
+        <Option type="List" name="BaseLayer">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="fuels" type="QString" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="EnablePropagationDiGraph">
+          <Option type="Map">
+            <Option value="2" type="int" name="source"/>
+            <Option value="false" type="bool" name="static_value"/>
+          </Option>
+        </Option>
+        <Option type="List" name="ResultsDirectory">
+          <Option type="Map">
+            <Option value="fire2a:cell2firesimulator_1" type="QString" name="child_id"/>
+            <Option value="ResultsDirectory" type="QString" name="output_name"/>
+            <Option value="1" type="int" name="source"/>
+          </Option>
+        </Option>
+      </Option>
+    </Option>
+  </Option>
+  <Option type="Map" name="designerParameterValues">
+    <Option value="TEMPORARY_OUTPUT" type="QString" name="results"/>
+  </Option>
+  <Option name="groupBoxes"/>
+  <Option name="help"/>
+  <Option value="Version2" type="QString" name="internal_version"/>
+  <Option name="modelVariables"/>
+  <Option value="" type="QString" name="model_group"/>
+  <Option value="SimulateAndLoad" type="QString" name="model_name"/>
+  <Option value="" type="QString" name="outputGroup"/>
+  <Option name="outputOrder"/>
+  <Option type="Map" name="parameterDefinitions">
+    <Option type="Map" name="results">
+      <Option value="true" type="bool" name="create_by_default"/>
+      <Option type="invalid" name="default"/>
+      <Option type="invalid" name="defaultGui"/>
+      <Option value="results" type="QString" name="description"/>
+      <Option value="8" type="int" name="flags"/>
+      <Option value="" type="QString" name="help"/>
+      <Option type="Map" name="metadata">
+        <Option value="fire2a:simulationresultsprocessing_1" type="QString" name="_modelChildId"/>
+        <Option value="results" type="QString" name="_modelChildOutputName"/>
+        <Option value="fire2a" type="QString" name="_modelChildProvider"/>
+      </Option>
+      <Option value="results" type="QString" name="name"/>
+      <Option value="folderDestination" type="QString" name="parameter_type"/>
+      <Option value="true" type="bool" name="supports_non_file_outputs"/>
+    </Option>
+  </Option>
+  <Option name="parameterOrder"/>
+  <Option name="parameters"/>
+</Option>
