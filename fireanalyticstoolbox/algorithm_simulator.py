@@ -57,7 +57,7 @@ from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 
 from .algorithm_utils import write_log
-from .config import METRICS, SIM_OUTPUTS, STATS, TAG, jolo
+from .config import METRICS, SIM_INPUTS, SIM_OUTPUTS, STATS, TAG, jolo
 from .simulator.c2fqprocess import C2F
 
 output_args = [item["arg"] for item in SIM_OUTPUTS]
@@ -95,7 +95,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     FUEL = "FuelRaster"
     PAINTFUELS = "SetFuelLayerStyle"
     ELEVATION = "ElevationRaster"
-    PV = "PvRaster"
+    # PV = "PvRaster"
     CBH = "CbhRaster"
     CBD = "CbdRaster"
     CCF = "CcfRaster"
@@ -152,7 +152,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.FUEL,
-                description=self.tr("Surface fuel"),
+                description=self.tr(SIM_INPUTS["fuels"]["description"]),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -168,23 +168,23 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.ELEVATION,
-                description=self.tr("Elevation"),
+                description=self.tr(SIM_INPUTS["elevation"]["description"] + f' [{SIM_INPUTS["elevation"]["units"]}]'),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=True,
             )
         )
-        self.addParameter(
-            QgsProcessingParameterRasterLayer(
-                name=self.PV,
-                description=self.tr("pv: Landscape Protection Value"),
-                defaultValue=[QgsProcessing.TypeRaster],
-                optional=True,
-            )
-        )
+        # self.addParameter(
+        #     QgsProcessingParameterRasterLayer(
+        #         name=self.PV,
+        #         description=self.tr("pv: Landscape Protection Value"),
+        #         defaultValue=[QgsProcessing.TypeRaster],
+        #         optional=True,
+        #     )
+        # )
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.CBH,
-                description=self.tr("\ncbh: Canopy Base Height"),
+                description=self.tr(SIM_INPUTS["cbh"]["description"] + f' [{SIM_INPUTS["cbh"]["units"]}]'),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=True,
             )
@@ -192,7 +192,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.CBD,
-                description=self.tr("cbd: Canopy Base Density"),
+                description=self.tr(SIM_INPUTS["cbd"]["description"] + f' [{SIM_INPUTS["cbd"]["units"]}]'),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=True,
             )
@@ -200,7 +200,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.CCF,
-                description=self.tr("ccf: Canopy Cover Fraction"),
+                description=self.tr(SIM_INPUTS["ccf"]["description"] + f' [{SIM_INPUTS["ccf"]["units"]}]'),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=True,
             )
@@ -237,7 +237,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.IGNIPROBMAP,
-                description=self.tr("Probability map (requires generation mode 1)"),
+                description=self.tr(SIM_INPUTS["py"]["description"] + f' [{SIM_INPUTS["py"]["units"]}]'),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=True,
             )
@@ -414,7 +414,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(qpps)
         qppb = QgsProcessingParameterBoolean(
             name=self.DRYRUN,
-            description="Don't simulate! Build instance folder, print the command to run, stop.",
+            description="(dry run) Don't simulate! Build instance folder, print the command to run, stop!",
             defaultValue=False,
             optional=True,
         )
@@ -569,7 +569,8 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 feedback.pushDebugInfo(f"is None: {k}:{v}")
                 continue
             if (
-                (k in ["fuels", "elevation", "pv"])
+                (k in ["fuels", "elevation"])
+                # (k in ["fuels", "elevation", "pv"])
                 or (k in ["cbh", "cbd", "ccf"] and is_crown)
                 or (k == "py" and ignition_mode == 1)
             ):
@@ -803,13 +804,14 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
 def get_rasters(self, parameters, context):
     raster = dict(
         zip(
-            ["fuels", "elevation", "pv", "cbh", "cbd", "ccf", "py"],
+            ["fuels", "elevation", "cbh", "cbd", "ccf", "py"],
+            # ["fuels", "elevation", "pv", "cbh", "cbd", "ccf", "py"],
             map(
                 lambda x: self.parameterAsRasterLayer(parameters, x, context),
                 [
                     self.FUEL,
                     self.ELEVATION,
-                    self.PV,
+                    # self.PV,
                     self.CBH,
                     self.CBD,
                     self.CCF,

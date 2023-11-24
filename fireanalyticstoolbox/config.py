@@ -7,6 +7,16 @@ def jolo(string: str) -> str:
 
 
 TAG = "fire2a"
+
+SIM_INPUTS = {
+    "fuels": {"units": "categorical", "description": "Fuel"},
+    "elevation": {"units": "m", "description": "Elevation"},
+    "cbh": {"units": "m", "description": "\ncbh: Canopy Base Height"},
+    "cbd": {"units": "kg/m3", "description": "cbd: Canopy Base Density"},
+    "ccf": {"units": "0,1", "description": "ccf: Canopy Cover Fraction"},
+    "py": {"units": "0,1", "description": "Probability map (requires generation mode 1)"},
+}
+
 STATS = [
     {
         "name": "Hit Rate Of Spread",
