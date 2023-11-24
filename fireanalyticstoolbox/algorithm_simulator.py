@@ -381,7 +381,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFolderDestination(
                 name=self.INSTANCE_DIR,
-                description="Instance directory (destructive action warning: empties contents if already exists)",
+                description="Instance directory (must be empty)",
                 defaultValue=None,
                 optional=True,
                 createByDefault=True,
@@ -398,7 +398,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFolderDestination(
                 name=self.RESULTS_DIR,
-                description="Results directory (destructive action warning: empties contents if already exists)",
+                description="Results directory (must be empty)",
                 defaultValue=None,
                 optional=True,
                 createByDefault=True,
