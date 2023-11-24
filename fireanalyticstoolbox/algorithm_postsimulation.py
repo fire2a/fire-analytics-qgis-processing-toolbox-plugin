@@ -65,12 +65,12 @@ from qgis.core import (Qgis, QgsApplication, QgsColorRampShader, QgsFeature, Qgs
                        QgsProcessingException, QgsProcessingLayerPostProcessorInterface,
                        QgsProcessingOutputMultipleLayers, QgsProcessingParameterBoolean,
                        QgsProcessingParameterDefinition, QgsProcessingParameterEnum, QgsProcessingParameterFeatureSink,
-                       QgsProcessingParameterFile, QgsProcessingParameterFolderDestination,
-                       QgsProcessingParameterNumber, QgsProcessingParameterRasterDestination,
-                       QgsProcessingParameterRasterLayer, QgsProcessingParameterString,
-                       QgsProcessingParameterVectorLayer, QgsProcessingUtils, QgsProject, QgsRasterBandStats,
-                       QgsRasterFileWriter, QgsRasterLayer, QgsRasterShader, QgsSingleBandPseudoColorRenderer, QgsTask,
-                       QgsVectorFileWriter, QgsVectorLayer)
+                       QgsProcessingParameterFile, QgsProcessingParameterFileDestination,
+                       QgsProcessingParameterFolderDestination, QgsProcessingParameterNumber,
+                       QgsProcessingParameterRasterDestination, QgsProcessingParameterRasterLayer,
+                       QgsProcessingParameterString, QgsProcessingParameterVectorLayer, QgsProcessingUtils, QgsProject,
+                       QgsRasterBandStats, QgsRasterFileWriter, QgsRasterLayer, QgsRasterShader,
+                       QgsSingleBandPseudoColorRenderer, QgsTask, QgsVectorFileWriter, QgsVectorLayer)
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QColor, QIcon
 from scipy import stats as scipy_stats
@@ -523,6 +523,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
     BASE_LAYER = "BaseLayer"
     IN_MSG = "SampleMessagesFile"
     OUTPUT_LAYER = "PropagationDirectedGraph"
+    OUT_PICKLED = "PickledMessages"
 
     def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
         files, msg_dir, msg_name, ext = get_files(Path(self.parameterAsString(parameters, self.IN_MSG, context)))
@@ -559,6 +560,19 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
                 type=QgsProcessing.TypeVectorLine,
             )
         )
+        qparamfd = QgsProcessingParameterFileDestination(
+            name=self.OUT_PICKLED,
+            description=self.tr(
+                "Output pickled messages file (needed by BC or DPV metrics, defaults to"
+                " results/Messages/messages.pickle)"
+            ),
+            fileFilter="pickled files (*.pickled)",
+            # defaultValue=defaultValue,
+            optional=True,
+            createByDefault=False,
+        )
+        qparamfd.setMetadata({"widget_wrapper": {"dontconfirmoverwrite": True}})
+        self.addParameter(qparamfd)
 
     def processAlgorithm(self, parameters, context, feedback):
         """Here is where the processing itself takes place."""
@@ -620,7 +634,10 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
                     break
             feedback.setProgress(int(count * len(files)))
 
-        filename = Path(sample_messages_file.parent, "messages.pickle")
+        filename = self.parameterAsFileOutput(parameters, self.OUT_PICKLED, context)
+        feedback.pushCommandInfo(f"filename: {filename}, type: {type(filename)}")
+        if filename == "":
+            filename = Path(sample_messages_file.parent, "messages.pickle")
         with open(filename, "wb") as f:
             pickle_dump(data, f)
 
@@ -636,7 +653,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
             context.layerToLoadOnCompletionDetails(dest_id).setPostProcessor(run_alg_styler_propagation())
 
         write_log(feedback, name=self.name())
-        return {self.OUTPUT_LAYER: dest_id, "pickled": str(filename)}
+        return {self.OUTPUT_LAYER: dest_id, self.OUT_PICKLED: str(filename)}
 
     # def postProcessAlgorithm(self, context, feedback):
     #     """Called after processAlgorithm, use it to load the layer and set the symbology"""
