@@ -59,18 +59,16 @@ from numpy import (argsort, array, dtype, float32, fromiter, int16, int32, loadt
                    vectorize, vstack, zeros)
 from osgeo import gdal, ogr, osr
 from osgeo.gdal import GA_ReadOnly, GCI_PaletteIndex, GDT_Float32, GDT_Int16
-from qgis.core import (Qgis, QgsApplication, QgsColorRampShader, QgsFeature, QgsFeatureSink, QgsField, QgsFields,
-                       QgsGeometry, QgsGradientColorRamp, QgsGraduatedSymbolRenderer, QgsLineString, QgsMessageLog,
-                       QgsPalettedRasterRenderer, QgsPoint, QgsProcessing, QgsProcessingAlgorithm, QgsProcessingContext,
-                       QgsProcessingException, QgsProcessingLayerPostProcessorInterface,
-                       QgsProcessingOutputMultipleLayers, QgsProcessingParameterBoolean,
+from qgis.core import (Qgis, QgsColorRampShader, QgsFeature, QgsFeatureSink, QgsField, QgsFields, QgsGeometry,
+                       QgsGraduatedSymbolRenderer, QgsLineString, QgsMessageLog, QgsPalettedRasterRenderer, QgsPoint,
+                       QgsProcessing, QgsProcessingAlgorithm, QgsProcessingContext, QgsProcessingException,
+                       QgsProcessingLayerPostProcessorInterface, QgsProcessingParameterBoolean,
                        QgsProcessingParameterDefinition, QgsProcessingParameterEnum, QgsProcessingParameterFeatureSink,
                        QgsProcessingParameterFile, QgsProcessingParameterFileDestination,
                        QgsProcessingParameterFolderDestination, QgsProcessingParameterNumber,
-                       QgsProcessingParameterRasterDestination, QgsProcessingParameterRasterLayer,
-                       QgsProcessingParameterString, QgsProcessingParameterVectorLayer, QgsProcessingUtils, QgsProject,
-                       QgsRasterBandStats, QgsRasterFileWriter, QgsRasterLayer, QgsRasterShader,
-                       QgsSingleBandPseudoColorRenderer, QgsTask, QgsVectorFileWriter, QgsVectorLayer)
+                       QgsProcessingParameterRasterDestination, QgsProcessingParameterRasterLayer, QgsProcessingUtils,
+                       QgsProject, QgsRasterBandStats, QgsRasterFileWriter, QgsRasterShader,
+                       QgsSingleBandPseudoColorRenderer, QgsWkbTypes)
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QColor, QIcon
 from scipy import stats as scipy_stats
@@ -161,7 +159,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
             self.OUT_LAYER,
             context,
             fields,
-            Qgis.WkbType.Point,
+            QgsWkbTypes.Point,  # >v3.3 ? Qgis.WkbType.Point
             base_raster.crs(),
         )
         # feedback.pushDebugInfo(f"dest_id: {dest_id}, type: {type(dest_id)}")
@@ -593,7 +591,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
             self.OUTPUT_LAYER,
             context,
             fields,
-            Qgis.WkbType.MultiLineString,
+            QgsWkbTypes.MultiLineString,  # >v3.3 ? Qgis.WkbType.MultiLineString,
             base_raster.crs(),
         )
         # get messages
