@@ -498,9 +498,10 @@ def get_raster_data(layer):
     """
     if layer:
         provider = layer.dataProvider()
-        block = provider.block(1, layer.extent(), layer.width(), layer.height())
-        qByteArray = block.data()
-        return np.frombuffer(qByteArray)  # ,dtype=float)
+        if numpy_dtype := qgis2numpy_dtype(provider.dataType(1)):
+            block = provider.block(1, layer.extent(), layer.width(), layer.height())
+            qByteArray = block.data()
+            return np.frombuffer(qByteArray, dtype=numpy_dtype)
 
 
 def get_raster_nodata(layer, feedback):
@@ -582,3 +583,35 @@ def adjust_value_scale(a):
         return a + a.min() + 1
     return a
 
+
+def qgis2numpy_dtype(qgis_dtype: Qgis.DataType) -> np.dtype:
+    """Conver QGIS data type to corresponding numpy data type
+    https://raw.githubusercontent.com/PUTvision/qgis-plugin-deepness/fbc99f02f7f065b2f6157da485bef589f611ea60/src/deepness/processing/processing_utils.py
+    This is modified and extended copy of GDALDataType.
+
+    * ``UnknownDataType``: Unknown or unspecified type
+    * ``Byte``: Eight bit unsigned integer (quint8)
+    * ``Int8``: Eight bit signed integer (qint8) (added in QGIS 3.30)
+    * ``UInt16``: Sixteen bit unsigned integer (quint16)
+    * ``Int16``: Sixteen bit signed integer (qint16)
+    * ``UInt32``: Thirty two bit unsigned integer (quint32)
+    * ``Int32``: Thirty two bit signed integer (qint32)
+    * ``Float32``: Thirty two bit floating point (float)
+    * ``Float64``: Sixty four bit floating point (double)
+    * ``CInt16``: Complex Int16
+    * ``CInt32``: Complex Int32
+    * ``CFloat32``: Complex Float32
+    * ``CFloat64``: Complex Float64
+    * ``ARGB32``: Color, alpha, red, green, blue, 4 bytes the same as QImage.Format_ARGB32
+    * ``ARGB32_Premultiplied``: Color, alpha, red, green, blue, 4 bytes  the same as QImage.Format_ARGB32_Premultiplied
+    """
+    if qgis_dtype == Qgis.DataType.Byte:
+        return np.uint8
+    if qgis_dtype == Qgis.DataType.UInt16:
+        return np.uint16
+    if qgis_dtype == Qgis.DataType.Int16:
+        return np.int16
+    if qgis_dtype == Qgis.DataType.Float32:
+        return np.float32
+    if qgis_dtype == Qgis.DataType.Float64:
+        return np.float64
