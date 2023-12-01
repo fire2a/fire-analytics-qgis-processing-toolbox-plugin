@@ -37,6 +37,7 @@ from contextlib import redirect_stderr, redirect_stdout
 # from functools import reduce
 from io import StringIO
 from itertools import compress
+from multiprocessing import cpu_count
 from os import environ, pathsep
 from pathlib import Path
 from platform import system as platform_system
@@ -62,7 +63,7 @@ from .config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
 
 NODATA = -1  # -32768
 SOLVER = {
-    "cbc": "ratioGap=0.005 seconds=300",
+    "cbc": f"ratioGap=0.005 seconds=300 threads={cpu_count() - 1}",
     "glpk": "mipgap=0.005 tmlim=300",
     "ipopt": "",
     "gurobi": "MIPGap=0.005 TimeLimit=300",
