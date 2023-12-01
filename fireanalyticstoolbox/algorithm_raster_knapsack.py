@@ -37,32 +37,27 @@ from contextlib import redirect_stderr, redirect_stdout
 # from functools import reduce
 from io import StringIO
 from itertools import compress
-from os import environ, pathsep, sep
+from os import environ, pathsep
 from pathlib import Path
 from platform import system as platform_system
 from shutil import which
-from time import sleep
 
 import numpy as np
 from grassprovider.Grass7Utils import Grass7Utils
-from osgeo import gdal
-from pandas import DataFrame
 from processing.tools.system import getTempFilename
 from pyomo import environ as pyo
 from pyomo.common.errors import ApplicationError
 from pyomo.opt import SolverFactory, SolverStatus, TerminationCondition
-from qgis.core import (Qgis, QgsFeatureSink, QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm,
-                       QgsProcessingException, QgsProcessingFeedback, QgsProcessingParameterDefinition,
-                       QgsProcessingParameterEnum, QgsProcessingParameterFeatureSink,
-                       QgsProcessingParameterFeatureSource, QgsProcessingParameterField, QgsProcessingParameterFile,
-                       QgsProcessingParameterFileDestination, QgsProcessingParameterNumber,
+from qgis.core import (Qgis, QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterDefinition,
+                       QgsProcessingParameterFile, QgsProcessingParameterNumber,
                        QgsProcessingParameterRasterDestination, QgsProcessingParameterRasterLayer,
-                       QgsProcessingParameterString, QgsProject, QgsRasterBlock, QgsRasterFileWriter)
+                       QgsProcessingParameterString)
 from qgis.PyQt.QtCore import QByteArray, QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from scipy import stats
 
-from .algorithm_utils import run_alg_styler_bin, write_log
+from .algorithm_utils import (array2rasterInt16, get_raster_data, get_raster_info, get_raster_nodata,
+                              run_alg_styler_bin, write_log)
 from .config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
 
 NODATA = -1  # -32768
@@ -93,7 +88,7 @@ def add_cbc_to_path():
         cbc_exe = Path(__file__).parent / "cbc" / "bin" / "cbc.exe"
         if cbc_exe.is_file():
             environ["PATH"] += pathsep + str(cbc_exe.parent)
-            QgsMessageLog.logMessage(f"Added {cbc_exe} to path")
+            QgsMessageLog.logMessage(f"Added {cbc_exe} to path", TAG, Qgis.Info)
 
 
 class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
@@ -414,7 +409,8 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
                 run_alg_styler_bin("Knapsack Raster", color0=(105, 236, 172), color1=(238, 80, 154))
             )
             layer_details.groupName = "Recommendations"
-            layer_details.layerSortKey = 2
+            # layer_details.layerSortKey = 2
+            feedback.pushDebugInfo(f"Showing layer {output_layer_filename}")
 
         write_log(feedback, name=self.name())
         return {
@@ -458,7 +454,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         return self.tr(
             """By selecting a Values layer and/or a Weights layer, and setting the bound on the total capacity, a layer that maximizes the sum of the values of the selected pixels is created.
 
-A new .gpkg raster will show selected pixels in red and non-selected green (values 1, 0 and no-data=-1).
+A new raster (default .gpkg) will show selected pixels in red and non-selected green (values 1, 0 and no-data=-1).
 
 The capacity constraint is set up by choosing a ratio (between 0 and 1), that multiplies the sum of all weights (except no-data). Hence 1 selects all pixels that aren't no-data in both layers.
 
@@ -506,44 +502,6 @@ class RasterDestinationGpkg(QgsProcessingParameterRasterDestination):
         return "gpkg"
 
 
-def get_raster_data(layer):
-    """raster layer into numpy array
-        slower alternative:
-            for i in range(lyr.width()):
-                for j in range(lyr.height()):
-                    values.append(block.value(i,j))
-    # npArr = np.frombuffer( qByteArray)  #,dtype=float)
-    # return npArr.reshape( (layer.height(),layer.width()))
-    """
-    if layer:
-        provider = layer.dataProvider()
-        if numpy_dtype := qgis2numpy_dtype(provider.dataType(1)):
-            block = provider.block(1, layer.extent(), layer.width(), layer.height())
-            qByteArray = block.data()
-            return np.frombuffer(qByteArray, dtype=numpy_dtype)
-
-
-def get_raster_nodata(layer, feedback):
-    if layer:
-        dp = layer.dataProvider()
-        if dp.sourceHasNoDataValue(1):
-            ndv = dp.sourceNoDataValue(1)
-            feedback.pushInfo(f" nodata: {ndv}")
-            return ndv
-
-
-def get_raster_info(layer):
-    if layer:
-        return {
-            "width": layer.width(),
-            "height": layer.height(),
-            "extent": layer.extent(),
-            "crs": layer.crs(),
-            "cellsize_x": layer.rasterUnitsPerPixelX(),
-            "cellsize_y": layer.rasterUnitsPerPixelY(),
-        }
-
-
 class FileLikeFeedback(StringIO):
     def __init__(self, feedback, std):
         super().__init__()
@@ -577,59 +535,8 @@ class FileLikeFeedback(StringIO):
 #        self.msg = ""
 
 
-def array2rasterInt16(data, name, geopackage, extent, crs, nodata=None):
-    """numpy array to gpkg casts to name"""
-    data = np.int16(data)
-    h, w = data.shape
-    bites = QByteArray(data.tobytes())
-    block = QgsRasterBlock(Qgis.CInt16, w, h)
-    block.setData(bites)
-    fw = QgsRasterFileWriter(str(geopackage))
-    fw.setOutputFormat("gpkg")
-    fw.setCreateOptions(["RASTER_TABLE=" + name, "APPEND_SUBDATASET=YES"])
-    provider = fw.createOneBandRaster(Qgis.Int16, w, h, extent, crs)
-    provider.setEditable(True)
-    if nodata != None:
-        provider.setNoDataValue(1, nodata)
-    provider.writeBlock(block, 1, 0, 0)
-    provider.setEditable(False)
-
-
 def adjust_value_scale(a):
     """Check if all values are positive or negative"""
     if len(a) not in [len(a[a >= 0]), len(a[a <= 0])]:
         return a + a.min() + 1
     return a
-
-
-def qgis2numpy_dtype(qgis_dtype: Qgis.DataType) -> np.dtype:
-    """Conver QGIS data type to corresponding numpy data type
-    https://raw.githubusercontent.com/PUTvision/qgis-plugin-deepness/fbc99f02f7f065b2f6157da485bef589f611ea60/src/deepness/processing/processing_utils.py
-    This is modified and extended copy of GDALDataType.
-
-    * ``UnknownDataType``: Unknown or unspecified type
-    * ``Byte``: Eight bit unsigned integer (quint8)
-    * ``Int8``: Eight bit signed integer (qint8) (added in QGIS 3.30)
-    * ``UInt16``: Sixteen bit unsigned integer (quint16)
-    * ``Int16``: Sixteen bit signed integer (qint16)
-    * ``UInt32``: Thirty two bit unsigned integer (quint32)
-    * ``Int32``: Thirty two bit signed integer (qint32)
-    * ``Float32``: Thirty two bit floating point (float)
-    * ``Float64``: Sixty four bit floating point (double)
-    * ``CInt16``: Complex Int16
-    * ``CInt32``: Complex Int32
-    * ``CFloat32``: Complex Float32
-    * ``CFloat64``: Complex Float64
-    * ``ARGB32``: Color, alpha, red, green, blue, 4 bytes the same as QImage.Format_ARGB32
-    * ``ARGB32_Premultiplied``: Color, alpha, red, green, blue, 4 bytes  the same as QImage.Format_ARGB32_Premultiplied
-    """
-    if qgis_dtype == Qgis.DataType.Byte:
-        return np.uint8
-    if qgis_dtype == Qgis.DataType.UInt16:
-        return np.uint16
-    if qgis_dtype == Qgis.DataType.Int16:
-        return np.int16
-    if qgis_dtype == Qgis.DataType.Float32:
-        return np.float32
-    if qgis_dtype == Qgis.DataType.Float64:
-        return np.float64
