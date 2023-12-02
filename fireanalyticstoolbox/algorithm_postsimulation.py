@@ -556,6 +556,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
                 name=self.OUTPUT_LAYER,
                 description=self.tr("Output propagation digraph layer"),
                 type=QgsProcessing.TypeVectorLine,
+                optional=True,
             )
         )
         qparamfd = QgsProcessingParameterFileDestination(
@@ -594,6 +595,8 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
             QgsWkbTypes.MultiLineString,  # >v3.3 ? Qgis.WkbType.MultiLineString,
             base_raster.crs(),
         )
+        # feedback.pushDebugInfo(f"dest_id: {dest_id}, type: {type(dest_id)}")
+        # feedback.pushDebugInfo(f"sink: {sink}, type: {type(sink)}")
         # get messages
         sample_messages_file = Path(self.parameterAsString(parameters, self.IN_MSG, context))
         files, msg_dir, msg_name, ext = get_files(sample_messages_file)
@@ -613,27 +616,30 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
             data[-1]["i"] -= 1  # 1 based to 0 based
             data[-1]["j"] -= 1  # 1 based to 0 based
             feedback.pushDebugInfo(f"simulation id: {sim_id}, edges: {len(data)}")
-            # build line add to sink
-            for i, j, time in data[-1]:
-                i_x_px, i_y_ln = id2xy(i, W, H)
-                i_x_geo, i_y_geo = transform_coords_to_georef(i_x_px + 0.5, i_y_ln + 0.5, GT)
-                # feedback.pushDebugInfo(f"i_x_geo, i_y_geo: {i_x_geo}, {i_y_geo}, time: {time}")
-                j_x_px, j_y_ln = id2xy(j, W, H)
-                j_x_geo, j_y_geo = transform_coords_to_georef(j_x_px + 0.5, j_y_ln + 0.5, GT)
-                # feedback.pushDebugInfo(f"j_x_geo, j_y_geo: {j_x_geo}, {j_y_geo}, time: {time}")
-                # TODO id = int(f"{str(sim_id).zfill(total_sims)}_{i.zfill...}_{j}")
-                feature = QgsFeature(fields)
-                # feature.setId(int(sim_id))
-                feature.setAttributes([int(sim_id), int(time)])
-                feature.setGeometry(QgsLineString([QgsPoint(i_x_geo, i_y_geo), QgsPoint(j_x_geo, j_y_geo)]))
-                sink.addFeature(feature, QgsFeatureSink.FastInsert)
-                # feedback.pushDebugInfo(f"j_x_geo, j_y_geo: {j_x_geo}, {j_y_geo}, time: {time}, sim_idx: {sim_idx}")
-                if feedback.isCanceled():
-                    break
+            if sink:
+                # build line add to sink
+                for i, j, time in data[-1]:
+                    i_x_px, i_y_ln = id2xy(i, W, H)
+                    i_x_geo, i_y_geo = transform_coords_to_georef(i_x_px + 0.5, i_y_ln + 0.5, GT)
+                    # feedback.pushDebugInfo(f"i_x_geo, i_y_geo: {i_x_geo}, {i_y_geo}, time: {time}")
+                    j_x_px, j_y_ln = id2xy(j, W, H)
+                    j_x_geo, j_y_geo = transform_coords_to_georef(j_x_px + 0.5, j_y_ln + 0.5, GT)
+                    # feedback.pushDebugInfo(f"j_x_geo, j_y_geo: {j_x_geo}, {j_y_geo}, time: {time}")
+                    # TODO id = int(f"{str(sim_id).zfill(total_sims)}_{i.zfill...}_{j}")
+                    feature = QgsFeature(fields)
+                    # feature.setId(int(sim_id))
+                    feature.setAttributes([int(sim_id), int(time)])
+                    feature.setGeometry(QgsLineString([QgsPoint(i_x_geo, i_y_geo), QgsPoint(j_x_geo, j_y_geo)]))
+                    sink.addFeature(feature, QgsFeatureSink.FastInsert)
+                    # feedback.pushDebugInfo(f"j_x_geo, j_y_geo: {j_x_geo}, {j_y_geo}, time: {time}, sim_idx: {sim_idx}")
+                    if feedback.isCanceled():
+                        break
+            elif feedback.isCanceled():
+                break
             feedback.setProgress(int(count * len(files)))
 
         filename = self.parameterAsFileOutput(parameters, self.OUT_PICKLED, context)
-        feedback.pushCommandInfo(f"filename: {filename}, type: {type(filename)}")
+        # feedback.pushCommandInfo(f"filename: {filename}, type: {type(filename)}")
         if filename == "":
             filename = Path(sample_messages_file.parent, "messages.pickle")
         with open(filename, "wb") as f:
