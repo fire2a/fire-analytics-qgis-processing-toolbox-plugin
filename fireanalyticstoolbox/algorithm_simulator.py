@@ -357,7 +357,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterEnum(
                 name=self.OUTPUTS,
-                description=self.tr("\nOUTPUTS SECTION\noptions"),
+                description=self.tr("\nOUTPUTS SECTION\noptions (click '...' button on the right)"),
                 options=[item["name"] for item in SIM_OUTPUTS],
                 allowMultiple=True,
                 defaultValue=[0, 2, 3],
