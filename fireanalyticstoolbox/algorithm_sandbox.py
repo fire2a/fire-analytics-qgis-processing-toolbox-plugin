@@ -33,19 +33,14 @@ __version__ = "$Format:%H$"
 from os import sep
 from time import sleep
 
+import processing
 from pandas import DataFrame
-from qgis.core import (Qgis, QgsApplication, QgsFeatureSink, QgsMessageLog,
-                       QgsProcessing, QgsProcessingAlgorithm,
-                       QgsProcessingLayerPostProcessorInterface,
-                       QgsProcessingParameterBoolean,
-                       QgsProcessingParameterEnum,
-                       QgsProcessingParameterFeatureSink,
-                       QgsProcessingParameterFeatureSource,
-                       QgsProcessingParameterFile,
-                       QgsProcessingParameterFileDestination,
-                       QgsProcessingParameterMatrix,
-                       QgsProcessingParameterNumber,
-                       QgsProcessingParameterRasterDestination,
+from qgis.core import (Qgis, QgsApplication, QgsFeatureSink, QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm,
+                       QgsProcessingLayerPostProcessorInterface, QgsProcessingParameterBoolean,
+                       QgsProcessingParameterEnum, QgsProcessingParameterFeatureSink,
+                       QgsProcessingParameterFeatureSource, QgsProcessingParameterFile,
+                       QgsProcessingParameterFileDestination, QgsProcessingParameterMatrix,
+                       QgsProcessingParameterNumber, QgsProcessingParameterRasterDestination,
                        QgsProcessingParameterRasterLayer, QgsProject, QgsTask)
 from qgis.PyQt.QtCore import QCoreApplication
 
@@ -235,6 +230,12 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         # feedback.pushCommandInfo(f"feedback \n {type(feedback)} \n {dir(feedback)}")
         feedback.pushCommandInfo(f"parameters {parameters}")
         feedback.pushCommandInfo(f"context args: {context.asQgisProcessArguments()}")
+        feedback.pushCommandInfo(
+            f"processing.core.ProcessingConfig.cpu_count {processing.core.ProcessingConfig.cpu_count()}"
+        )
+        feedback.pushCommandInfo(f"context max threads: {context.maximumThreads()}")
+        feedback.pushCommandInfo(f"context log_level: {context.logLevel()}")
+        # feedback.pushCommandInfo(f"context env: {dir(context)}")
 
         # feedback.setProgress 0.0 -> 100.0
         # for i in range(6):
