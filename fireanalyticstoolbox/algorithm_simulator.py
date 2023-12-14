@@ -653,12 +653,16 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         cmd += " " + self.parameterAsString(parameters, self.ADD_ARGS, context)
 
         if self.parameterAsBool(parameters, self.DRYRUN, context):
-            feedback.pushWarning(f"DRY RUN!, command:\n{cmd}\n")
+            feedback.pushWarning(
+                f"DRY RUN!\nOpen a terminal in this directory:\n{self.c2f_path}\nExecute this command:\n{cmd}\n"
+            )
             self.output_dict = {
                 self.INSTANCE_DIR: str(instance_dir),
                 self.RESULTS_DIR: str(results_dir),
                 self.OUTPUTS: selected_outputs,
                 self.DRYRUN: True,
+                "path": str(self.c2f_path),
+                "command": cmd,
             }
             return self.output_dict
 
