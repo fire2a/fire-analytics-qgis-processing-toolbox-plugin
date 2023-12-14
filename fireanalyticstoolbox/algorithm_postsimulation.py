@@ -47,7 +47,6 @@ from pathlib import Path
 from pickle import dump as pickle_dump
 from pickle import load as pickle_load
 from re import findall, search
-from time import sleep
 from typing import Any, Tuple
 
 import processing
@@ -1748,35 +1747,33 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
             f"Launching {nsim} processes in <={threads} threads (check Advanced > Algorithm Set...> Enviro... to"
             " adjust)"
         )
-        aiterable = [(data, pv) for data in data_list]
         pool = Pool(threads)
-        # results = [pool.apply_async(worker, args=(data, pv, i)) for i, data in enumerate(data_list)]
         results = [
             pool.apply_async(worker, args=(data, pv, i), callback=partial(shout_progress, feedback=feedback))
             for i, data in enumerate(data_list)
         ]
         while True:
-            statuses = [result.ready() for result in results]
-            if all(statuses):
-                break
-            sum_statuses = sum(statuses)
-            current_progress = sum_statuses / nsim
-            feedback.setProgress(int(100 * current_progress))
+            # user canceled?
             if feedback.isCanceled():
                 feedback.pushWarning("Canceling...")
                 pool.terminate()
                 return {}
-            # [result.wait(1) for result in results]
-            sleep(1)
+            # all done?
+            statuses = [result.ready() for result in results]
+            if all(statuses):
+                break
+            feedback.setProgress(int(100 * sum(statuses) / nsim))
+            # wait
+            results[statuses.index(False)].wait(1)
+        # retrieve
         for result in results:
             sdpv, si2n, sid = result.get()
             dpv[si2n] += sdpv
             feedback.pushDebugInfo(f"accumulated dpv sum -per simulation {sid}: {dpv.sum()}")
         pool.close()
         pool.join()
-
+        # scale
         dpv = dpv / nsim
-
         # descriptive statistics
         if np_any(dpv[dpv != 0]):
             dpv_stats = scipy_stats.describe(dpv[dpv != 0.0], axis=None)
