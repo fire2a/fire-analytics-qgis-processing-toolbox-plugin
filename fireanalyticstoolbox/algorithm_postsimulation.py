@@ -1690,7 +1690,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
     BASE_LAYER = "ProtectionValueRaster"
     IN = "PickledMessages"
     OUT_R = "RasterOutput"
-    NTHREADS = "NThreads"
+    THREADS = "Threads"
 
     def initAlgorithm(self, config):
         self.addParameter(
@@ -1725,7 +1725,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         )
         # advanced
         qppn = QgsProcessingParameterNumber(
-            name=self.NTHREADS,
+            name=self.THREADS,
             description=self.tr("Maximum number of threads to use simultaneously"),
             type=QgsProcessingParameterNumber.Integer,
             defaultValue=cpu_count() - 1,
@@ -1755,8 +1755,8 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         pv = pv.ravel()
         dpv = zeros(pv.shape, dtype=pv.dtype)
         # multiprocessing
-        threads = self.parameterAsEnum(parameters, self.NTHREADS, context)
-        feedback.pushDebugInfo(f"{nsim} processes in a {threads} lane execution-pool")
+        threads = self.parameterAsEnum(parameters, self.THREADS, context)
+        feedback.pushDebugInfo(f"Orchestrating {nsim} processes in a {threads}-lane parallel execution pool")
         pool = Pool(threads)
         results = [
             pool.apply_async(worker, args=(data, pv, i), callback=partial(shout_progress, feedback=feedback))
