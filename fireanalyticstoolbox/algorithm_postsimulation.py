@@ -40,11 +40,14 @@ __copyright__ = "(C) 2023 by Fernando Badilla Veliz - Fire2a.com"
 
 __revision__ = "$Format:%H$"
 
+from functools import partial
+from multiprocessing import Pool, cpu_count
 from os import sep
 from pathlib import Path
 from pickle import dump as pickle_dump
 from pickle import load as pickle_load
 from re import findall, search
+from time import sleep
 from typing import Any, Tuple
 
 import processing
@@ -1651,6 +1654,37 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
         return self.tr(NAME["bc"])
 
 
+def recursion(G: DiGraph, i: int32, mdpv: ndarray, i2n: list[int]) -> ndarray:
+    for j in G.successors(i):
+        mdpv[i2n.index(i)] += recursion(G, j, mdpv, i2n)
+    return mdpv[i2n.index(i)]
+
+
+def worker(data, pv, sid):
+    # digraph_from_messages(msgfile) -> msgG, root
+    msgG = DiGraph()
+    msgG.add_weighted_edges_from(data)
+    root = data[0][0]
+    # shortest_propagation_tree(G, root) -> treeG
+    shortest_paths = single_source_dijkstra_path(msgG, root, weight="time")
+    del shortest_paths[root]
+    treeG = DiGraph()
+    for node, shopat in shortest_paths.items():
+        for i, node in enumerate(shopat[:-1]):
+            treeG.add_edge(node, shopat[i + 1])
+    # dpv_maskG(G, root, pv, i2n) -> mdpv
+    i2n = [n for n in treeG]
+    mdpv = pv[i2n]
+    recursion(treeG, root, mdpv, i2n)
+    # dpv[i2n] += mdpv
+    return mdpv, i2n, sid
+
+
+def shout_progress(result, feedback):
+    _, i2n, sid = result
+    feedback.pushDebugInfo(f"Processed simulation {sid}, modified cells {len(i2n)}")
+
+
 class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
     """Messages Simulation Post Processing Algorithm"""
 
@@ -1695,7 +1729,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         # BASE LAYER
         base_raster = self.parameterAsRasterLayer(parameters, self.BASE_LAYER, context)
         pv, raster_props = read_raster(base_raster.publicSource(), data=True)
-        feedback.pushDebugInfo(f"base_raster.crs(): {base_raster.crs()}")
+        feedback.pushDebugInfo(f"base_raster.crs().authid(): {base_raster.crs().authid()}")
         GT = raster_props["Transform"]
         W = raster_props["RasterXSize"]
         H = raster_props["RasterYSize"]
@@ -1704,37 +1738,55 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         with open(data_file, "rb") as f:
             data_list = pickle_load(f)
         feedback.pushDebugInfo(f"data_file: {data_file}, len(data_list): {len(data_list)}")
+        nsim = len(data_list)
 
         pv = pv.ravel()
         dpv = zeros(pv.shape, dtype=pv.dtype)
-        nsim = len(data_list)
-        for count, data in enumerate(data_list):
-            feedback.setProgress((count + 1) / nsim * 100)
-            feedback.setProgressText(f"Processing {count + 1} of {nsim} simulations")
-            if feedback.isCanceled():
+        # multiprocessing
+        threads = context.maximumThreads()
+        feedback.setProgressText(
+            f"Launching {nsim} processes in <={threads} threads (check Advanced > Algorithm Set...> Enviro... to"
+            " adjust)"
+        )
+        aiterable = [(data, pv) for data in data_list]
+        pool = Pool(threads)
+        # results = [pool.apply_async(worker, args=(data, pv, i)) for i, data in enumerate(data_list)]
+        results = [
+            pool.apply_async(worker, args=(data, pv, i), callback=partial(shout_progress, feedback=feedback))
+            for i, data in enumerate(data_list)
+        ]
+        while True:
+            statuses = [result.ready() for result in results]
+            if all(statuses):
                 break
-            # digraph_from_messages(msgfile) -> msgG, root
-            msgG = DiGraph()
-            msgG.add_weighted_edges_from(data)
-            root = data[0][0]
-            # shortest_propagation_tree(G, root) -> treeG
-            shortest_paths = single_source_dijkstra_path(msgG, root, weight="time")
-            del shortest_paths[root]
-            treeG = DiGraph()
-            for node, shopat in shortest_paths.items():
-                for i, node in enumerate(shopat[:-1]):
-                    treeG.add_edge(node, shopat[i + 1])
-            # dpv_maskG(G, root, pv, i2n) -> mdpv
-            i2n = [n for n in treeG]
-            mdpv = pv[i2n]
-            recursion(treeG, root, mdpv, i2n)
-            dpv[i2n] += mdpv
+            sum_statuses = sum(statuses)
+            current_progress = sum_statuses / nsim
+            feedback.setProgress(int(100 * current_progress))
+            if feedback.isCanceled():
+                feedback.pushWarning("Canceling...")
+                pool.terminate()
+                return {}
+            # [result.wait(1) for result in results]
+            sleep(1)
+        for result in results:
+            sdpv, si2n, sid = result.get()
+            dpv[si2n] += sdpv
+            feedback.pushDebugInfo(f"accumulated dpv sum -per simulation {sid}: {dpv.sum()}")
+        pool.close()
+        pool.join()
+
         dpv = dpv / nsim
 
         # descriptive statistics
-        dpv_stats = scipy_stats.describe(dpv[dpv != 0.0], axis=None)
+        if np_any(dpv[dpv != 0]):
+            dpv_stats = scipy_stats.describe(dpv[dpv != 0.0], axis=None)
+            msg = "(!=0)"
+        else:
+            dpv_stats = scipy_stats.describe(dpv, axis=None)
+            feedback.pushWarning("Calculated Downstream Protection Value is zero all around!")
+            msg = ""
         stats_min, stats_max = dpv_stats.minmax
-        feedback.pushInfo(f"stats: {dpv_stats}")
+        feedback.pushInfo(f"stats {msg}: {dpv_stats}")
 
         # raster
         output_raster_filename = self.parameterAsOutputLayer(parameters, self.OUT_R, context)
@@ -1789,12 +1841,6 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
 
     def displayName(self):
         return self.tr(NAME["dpv"])
-
-
-def recursion(G: DiGraph, i: int32, mdpv: ndarray, i2n: list[int]) -> ndarray:
-    for j in G.successors(i):
-        mdpv[i2n.index(i)] += recursion(G, j, mdpv, i2n)
-    return mdpv[i2n.index(i)]
 
 
 def handle_post_processing(
