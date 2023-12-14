@@ -1690,6 +1690,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
     BASE_LAYER = "ProtectionValueRaster"
     IN = "PickledMessages"
     OUT_R = "RasterOutput"
+    THREADS = "Threads"
 
     def initAlgorithm(self, config):
         self.addParameter(
@@ -1722,6 +1723,18 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
                 createByDefault=True,
             )
         )
+        # advanced
+        qppn = QgsProcessingParameterNumber(
+            name=self.THREADS,
+            description=self.tr("Maximum number of threads to use simultaneously"),
+            type=QgsProcessingParameterNumber.Integer,
+            defaultValue=cpu_count() - 1,
+            optional=True,
+            minValue=1,
+            maxValue=cpu_count(),
+        )
+        qppn.setFlags(qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppn)
 
     def processAlgorithm(self, parameters, context, feedback):
         """Here is where the processing itself takes place."""
@@ -1742,11 +1755,8 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         pv = pv.ravel()
         dpv = zeros(pv.shape, dtype=pv.dtype)
         # multiprocessing
-        threads = context.maximumThreads()
-        feedback.setProgressText(
-            f"Launching {nsim} processes in <={threads} threads (check Advanced > Algorithm Set...> Enviro... to"
-            " adjust)"
-        )
+        threads = self.parameterAsEnum(parameters, self.THREADS, context)
+        feedback.pushDebugInfo(f"Orchestrating {nsim} processes in a {threads}-lane parallel execution pool")
         pool = Pool(threads)
         results = [
             pool.apply_async(worker, args=(data, pv, i), callback=partial(shout_progress, feedback=feedback))
