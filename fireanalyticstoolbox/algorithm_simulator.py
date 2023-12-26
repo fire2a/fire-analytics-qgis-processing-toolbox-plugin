@@ -74,8 +74,8 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     # c2f_path = Path(plugin_dir, "simulator", "C2F")
     # c2f_path = Path("/home/fdo/source/C2F-W")
 
-    fuel_models = ["0. Scott & Burgan", "1. Kitral"]
-    fuel_tables = ["spain_lookup_table.csv", "kitral_lookup_table.csv"]
+    fuel_models = ["0. Scott & Burgan", "1. Kitral", "2. Canadian Forest Fire Behavior Prediction System"]
+    fuel_tables = ["spain_lookup_table.csv", "kitral_lookup_table.csv", "fbp_lookup_table.csv"]
     ignition_modes = [
         "0. Uniformly distributed random ignition point(s)",
         "1. Probability map distributed random ignition point(s)",
@@ -498,7 +498,15 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         # BUILD ARGS
         # output_options = [item["name"] for item in SIM_OUTPUTS]
         args = {key: None for key in output_args}
-        args["sim"] = "S" if fuel_model == 0 else "K"
+        match fuel_model:
+            case 0:
+                args["sim"] = "S"
+            case 1:
+                args["sim"] = "K"
+            case 2:
+                args["sim"] = "C"
+            case _:
+                raise QgsProcessingException(f"fuel_model {fuel_model} not supported")
         args["nsims"] = self.parameterAsInt(parameters, self.NSIM, context)
         args["seed"] = self.parameterAsInt(parameters, self.RNG_SEED, context)
         args["nthreads"] = self.parameterAsInt(parameters, self.SIM_THREADS, context)
