@@ -48,6 +48,7 @@ from pickle import dump as pickle_dump
 from pickle import load as pickle_load
 from re import findall, search
 from typing import Any, Tuple
+from platform import system as platform_system
 
 import processing
 from fire2a.raster import get_geotransform, id2xy, read_raster, transform_coords_to_georef
@@ -1754,34 +1755,58 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
 
         pv = pv.ravel()
         dpv = zeros(pv.shape, dtype=pv.dtype)
-        # multiprocessing
-        threads = self.parameterAsEnum(parameters, self.THREADS, context)
-        feedback.pushDebugInfo(f"Orchestrating {nsim} processes in a {threads}-lane parallel execution pool")
-        pool = Pool(threads)
-        results = [
-            pool.apply_async(worker, args=(data, pv, i), callback=partial(shout_progress, feedback=feedback))
-            for i, data in enumerate(data_list)
-        ]
-        while True:
-            # user canceled?
-            if feedback.isCanceled():
-                feedback.pushWarning("Canceling...")
-                pool.terminate()
-                return {}
-            # all done?
-            statuses = [result.ready() for result in results]
-            if all(statuses):
-                break
-            feedback.setProgress(int(100 * sum(statuses) / nsim))
-            # wait
-            results[statuses.index(False)].wait(1)
-        # retrieve
-        for result in results:
-            sdpv, si2n, sid = result.get()
-            dpv[si2n] += sdpv
-            feedback.pushDebugInfo(f"accumulated dpv sum -per simulation {sid}: {dpv.sum()}")
-        pool.close()
-        pool.join()
+        
+        if platform_system() == 'Windows':
+            feedback.pushWarning("Microsoft Windows detected! Using the serial DPV calculation, switch to Linux to use the parallel version...")
+            for count, data in enumerate(data_list):
+                # digraph_from_messages(msgfile) -> msgG, root
+                msgG = DiGraph()
+                msgG.add_weighted_edges_from(data)
+                root = data[0][0]  # checkar que el primer valor del message sea el punto de ignición
+                # shortest_propagation_tree(G, root) -> treeG
+                shortest_paths = single_source_dijkstra_path(msgG, root, weight="time")
+                del shortest_paths[root]
+                treeG = DiGraph()
+                for node, shopat in shortest_paths.items():
+                    for i, node in enumerate(shopat[:-1]):
+                        treeG.add_edge(node, shopat[i + 1])
+                # dpv_maskG(G, root, pv, i2n) -> mdpv
+                i2n = [n - 1 for n in treeG]  # TODO change to generator?
+                mdpv = pv[i2n]
+                recursion(treeG, root, pv, mdpv, i2n)
+                dpv[i2n] += mdpv
+                feedback.setProgress((count + 1) / nsim * 100)
+                if feedback.isCanceled():
+                    break
+        else:
+            # multiprocessing
+            threads = self.parameterAsEnum(parameters, self.THREADS, context)
+            feedback.pushDebugInfo(f"Orchestrating {nsim} processes in a {threads}-lane parallel execution pool")
+            pool = Pool(threads)
+            results = [
+                pool.apply_async(worker, args=(data, pv, i), callback=partial(shout_progress, feedback=feedback))
+                for i, data in enumerate(data_list)
+            ]
+            while True:
+                # user canceled?
+                if feedback.isCanceled():
+                    feedback.pushWarning("Canceling...")
+                    pool.terminate()
+                    return {}
+                # all done?
+                statuses = [result.ready() for result in results]
+                if all(statuses):
+                    break
+                feedback.setProgress(int(100 * sum(statuses) / nsim))
+                # wait
+                results[statuses.index(False)].wait(1)
+            # retrieve
+            for result in results:
+                sdpv, si2n, sid = result.get()
+                dpv[si2n] += sdpv
+                # feedback.pushDebugInfo(f"accumulated dpv sum -per simulation {sid}: {dpv.sum()}")
+            pool.close()
+            pool.join()
         # scale
         dpv = dpv / nsim
         # descriptive statistics
@@ -1794,7 +1819,6 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
             msg = ""
         stats_min, stats_max = dpv_stats.minmax
         feedback.pushInfo(f"stats {msg}: {dpv_stats}")
-
         # raster
         output_raster_filename = self.parameterAsOutputLayer(parameters, self.OUT_R, context)
         raster_format = Grass7Utils.getRasterFormatFromFilename(output_raster_filename)
