@@ -46,9 +46,9 @@ from os import sep
 from pathlib import Path
 from pickle import dump as pickle_dump
 from pickle import load as pickle_load
+from platform import system as platform_system
 from re import findall, search
 from typing import Any, Tuple
-from platform import system as platform_system
 
 import processing
 from fire2a.raster import get_geotransform, id2xy, read_raster, transform_coords_to_georef
@@ -1755,9 +1755,9 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
 
         pv = pv.ravel()
         dpv = zeros(pv.shape, dtype=pv.dtype)
-        
-        if platform_system() == 'Windows':
-            feedback.pushWarning("Microsoft Windows detected! Using the serial DPV calculation, switch to Linux to use the parallel version...")
+
+        if platform_system() == "Windows":
+            feedback.pushWarning("MsWindows detected! Using the serial DPV calculation, switch to Linux to parallelize")
             for count, data in enumerate(data_list):
                 # digraph_from_messages(msgfile) -> msgG, root
                 msgG = DiGraph()
