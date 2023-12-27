@@ -616,8 +616,9 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
                     afile, delimiter=",", dtype=[("i", int32), ("j", int32), ("t", int32)], usecols=(0, 1, 2), ndmin=1
                 )
             ]
-            data[-1]["i"] -= 1  # 1 based to 0 based
-            data[-1]["j"] -= 1  # 1 based to 0 based
+            # 1 based to 0 based
+            data[-1]["i"] -= 1
+            data[-1]["j"] -= 1
             feedback.pushDebugInfo(f"simulation id: {sim_id}, edges: {len(data)}")
             if sink:
                 # build line add to sink
@@ -1771,9 +1772,9 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
                     for i, node in enumerate(shopat[:-1]):
                         treeG.add_edge(node, shopat[i + 1])
                 # dpv_maskG(G, root, pv, i2n) -> mdpv
-                i2n = [n - 1 for n in treeG]  # TODO change to generator?
+                i2n = [n for n in treeG]  # TODO change to generator?
                 mdpv = pv[i2n]
-                recursion(treeG, root, pv, mdpv, i2n)
+                recursion(treeG, root, mdpv, i2n)
                 dpv[i2n] += mdpv
                 feedback.setProgress((count + 1) / nsim * 100)
                 if feedback.isCanceled():
