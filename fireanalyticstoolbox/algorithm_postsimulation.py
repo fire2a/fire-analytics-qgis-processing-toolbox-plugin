@@ -1698,7 +1698,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                description=self.tr("Protection Value Raster (get values & geotransform"),
+                description=self.tr("Protection Value Raster (get values & geotransform)"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
