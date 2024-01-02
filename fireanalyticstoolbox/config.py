@@ -107,6 +107,18 @@ NAME = {
     "layer_group": simpp + " Group",
     "bc": "Betweenness Centrality Propagation Metric",
     "dpv": "Downstream Protection Value Propagation Metric",
+    "fuel_models": ["0. Scott & Burgan", "1. Kitral", "2. Canadian Forest Fire Behavior Prediction System"],
+    "fuel_tables": ["spain_lookup_table.csv", "kitral_lookup_table.csv", "fbp_lookup_table.csv"],
+    "ignition_modes": [
+        "0. Uniformly distributed random ignition point(s)",
+        "1. Probability map distributed random ignition point(s)",
+        "2. Single point on a (Vector)Layer",
+    ],
+    "weather_modes": [
+        "0. Single weather file scenario",
+        "1. Random draw from multiple weathers in a directory",
+        # "2. Sequential draw from multiple weathers in a directory",
+    ],
     # "IN_LOG": "Log File",
     # "post_sim": "Simulator Post Processing",
     # "messages": "Messages",

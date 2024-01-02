@@ -57,7 +57,7 @@ from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 
 from .algorithm_utils import write_log
-from .config import METRICS, SIM_INPUTS, SIM_OUTPUTS, STATS, TAG, jolo
+from .config import METRICS, NAME, SIM_INPUTS, SIM_OUTPUTS, STATS, TAG, jolo
 from .simulator.c2fqprocess import C2F
 
 output_args = [item["arg"] for item in SIM_OUTPUTS]
@@ -74,18 +74,10 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     # c2f_path = Path(plugin_dir, "simulator", "C2F")
     # c2f_path = Path("/home/fdo/source/C2F-W")
 
-    fuel_models = ["0. Scott & Burgan", "1. Kitral", "2. Canadian Forest Fire Behavior Prediction System"]
-    fuel_tables = ["spain_lookup_table.csv", "kitral_lookup_table.csv", "fbp_lookup_table.csv"]
-    ignition_modes = [
-        "0. Uniformly distributed random ignition point(s)",
-        "1. Probability map distributed random ignition point(s)",
-        "2. Single point on a (Vector)Layer",
-    ]
-    weather_modes = [
-        "0. Single weather file scenario",
-        "1. Random draw from multiple weathers in a directory",
-        # "2. Sequential draw from multiple weathers in a directory",
-    ]
+    fuel_models = NAME["fuel_models"]
+    fuel_tables = NAME["fuel_tables"]
+    ignition_modes = NAME["ignition_modes"]
+    weather_modes = NAME["weather_modes"]
     OUTPUTS = "OutputOptions"
     INSTANCE_DIR = "InstanceDirectory"
     INSTANCE_IN_PROJECT = "InstanceInProject"
