@@ -63,6 +63,15 @@ STATS = [
         "unit": "ratio",
         "dtype": "float32",
     },
+    {
+        "name": "Surface Burn Fraction",
+        "dir": "SurfFractionBurn",
+        "file": "Sfb",
+        "ext": "asc",
+        "arg": "out-sfb",
+        "unit": "ton",
+        "dtype": "float32",
+    },
 ]
 # NO CAMBIAR DE ORDEN
 # check algorithm_simulatior.py > FireSimulatorAlgorithm > postProcessing
