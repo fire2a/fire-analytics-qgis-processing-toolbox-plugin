@@ -34,6 +34,7 @@ from qgis.core import QgsProcessingProvider
 from qgis.PyQt.QtGui import QIcon
 
 from .algorithm_clusterize import ClusterizeAlgorithm
+from .algorithm_instance_downloader import InstanceDownloader
 from .algorithm_postsimulation import (BetweennessCentralityMetric, DownStreamProtectionValueMetric,
                                        IgnitionPointsSIMPP, MessagesSIMPP, PostSimulationAlgorithm, ScarSIMPP,
                                        StatisticSIMPP)
@@ -76,6 +77,7 @@ class FireToolboxProvider(QgsProcessingProvider):
         self.addAlgorithm(BetweennessCentralityMetric())
         self.addAlgorithm(DownStreamProtectionValueMetric())
         self.addAlgorithm(RasterTutorial())
+        self.addAlgorithm(InstanceDownloader())
 
     def id(self):
         """

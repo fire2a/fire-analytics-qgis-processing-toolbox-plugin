@@ -9,5 +9,6 @@
         <file>burntime.svg</file>
 	<file>bodyscar.svg</file>
 	<file>fireface.svg</file>
+	<file>downloader.svg</file>
     </qresource>
 </RCC>
