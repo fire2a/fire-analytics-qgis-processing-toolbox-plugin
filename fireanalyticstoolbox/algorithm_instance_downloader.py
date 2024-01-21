@@ -20,13 +20,12 @@
  *                                                                         *
  ***************************************************************************/
 """
-import json
-import zipfile
+from json import load as json_load
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from zipfile import ZipFile
 
 import processing
-from numpy import array
 from qgis.core import (QgsProcessingAlgorithm, QgsProcessingParameterEnum, QgsProcessingParameterFileDestination,
                        QgsProject)
 from qgis.PyQt.QtCore import QCoreApplication
@@ -36,7 +35,7 @@ from .algorithm_utils import write_log
 
 
 class InstanceDownloader(QgsProcessingAlgorithm):
-    INSTANCE = "INSTANCES"
+    INSTANCE = "INSTANCE"
     FILEDEST = "FileDestination"
     owner, repo = "fire2a", "C2F-W"
     url = f"https://api.github.com/repos/{owner}/{repo}/releases/latest"
@@ -52,13 +51,13 @@ class InstanceDownloader(QgsProcessingAlgorithm):
                     "OUTPUT": tmpfile.name,
                 },
             )
-            self.yson = json.load(open(output["OUTPUT"], "r"))
+            self.yson = json_load(open(output["OUTPUT"], "r"))
 
         self.addParameter(
             QgsProcessingParameterEnum(
                 name=self.INSTANCE,
                 description=self.tr("Select the instances to download"),
-                options=[it["name"] for it in self.yson["assets"]],
+                options=[item["name"] for item in self.yson["assets"]],
                 defaultValue=0,
             )
         )
@@ -77,11 +76,13 @@ class InstanceDownloader(QgsProcessingAlgorithm):
         )
 
     def processAlgorithm(self, parameters, context, feedback):
-        instance = [it["name"] for it in self.yson["assets"]][self.parameterAsInt(parameters, self.INSTANCE, context)]
+        instance = [item["name"] for item in self.yson["assets"]][
+            self.parameterAsInt(parameters, self.INSTANCE, context)
+        ]
         # feedback.pushDebugInfo(f"instance: {instance}")
-        for ass in self.yson["assets"]:
-            if ass["name"] == instance:
-                dl_url = ass["browser_download_url"]
+        for asset in self.yson["assets"]:
+            if asset["name"] == instance:
+                dl_url = asset["browser_download_url"]
         # feedback.pushDebugInfo(f"dl_url :{dl_url}")
         outfiledest = Path(self.parameterAsString(parameters, self.FILEDEST, context))
         # feedback.pushDebugInfo(f"outfiledest i: {outfiledest}")
@@ -106,7 +107,7 @@ class InstanceDownloader(QgsProcessingAlgorithm):
         # feedback.pushInfo(f"{output}")
         feedback.pushInfo(f"Download complete to {outfiledest}, unzipping...")
         # unzip
-        with zipfile.ZipFile(outfiledest, "r") as zip_ref:
+        with ZipFile(outfiledest, "r") as zip_ref:
             zip_ref.extractall(outfiledest.parent)
         feedback.pushInfo("Unzipping complete, opening directory...")
         qgis_action_open_filebrowser(outfiledest.parent)
@@ -130,12 +131,12 @@ class InstanceDownloader(QgsProcessingAlgorithm):
 
 
 def qgis_action_open_filebrowser(directory):
-    import platform
-    import subprocess
+    from platform import system
+    from subprocess import Popen
 
-    if platform.system() == "Windows":
-        subprocess.Popen(f'explorer "{directory}"')
-    elif platform.system() == "Darwin":
-        subprocess.Popen(["open", directory])
+    if system() == "Windows":
+        Popen(f'explorer "{directory}"')
+    elif system() == "Darwin":
+        Popen(["open", directory])
     else:
-        subprocess.Popen(["xdg-open", directory])
+        Popen(["xdg-open", directory])
