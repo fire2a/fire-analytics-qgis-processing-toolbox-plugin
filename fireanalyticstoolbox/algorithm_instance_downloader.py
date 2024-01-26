@@ -89,7 +89,7 @@ class InstanceDownloader(QgsProcessingAlgorithm):
         if outfiledest.name == self.FILEDEST + ".file":
             project_path = QgsProject().instance().absolutePath()
             if project_path != "":
-                outfiledest = project_path.parent / instance
+                outfiledest = Path(project_path).parent / instance
             else:
                 outfiledest = outfiledest.parent / instance
         # feedback.pushInfo(f"outfiledest f: {outfiledest}")
