@@ -853,26 +853,38 @@ def get_qgs_raster_properties(raster: QgsRasterLayer) -> dict:
 
 
 def compare_raster_properties(base: dict, incumbent: dict):
-    for key in ["bandCount", "width", "height", "crs", "rasterUnitsPerPixelX", "rasterUnitsPerPixelY"]:
+    for key in ["bandCount", "width", "height", "crs"]:
         if base[key] != incumbent[key]:
             return False, f"raster '{incumbent['name']}' {key} dont'match to fuels! {base[key]}!={incumbent[key]}"
+    if not isclose(base["rasterUnitsPerPixelX"], incumbent["rasterUnitsPerPixelX"], abs_tol=1e-3):
+        return (
+            False,
+            (
+                f"raster '{incumbent['name']}' rasterUnitsPerPixelX not close enough!"
+                f" {abs(base['rasterUnitsPerPixelX']-incumbent['rasterUnitsPerPixelX'])}"
+            ),
+        )
+    if not isclose(base["rasterUnitsPerPixelY"], incumbent["rasterUnitsPerPixelY"], abs_tol=1e-3):
+        return (
+            False,
+            (
+                f"raster '{incumbent['name']}' rasterUnitsPerPixelY not close enough!"
+                f" {abs(base['rasterUnitsPerPixelY']-incumbent['rasterUnitsPerPixelY'])}"
+            ),
+        )
+    ruppx = (base["rasterUnitsPerPixelX"] + incumbent["rasterUnitsPerPixelX"]) / 2
+    ruppy = (base["rasterUnitsPerPixelY"] + incumbent["rasterUnitsPerPixelY"]) / 2
     for key in ["xMinimum", "xMaximum"]:
-        if not isclose(base[key], incumbent[key], abs_tol=base["rasterUnitsPerPixelX"]):
+        if not isclose(base[key], incumbent[key], abs_tol=ruppx):
             return (
                 False,
-                (
-                    f"raster '{incumbent['name']}' {key} not close enough!\n"
-                    f"| {base[key]} - {incumbent[key]} | > {base['rasterUnitsPerPixelX']}"
-                ),
+                f"raster '{incumbent['name']}' {key} not close enough!\n| {base[key]} - {incumbent[key]} | > {ruppx}",
             )
     for key in ["yMinimum", "yMaximum"]:
-        if not isclose(base[key], incumbent[key], abs_tol=base["rasterUnitsPerPixelY"]):
+        if not isclose(base[key], incumbent[key], abs_tol=ruppy):
             return (
                 False,
-                (
-                    f"raster '{incumbent['name']}' {key} not close enough!\n"
-                    f"| {base[key]} - {incumbent[key]} | > {base['rasterUnitsPerPixelY']}"
-                ),
+                f"raster '{incumbent['name']}' {key} not close enough!\n| {base[key]} - {incumbent[key]} | > {ruppy}",
             )
     return True, "all ok"
 
