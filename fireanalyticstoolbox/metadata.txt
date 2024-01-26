@@ -21,7 +21,7 @@ repository=https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plug
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-changelog=Canadian Fuel Model Enabled (beta), check https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/blob/main/graphical_models/README.md for graphical modeler pipelines!
+changelog=1.Raster pixel size check, 2.Instance downloader algorithm. 3.Canadian Surface Consumption, check https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/blob/main/graphical_models/README.md for graphical modeler pipelines!
 
 
 
