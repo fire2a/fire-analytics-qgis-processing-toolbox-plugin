@@ -10,5 +10,7 @@
 	<file>bodyscar.svg</file>
 	<file>fireface.svg</file>
 	<file>downloader.svg</file>
+	<file>bc.svg</file>
+	<file>dpv.svg</file>
     </qresource>
 </RCC>

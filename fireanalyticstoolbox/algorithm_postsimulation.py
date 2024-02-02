@@ -1654,6 +1654,9 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
     def displayName(self):
         return self.tr(NAME["bc"])
 
+    def icon(self):
+        return QIcon(":/plugins/fireanalyticstoolbox/assets/bc.svg")
+
 
 def recursion(G: DiGraph, i: int32, mdpv: ndarray, i2n: list[int]) -> ndarray:
     for j in G.successors(i):
@@ -1873,6 +1876,9 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
 
     def displayName(self):
         return self.tr(NAME["dpv"])
+
+    def icon(self):
+        return QIcon(":/plugins/fireanalyticstoolbox/assets/dpv.svg")
 
 
 def handle_post_processing(
