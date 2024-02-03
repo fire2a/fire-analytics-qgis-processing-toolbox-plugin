@@ -152,8 +152,8 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterBoolean(
                 name=self.PAINTFUELS,
-                description="Style Fuel raster with selected surface fuel model (native:setlayerstyle)",
-                defaultValue=True,
+                description="Style (paint) fuel raster with selected surface fuel model (native:setlayerstyle)",
+                defaultValue=False,
                 optional=True,
             )
         )
@@ -353,6 +353,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 options=[item["name"] for item in SIM_OUTPUTS],
                 allowMultiple=True,
                 defaultValue=[0, 2, 3],
+                optional=True,
             )
         )
         self.addParameter(
