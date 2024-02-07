@@ -24,6 +24,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 import processing
+from fire2a.raster import get_rlayer_data, get_rlayer_info
 from qgis.core import (QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterMultipleLayers,
                        QgsProcessingParameterRasterDestination, QgsProject)
 from qgis.PyQt.QtCore import QCoreApplication
@@ -53,7 +54,7 @@ class FireScarMapper(QgsProcessingAlgorithm):
                 description=self.tr("Input rasters of burnt landscape"),
                 layerType=QgsProcessing.TypeRaster,
                 defaultValue=[QgsProcessing.TypeRaster],
-                optional=False,
+                optional=True,
             )
         )
         self.addParameter(
@@ -67,16 +68,30 @@ class FireScarMapper(QgsProcessingAlgorithm):
         )
 
     def processAlgorithm(self, parameters, context, feedback):
-        before_raster_list = self.parameterAsLayerList(parameters, self.IN_BEFORE, context)
+        before = self.parameterAsLayerList(parameters, self.IN_BEFORE, context)
         feedback.pushDebugInfo(
-            f"Input rasters:\n names: {[ r.name() for r in before_raster_list]}\ntypes:"
-            f" {[ r.rasterType() for r in before_raster_list]}"
+            f"Input rasters:\n names: {[ r.name() for r in before]}\ntypes: {[ r.rasterType() for r in before]}"
         )
-        burnt_raster_list = self.parameterAsLayerList(parameters, self.IN_BURNT, context)
+        burnt = self.parameterAsLayerList(parameters, self.IN_BURNT, context)
         feedback.pushDebugInfo(
-            f"Input rasters:\n names: {[ r.name() for r in burnt_raster_list]}\ntypes:"
-            f" {[ r.rasterType() for r in burnt_raster_list]}"
+            f"Input rasters:\n names: {[ r.name() for r in burnt]}\ntypes: {[ r.rasterType() for r in burnt]}"
         )
+        if len(before) != len(burnt):
+            raise QgsProcessingException("The number of before and burnt rasters must be the same")
+        rasters = []
+        for i, layer in enumerate(before + burnt):
+            adict = {
+                "type": "before" if i < len(before) else "burnt",
+                "id": i,
+                "qid": layer.id(),
+                "name": layer.name(),
+                "data": get_rlayer_data(layer),
+                "layer": layer,
+            }
+            adict.update(get_rlayer_info(layer))
+            rasters += [adict]
+        feedback.pushDebugInfo(f"{rasters=}, {len(rasters)=} {[r['data'].shape for r in rasters]}")
+        write_log(feedback, name=self.name())
         return {}
 
     def name(self):
