@@ -20,68 +20,16 @@
  ***************************************************************************/
 """
 
-from pathlib import Path
-from tempfile import NamedTemporaryFile
-
-import processing
 from fire2a.raster import get_rlayer_data, get_rlayer_info
 from qgis.core import (QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterMultipleLayers,
                        QgsProcessingParameterRasterDestination, QgsProcessingParameterFile, QgsProject)
 from qgis.PyQt.QtCore import QCoreApplication
-from qgis.PyQt.QtGui import QIcon
-from .algorithm_utils import write_log
 
 import torch
-from .model_u_net import model
+from .model_u_net import model, device
+from .AStrain import create_datasetAS
 import numpy as np
-import pandas as pd
 from torch.utils.data import DataLoader
-from sklearn.metrics import jaccard_score, accuracy_score
-import torch.nn as nn
-import rasterio as rio
-
-LS_max_as=[1704.0, 2535.0, 3279.0, 5724.0, 5373.5, 4099.5, 1, 1000, 1784.5, 2602.5, 3291.5,
-                6013.5, 5218.5, 3942.0, 1, 1000] 
-LI_min_as=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.1138, -593.5879,
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.1009, -385.6182]
-mean_as=[410.599, 603.8595, 722.0121, 1684.9663, 1740.0623, 1271.392, 0.3869, 141.2389, 
-        412.1512, 657.2068, 776.1463, 2205.528, 1913.4361, 1168.8483, 0.4915, 328.0038] 
-std_as=[148.55842, 204.69747, 294.87129, 557.89512, 587.68786, 468.61749, 0.16364, 237.97676, 157.58976,
-    223.08017, 343.99229, 504.0643, 625.52707, 460.41598, 0.15405, 190.97934]
-
-class Normalize(object):
-    """Normalize pixel values to the range [0, 1] measured using minmax-scaling"""    
-    def __init__(self):
-        # Los valores medios y de desviación estándar de los canales
-        self.channel_means = np.array(mean_as)
-        self.channel_std = np.array(std_as)
-
-    def __call__(self, sample):
-        """
-        :param sample: muestra a normalizar
-        :return: muestra normalizada
-        """
-        sample -= self.channel_means.reshape(sample.shape[0], 1, 1)
-        sample /= self.channel_std.reshape(sample.shape[0], 1, 1)
-        return sample
-
-def preprocess_data(before_file, after_file):
-    before = rio.open(before_file)
-    after = rio.open(after_file)
-    imgdata_before = np.array([before.read(i) for i in [1, 2, 3, 4, 5, 6, 7, 8]])
-    imgdata_after = np.array([after.read(i) for i in [1, 2, 3, 4, 5, 6, 7, 8]])
-    new_array = np.concatenate((imgdata_before, imgdata_after), axis=0)
-
-    # Ajustar dimensiones y rellenar según sea necesario
-    size = 128
-    x, y = new_array.shape[1], new_array.shape[2]
-    new_array = np.pad(new_array, (
-        (0, 0),
-        (max(0, (size - x) // 2), max(0, (size - x + 1) // 2)),
-        (max(0, (size - y) // 2), max(0, (size - y + 1) // 2))
-    ), "constant")
-
-    return {'img': new_array, 'before_file': before_file, 'after_file': after_file}
 
 class FireScarMapper(QgsProcessingAlgorithm):
     IN_BEFORE = "BeforeRasters"
@@ -124,61 +72,66 @@ class FireScarMapper(QgsProcessingAlgorithm):
         )
 
     def processAlgorithm(self, parameters, context, feedback):
-        before_files = self.parameterAsFileList(parameters, self.IN_BEFORE, context)
-        after_files = self.parameterAsFileList(parameters, self.IN_AFTER, context)
+        before = self.parameterAsLayerList(parameters, self.IN_BEFORE, context)
+        feedback.pushDebugInfo(
+            f"Input rasters:\n names: {[ r.name() for r in before]}\ntypes: {[ r.rasterType() for r in before]}"
+        )
+        burnt = self.parameterAsLayerList(parameters, self.IN_AFTER, context)
+        feedback.pushDebugInfo(
+            f"Input rasters:\n names: {[ r.name() for r in burnt]}\ntypes: {[ r.rasterType() for r in burnt]}"
+        )
         model_path = self.parameterAsFile(parameters, self.IN_MODEL, context)
 
-        if len(before_files) != len(after_files):
-            raise QgsProcessingException("The number of before and after rasters must be the same")
+        if len(before) != len(burnt):
+            raise QgsProcessingException("The number of before and burnt rasters must be the same")
+        rasters = []
+        for i, layer in enumerate(before + burnt):
+            adict = {
+                "type": "before" if i < len(before) else "burnt",
+                "id": i,
+                "qid": layer.id(),
+                "name": layer.name(),
+                "data": get_rlayer_data(layer),
+                "layer": layer,
+            }
+            adict.update(get_rlayer_info(layer))
+            rasters += [adict]
+        feedback.pushDebugInfo(f"{rasters=}, {len(rasters)=} {[r['data'].shape for r in rasters]}")
 
-        # Load the model
+        before_files = []
+        after_files = []
+
+        for i in rasters:
+            if i['type'] == "before":
+                before_files.append(i['data'])
+            else:
+                after_files.append(i['data'])
+
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+
+        np.random.seed(3)
+        torch.manual_seed(3)    
+        
+        data_eval = create_datasetAS(before_files, after_files, mult=1)
+        
+        batch_size = 1 # 1 to create diagnostic images, any value otherwise
+        all_dl = DataLoader(data_eval, batch_size=batch_size)#, shuffle=True)
+
         model.eval()
 
-        scars_data = []
+        for i, batch in enumerate(all_dl):
+            #x, y = batch['img'].float().to(device), batch['fpt'].float().to(device)
+            x = batch['img'].float().to(device)
+            output = model(x).cpu()
 
-        # Initialize Normalize instance
-        normalize = Normalize()
-
-        for before_file, after_file in zip(before_files, after_files):
-            # Preprocess data
-            data = preprocess_data(before_file, after_file)
-            input_data = data['img']
-
-            # Preprocess and normalize the input data
-            input_data = normalize(input_data)
-
-            input_tensor = torch.from_numpy(input_data).float().unsqueeze(0).to(device)
-
-            # Pass input through the model to get the scar prediction
-            with torch.no_grad():
-                output_tensor = model(input_tensor)
-
-            # Assuming output_tensor is the predicted scar mask as a tensor
-            # Convert it back to numpy array
-            scar_data = output_tensor.cpu().numpy()
-
-            pred = np.zeros(scar_data.shape)
-            pred[scar_data >= 0] = 1
-            # Append the scar data to the list
-            scars_data.append(pred)
-        
-        # Combine all scar predictions into a single numpy array
-        combined_scars_data = np.concatenate(scars_data, axis=0)
-
-        # Aplicar un umbral a la matriz generada por el modelo si es necesario
-        threshold = 1e-4  # Puedes ajustar este valor según sea necesario
-        binary_scar_data = (combined_scars_data > threshold).astype(np.uint8)
-
-        # Ajustar la configuración de impresión de NumPy para imprimir la matriz completa
-        np.set_printoptions(threshold=np.inf, linewidth=np.inf)
-
-        # Convertir la matriz binaria a una cadena de texto
-        binary_scar_data_str = np.array2string(binary_scar_data, separator=', ')
-
-        # Mostrar la matriz binaria en la consola de depuración
-        feedback.pushDebugInfo(binary_scar_data_str)
+            # obtain binary prediction map
+            pred = np.zeros(output.shape)
+            pred[output >= 0] = 1
+            
+            np.set_printoptions(threshold=np.inf, linewidth=np.inf)
+            generated_matrix = pred[0][0]
+            feedback.pushDebugInfo(str(generated_matrix.tolist()))
 
         return {}
 
