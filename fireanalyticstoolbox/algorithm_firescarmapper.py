@@ -31,6 +31,7 @@ from .AStrain import create_datasetAS
 import numpy as np
 from torch.utils.data import DataLoader
 
+
 class FireScarMapper(QgsProcessingAlgorithm):
     IN_BEFORE = "BeforeRasters"
     IN_AFTER = "AfterRasters"
@@ -73,15 +74,11 @@ class FireScarMapper(QgsProcessingAlgorithm):
 
     def processAlgorithm(self, parameters, context, feedback):
         before = self.parameterAsLayerList(parameters, self.IN_BEFORE, context)
-        feedback.pushDebugInfo(
-            f"Input rasters:\n names: {[ r.name() for r in before]}\ntypes: {[ r.rasterType() for r in before]}"
-        )
+        feedback.pushDebugInfo(f"Input rasters:\n names: {[ r.name() for r in before]}\ntypes: {[ r.rasterType() for r in before]}")
         burnt = self.parameterAsLayerList(parameters, self.IN_AFTER, context)
-        feedback.pushDebugInfo(
-            f"Input rasters:\n names: {[ r.name() for r in burnt]}\ntypes: {[ r.rasterType() for r in burnt]}"
-        )
+        feedback.pushDebugInfo(f"Input rasters:\n names: {[ r.name() for r in burnt]}\ntypes: {[ r.rasterType() for r in burnt]}")
         model_path = self.parameterAsFile(parameters, self.IN_MODEL, context)
-
+        
         if len(before) != len(burnt):
             raise QgsProcessingException("The number of before and burnt rasters must be the same")
         rasters = []
@@ -96,17 +93,17 @@ class FireScarMapper(QgsProcessingAlgorithm):
             }
             adict.update(get_rlayer_info(layer))
             rasters += [adict]
-        feedback.pushDebugInfo(f"{rasters=}, {len(rasters)=} {[r['data'].shape for r in rasters]}")
+        #feedback.pushDebugInfo(f"{rasters=}, {len(rasters)=} {[r['data'].shape for r in rasters]}")
 
         before_files = []
         after_files = []
-
-        for i in rasters:
-            if i['type'] == "before":
-                before_files.append(i['data'])
-            else:
-                after_files.append(i['data'])
-
+        
+        for i in range(len(rasters)//2):
+            before_files.append(rasters[i]['data'])
+            for j in range(len(rasters)//2):
+                if rasters[i]['name'][7:] == rasters[j + (len(rasters)//2)]['name'][7:]:
+                    after_files.append(rasters[j + (len(rasters)//2)]['data'])
+            
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
 
@@ -120,8 +117,24 @@ class FireScarMapper(QgsProcessingAlgorithm):
 
         model.eval()
 
+        def print_matrix(matrix):
+            """
+            Imprime la matriz de manera legible, reemplazando 0 y 1 con caracteres distinguibles.
+            
+            Args:
+                matrix (list): La matriz representada como una lista de listas.
+            """
+            # Mapea los valores de la matriz a caracteres distinguibles
+            char_map = {0.0: ' _ ', 1.0: ' X '}  # Puedes cambiar los caracteres según tus preferencias
+            
+            # Itera sobre cada fila de la matriz
+            for row in matrix:
+                # Convierte los valores de la fila usando el mapeo de caracteres y únelos en una cadena
+                row_str = ''.join(char_map[val] for val in row)
+                # Imprime la fila
+                feedback.pushDebugInfo(row_str)
+
         for i, batch in enumerate(all_dl):
-            #x, y = batch['img'].float().to(device), batch['fpt'].float().to(device)
             x = batch['img'].float().to(device)
             output = model(x).cpu()
 
@@ -131,7 +144,10 @@ class FireScarMapper(QgsProcessingAlgorithm):
             
             np.set_printoptions(threshold=np.inf, linewidth=np.inf)
             generated_matrix = pred[0][0]
-            feedback.pushDebugInfo(str(generated_matrix.tolist()))
+            print_matrix(generated_matrix)
+            #feedback.pushDebugInfo(str(generated_matrix.tolist()))
+            feedback.pushDebugInfo(" ")
+            feedback.pushDebugInfo(" ")
 
         return {}
 

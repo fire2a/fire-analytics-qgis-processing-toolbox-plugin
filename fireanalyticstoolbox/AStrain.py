@@ -77,7 +77,6 @@ class firescardataset():
             new_array=interp(*np.indices(new_array.shape))
             
         new_array=preprocessing(new_array)
-        #ds = gdal.Open(self.seglabels[idx])
         x=imgdata1.shape[1]
         y=imgdata1.shape[2]
         imgdata=new_array
@@ -168,7 +167,7 @@ def create_datasetAS(*args, apply_transforms=True, **kwargs):
         if apply_transforms:
             data_transforms = transforms.Compose([
                 Normalize(),
-                Randomize(),
+                #Randomize(),
                 ToTensor()
             ])
         else:
