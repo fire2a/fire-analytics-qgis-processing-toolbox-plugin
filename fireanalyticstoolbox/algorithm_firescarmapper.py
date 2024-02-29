@@ -22,7 +22,7 @@
 
 from fire2a.raster import get_rlayer_data, get_rlayer_info
 from qgis.core import (QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterMultipleLayers,
-                       QgsProcessingParameterRasterDestination, QgsProcessingParameterFile, QgsProject)
+                       QgsProcessingParameterRasterDestination, QgsProcessingParameterFile, QgsProject, QgsRasterLayer)
 from qgis.PyQt.QtCore import QCoreApplication
 
 import torch
@@ -147,10 +147,15 @@ class FireScarMapper(QgsProcessingAlgorithm):
             
             np.set_printoptions(threshold=np.inf, linewidth=np.inf)
             generated_matrix = pred[0][0]
-            print_matrix(generated_matrix)
-            #feedback.pushDebugInfo(str(generated_matrix.tolist()))
-            feedback.pushDebugInfo(" ")
-            feedback.pushDebugInfo(" ")
+            #print_matrix(generated_matrix)
+            #feedback.pushDebugInfo(" ")
+            #feedback.pushDebugInfo(" ")
+            if output_path:
+                # Escribir la matriz en un archivo TIF
+                self.writeRaster(generated_matrix, output_path, context)
+
+                # Añadir la capa TIF resultante al proyecto de QGIS
+                self.addRasterLayer(output_path, context)
 
         return {}
 
