@@ -88,9 +88,9 @@ def test():
         with NamedTemporaryFile(suffix="." + ext) as f:
             print(
                 f.name,
-                GrassUtils.getRasterFormatFromFilename(f.name) == get_output_raster_format(f.name, None),
+                GrassUtils.getRasterFormatFromFilename(f.name) == get_output_raster_format(f.name),
                 GrassUtils.getRasterFormatFromFilename(f.name),
-                get_output_raster_format(f.name, None),
+                get_output_raster_format(f.name),
             )
 
 
