@@ -1,15 +1,92 @@
 #!python3
-
+import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 import numpy as np
-from qgis.core import (Qgis, QgsColorRampShader, QgsMessageLog, QgsPalettedRasterRenderer,
+from processing.algs.gdal.GdalUtils import GdalUtils
+from qgis.core import (Qgis, QgsColorRampShader, QgsMessageLog, QgsPalettedRasterRenderer, QgsProcessingFeedback,
                        QgsProcessingLayerPostProcessorInterface, QgsRasterBlock, QgsRasterFileWriter)
 from qgis.PyQt.QtCore import QByteArray
 from qgis.PyQt.QtGui import QColor
 
 from .config import TAG
+
+
+def get_vector_driver_from_filename(filename):
+    return GdalUtils.getVectorDriverFromFileName(filename)
+
+
+def get_output_raster_format(filename: str, feedback: QgsProcessingFeedback = None):
+    """Gets a valid GDAL output raster driver name, warns if not found, defaults to GTiff.
+
+    Args:
+        filename (str): The name with extension of the raster. (Not implemented for suffixes with multiple dots, e.g. mpv.gz)
+        feedback (QgsProcessingFeedback): The feedback object to push warnings to.
+
+    Returns:
+        str: The GDAL short format name for extension.
+
+    Sample usage:
+        driver_name = get_output_raster_format(filename, feedback)
+        dst_ds = gdal.GetDriverByName(raster_format).Create(filename, W, H, 1, GDT_Float32)
+
+    Based/copied from qgis.python.grassprovider.grass_utils.py GrassUtils
+    """
+    ext = os.path.splitext(filename)[1].lower()
+    ext = ext.lstrip(".")
+    if ext:
+        supported = GdalUtils.getSupportedOutputRasters()
+        for name in list(supported.keys()):
+            exts = supported[name]
+            if ext in exts:
+                return name
+    if feedback:
+        feedback.pushWarning(f"Using GTiff format! No supported GDAL raster format from {filename=} {ext=} found.")
+    return "GTiff"
+
+
+def check_gdal_readable_raster(filename):
+    """Based/copied from qgis.python.grassprovider.grass_utils.py GrassUtils"""
+    ext = os.path.splitext(filename)[1].lower()
+    ext = ext.lstrip(".")
+    if ext:
+        supported = GdalUtils.getSupportedRasters()
+        for name in list(supported.keys()):
+            exts = supported[name]
+            if ext in exts:
+                return True
+    return False
+
+
+def test():
+    """
+    compare
+    from grassprovider.grass_utils import GrassUtils getRasterFormatFromFilename
+    vs
+    .getRasterFormatFromFilename
+    """
+    from grassprovider.grass_utils import GrassUtils
+
+    gdal_drvs = getGDALdrivers()
+
+    exts = []
+    for drv in gdal_drvs:
+        if e1 := drv.get("DMD_EXTENSION"):
+            exts += [e1]
+        if e2 := drv.get("DMD_EXTENSIONS"):
+            if len(e2) > 1:
+                exts += e2.split(" ")
+            else:
+                assert e1 == e2
+    exts = set(exts)
+
+    from tempfile import NamedTemporaryFile
+
+    for ext in exts:
+        with NamedTemporaryFile(suffix="." + ext) as f:
+            print(f.name, getSupportedOutputRasterFormatFromFilename(f.name))
+            assert GrassUtils.getRasterFormatFromFilename(f.name) == getRasterFormatFromFilename(f.name)
 
 
 def array2rasterInt16(data, name, geopackage, extent, crs, nodata=None):
