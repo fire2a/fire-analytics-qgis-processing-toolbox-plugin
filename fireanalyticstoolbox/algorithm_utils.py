@@ -82,6 +82,8 @@ def test():
                 assert e1 == e2
     exts = set(exts)
 
+    # exts.update(QgsRasterFileWriter.supportedFormatExtensions(QgsRasterFileWriter.RasterFormatOptions()))
+
     from tempfile import NamedTemporaryFile
 
     for ext in exts:
