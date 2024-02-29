@@ -1,9 +1,7 @@
 import numpy as np
 import torch
-
 from torchvision import transforms
 from torchvision.transforms import Normalize
-
 import pandas as pd
 import rasterio as rio 
 import os
