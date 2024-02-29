@@ -164,4 +164,4 @@ cython_debug/
 .netrwhist
 *~
 .vscode/
-simulator/C2F/
+simulator/
