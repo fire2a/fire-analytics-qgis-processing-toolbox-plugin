@@ -59,46 +59,6 @@ def check_gdal_readable_raster(filename):
     return False
 
 
-def test():
-    """
-    compare
-    from grassprovider.grass_utils import GrassUtils getRasterFormatFromFilename
-    vs
-    .getRasterFormatFromFilename
-    """
-    from fire2a.utils import getGDALdrivers
-    from grassprovider.grass_utils import GrassUtils
-
-    gdal_drvs = getGDALdrivers()
-
-    exts = []
-    for drv in gdal_drvs:
-        if e1 := drv.get("DMD_EXTENSION"):
-            exts += [e1]
-        if e2 := drv.get("DMD_EXTENSIONS"):
-            if len(e2) > 1:
-                exts += e2.split(" ")
-            else:
-                assert e1 == e2
-    exts = set(exts)
-
-    # exts.update(QgsRasterFileWriter.supportedFormatExtensions(QgsRasterFileWriter.RasterFormatOptions()))
-
-    from tempfile import NamedTemporaryFile
-
-    for ext in exts:
-        with NamedTemporaryFile(suffix="." + ext) as f:
-            print(
-                f.name,
-                GrassUtils.getRasterFormatFromFilename(f.name) == get_output_raster_format(f.name),
-                GrassUtils.getRasterFormatFromFilename(f.name),
-                get_output_raster_format(f.name),
-            )
-
-
-test()
-
-
 def array2rasterInt16(data, name, geopackage, extent, crs, nodata=None):
     """numpy array to gpkg casts to name"""
     data = np.int16(data)
