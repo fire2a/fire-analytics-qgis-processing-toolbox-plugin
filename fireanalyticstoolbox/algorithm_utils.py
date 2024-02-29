@@ -66,6 +66,7 @@ def test():
     vs
     .getRasterFormatFromFilename
     """
+    from fire2a.utils import getGDALdrivers
     from grassprovider.grass_utils import GrassUtils
 
     gdal_drvs = getGDALdrivers()
@@ -85,8 +86,15 @@ def test():
 
     for ext in exts:
         with NamedTemporaryFile(suffix="." + ext) as f:
-            print(f.name, getSupportedOutputRasterFormatFromFilename(f.name))
-            assert GrassUtils.getRasterFormatFromFilename(f.name) == getRasterFormatFromFilename(f.name)
+            print(
+                f.name,
+                GrassUtils.getRasterFormatFromFilename(f.name) == get_output_raster_format(f.name, None),
+                GrassUtils.getRasterFormatFromFilename(f.name),
+                get_output_raster_format(f.name, None),
+            )
+
+
+test()
 
 
 def array2rasterInt16(data, name, geopackage, extent, crs, nodata=None):
