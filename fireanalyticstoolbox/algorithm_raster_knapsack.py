@@ -44,7 +44,6 @@ from platform import system as platform_system
 from shutil import which
 
 import numpy as np
-from grassprovider.Grass7Utils import Grass7Utils
 from processing.tools.system import getTempFilename
 from pyomo import environ as pyo
 from pyomo.common.errors import ApplicationError
@@ -57,8 +56,8 @@ from qgis.PyQt.QtCore import QByteArray, QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from scipy import stats
 
-from .algorithm_utils import (array2rasterInt16, get_raster_data, get_raster_info, get_raster_nodata,
-                              run_alg_styler_bin, write_log)
+from .algorithm_utils import (array2rasterInt16, get_output_raster_format, get_raster_data, get_raster_info,
+                              get_raster_nodata, run_alg_styler_bin, write_log)
 from .config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
 
 NODATA = -1  # -32768
@@ -180,12 +179,14 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             name="SOLVER",
             description="Solver: recommended options string [and executable STATUS]",
         )
-        qpps.setMetadata({
-            "widget_wrapper": {
-                "value_hints": value_hints,
-                "setEditable": True,  # not working
+        qpps.setMetadata(
+            {
+                "widget_wrapper": {
+                    "value_hints": value_hints,
+                    "setEditable": True,  # not working
+                }
             }
-        })
+        )
         qpps.setFlags(qpps.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(qpps)
         # options_string
@@ -382,7 +383,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         base.resize(height, width)
 
         output_layer_filename = self.parameterAsOutputLayer(parameters, self.OUTPUT_layer, context)
-        outFormat = Grass7Utils.getRasterFormatFromFilename(output_layer_filename)
+        outFormat = get_output_raster_format(output_layer_filename, feedback)
 
         nodatas, zeros, ones = np.histogram(base, bins=[NODATA, 0, 1, 2])[0]
         feedback.pushInfo(
