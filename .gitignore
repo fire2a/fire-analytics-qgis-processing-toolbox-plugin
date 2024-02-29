@@ -163,3 +163,5 @@ cython_debug/
 *.sw[pon]
 .netrwhist
 *~
+.vscode/
+simulator/C2F/
