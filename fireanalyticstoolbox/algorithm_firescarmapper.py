@@ -26,10 +26,12 @@ from qgis.core import (QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParam
 from qgis.PyQt.QtCore import QCoreApplication
 
 import torch
-from .model_u_net import model, device
-from .AStrain import create_datasetAS
+from .firescarmapping.model_u_net import model, device
+from .firescarmapping.as_dataset import create_datasetAS
 import numpy as np
 from torch.utils.data import DataLoader
+import rasterio
+from rasterio.transform import from_origin
 
 
 class FireScarMapper(QgsProcessingAlgorithm):
@@ -78,7 +80,8 @@ class FireScarMapper(QgsProcessingAlgorithm):
         burnt = self.parameterAsLayerList(parameters, self.IN_AFTER, context)
         feedback.pushDebugInfo(f"Input rasters:\n names: {[ r.name() for r in burnt]}\ntypes: {[ r.rasterType() for r in burnt]}")
         model_path = self.parameterAsFile(parameters, self.IN_MODEL, context)
-        
+        output_path = self.parameterAsOutputLayer(parameters, self.OUT_SCARS, context)
+
         if len(before) != len(burnt):
             raise QgsProcessingException("The number of before and burnt rasters must be the same")
         rasters = []
@@ -151,6 +154,52 @@ class FireScarMapper(QgsProcessingAlgorithm):
 
         return {}
 
+    
+
+    def writeRaster(self, matrix, file_path, context):
+        """
+        Guarda una matriz como un archivo raster en formato TIF utilizando rasterio.
+
+        :param matrix: Matriz de datos a guardar.
+        :param file_path: Ruta del archivo TIF de salida.
+        :param context: Contexto de procesamiento.
+        """
+        # Obtener el tamaño de la matriz
+        height, width = matrix.shape
+
+        # Definir la transformación (resolución y origen)
+        transform = from_origin(0, 0, 1, 1)  # Usar una resolución de 1x1 y el origen en (0, 0)
+
+        # Definir los metadatos del archivo raster
+        meta = {
+            'driver': 'GTiff',
+            'height': height,
+            'width': width,
+            'count': 1,  # Solo hay una banda en la matriz
+            'dtype': matrix.dtype,
+            'crs': 'EPSG:4326',  # Definir el sistema de referencia espacial (CRS)
+            'transform': transform
+        }
+
+        # Guardar la matriz como un archivo TIF utilizando rasterio
+        with rasterio.open(file_path, 'w', **meta) as dst:
+            dst.write(matrix, 1)  # Escribir la matriz en la primera banda del archivo TIF
+
+
+    def addRasterLayer(self, file_path, context):
+        """
+        Añade un archivo raster como una capa al proyecto de QGIS.
+
+        :param file_path: Ruta del archivo raster.
+        :param context: Contexto de procesamiento.
+        """
+        # Cargar el archivo TIF como una capa raster en QGIS
+        layer = QgsRasterLayer(file_path, "Fire Scar Layer", "gdal")
+        if not layer.isValid():
+            raise QgsProcessingException(f"Failed to load raster layer from {file_path}")
+
+        # Agregar la capa al proyecto de QGIS
+        QgsProject.instance().addMapLayer(layer)
     def name(self):
         return "firescarmapper"
     
