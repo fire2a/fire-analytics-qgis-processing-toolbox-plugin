@@ -44,7 +44,7 @@ from platform import system as platform_system
 from shutil import which
 
 import numpy as np
-from grassprovider.Grass7Utils import Grass7Utils
+from grassprovider.grass_utils import GrassUtils
 from processing.tools.system import getTempFilename
 from pyomo import environ as pyo
 from pyomo.common.errors import ApplicationError
@@ -382,7 +382,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         base.resize(height, width)
 
         output_layer_filename = self.parameterAsOutputLayer(parameters, self.OUTPUT_layer, context)
-        outFormat = Grass7Utils.getRasterFormatFromFilename(output_layer_filename)
+        outFormat = GrassUtils.getRasterFormatFromFilename(output_layer_filename)
 
         nodatas, zeros, ones = np.histogram(base, bins=[NODATA, 0, 1, 2])[0]
         feedback.pushInfo(
