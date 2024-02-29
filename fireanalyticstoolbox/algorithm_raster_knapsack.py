@@ -57,6 +57,7 @@ from qgis.PyQt.QtCore import QByteArray, QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from scipy import stats
 
+# TODO from .algo_utils to fire2a.raster
 from .algorithm_utils import (array2rasterInt16, get_raster_data, get_raster_info, get_raster_nodata,
                               run_alg_styler_bin, write_log)
 from .config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
