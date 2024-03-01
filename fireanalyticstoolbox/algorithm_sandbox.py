@@ -38,7 +38,7 @@ from pandas import DataFrame
 from qgis.core import (Qgis, QgsApplication, QgsFeatureSink, QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm,
                        QgsProcessingLayerPostProcessorInterface, QgsProcessingParameterBoolean,
                        QgsProcessingParameterEnum, QgsProcessingParameterFeatureSink,
-                       QgsProcessingParameterFeatureSource, QgsProcessingParameterFile,
+                       QgsProcessingParameterFeatureSource, QgsProcessingParameterField, QgsProcessingParameterFile,
                        QgsProcessingParameterFileDestination, QgsProcessingParameterMatrix,
                        QgsProcessingParameterNumber, QgsProcessingParameterRasterDestination,
                        QgsProcessingParameterRasterLayer, QgsProject, QgsTask)
@@ -56,6 +56,8 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
     # INPUT_integer = "INPUT_integer"
     # INPUT_double = "INPUT_double"
     # INPUT_enum = "INPUT_enum"
+    IN_FIELD = "IN_FIELD"
+    IN_LAYER = "IN_LAYER"
     # OUTPUT_csv = "OUTPUT_csv"
     o_raster = "OutputRaster"
     o_rasterb = "OutputRasterB"
@@ -72,11 +74,23 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         #     )
         # )
         self.addParameter(
-            QgsProcessingParameterRasterDestination(
-                self.o_raster,
-                self.tr(self.o_raster),
+            QgsProcessingParameterField(
+                name=self.IN_FIELD,
+                description="QgsProcessingParameterField",
+                defaultValue="VALUE",
+                parentLayerParameterName=self.IN_LAYER,
+                # type: Qgis.ProcessingFieldParameterDataType = Qgis.ProcessingFieldParameterDataType.Any,
+                allowMultiple=False,
+                optional=False,
+                defaultToAllFields=False,
             )
         )
+        # self.addParameter(
+        #     QgsProcessingParameterRasterDestination(
+        #         self.o_raster,
+        #         self.tr(self.o_raster),
+        #     )
+        # )
         # devuelve in memory memory:Output layer
         self.addParameter(
             QgsProcessingParameterFeatureSink(
@@ -98,13 +112,13 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
 
         # We add the input vector features source. It can have any kind of geometry.
         # BUT RASTER IS NOT A GEOEMTRY
-        # self.addParameter(
-        #     QgsProcessingParameterFeatureSource(
-        #         self.INPUT,
-        #         self.tr("Input TypeVectorAnyGeometry"),
-        #         [QgsProcessing.TypeVectorAnyGeometry],
-        #     )
-        # )
+        self.addParameter(
+            QgsProcessingParameterFeatureSource(
+                self.IN_LAYER,
+                self.tr("Input TypeVectorAnyGeometry"),
+                [QgsProcessing.TypeVectorAnyGeometry],
+            )
+        )
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.INPUT,
@@ -387,9 +401,11 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         Returns a localised help string for the algorithm. This string should
         provide more detailed help and usage information for the algorithm.
         """
-        return self.tr("""This is an example algorithm that takes a vector layer and creates a new identical one.
+        return self.tr(
+            """This is an example algorithm that takes a vector layer and creates a new identical one.
         It is meant to be used as an example of how to create your own algorithms and explain methods and variables used to do it. An algorithm like this will be available in all elements, and there is not need for additional work.
-        All Processing algorithms should extend the QgsProcessingAlgorithm class.""")
+        All Processing algorithms should extend the QgsProcessingAlgorithm class."""
+        )
 
     def helpUrl(self):
         """

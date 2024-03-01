@@ -35,6 +35,7 @@ from qgis.PyQt.QtGui import QIcon
 
 from .algorithm_clusterize import ClusterizeAlgorithm
 from .algorithm_instance_downloader import InstanceDownloader
+from .algorithm_knapsack import PolygonKnapsackAlgorithm
 from .algorithm_postsimulation import (BetweennessCentralityMetric, DownStreamProtectionValueMetric,
                                        IgnitionPointsSIMPP, MessagesSIMPP, PostSimulationAlgorithm, ScarSIMPP,
                                        StatisticSIMPP)
@@ -67,6 +68,7 @@ class FireToolboxProvider(QgsProcessingProvider):
         self.addAlgorithm(FireToolboxAlgorithm())
         self.addAlgorithm(SandboxAlgorithm())
         self.addAlgorithm(RasterKnapsackAlgorithm())
+        self.addAlgorithm(PolygonKnapsackAlgorithm())
         self.addAlgorithm(ClusterizeAlgorithm())
         self.addAlgorithm(FireSimulatorAlgorithm())
         self.addAlgorithm(PostSimulationAlgorithm())
