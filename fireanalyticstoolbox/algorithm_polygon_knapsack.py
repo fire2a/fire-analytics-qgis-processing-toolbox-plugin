@@ -3,6 +3,9 @@
 Neighbors from: 2014 Ujaval Gandhi, neighbors.py
 """
 import numpy as np
+from pyomo import environ as pyo
+from pyomo.common.errors import ApplicationError
+from pyomo.opt import SolverFactory, SolverStatus, TerminationCondition
 
 VALUE = "VALUE"
 WEIGHT = "WEIGHT"
@@ -88,3 +91,14 @@ def capacity_rule(m):
 
 
 m.capacity = pyo.Constraint(rule=capacity_rule)
+
+solver='cbc'
+opt = SolverFactory(solver)
+results = opt.solve(m, tee=True)
+
+response = np.array([pyo.value(m.X[i], exception=False) for i in m.X])
+response[response == None] = -999
+response = response.astype(np.int16)
+base = -np.ones(N, dtype=np.int16)
+base[mask] = response
+base.resize(height, width)

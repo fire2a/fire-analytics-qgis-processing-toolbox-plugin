@@ -37,17 +37,18 @@ from shutil import which
 from time import sleep
 
 import numpy as np
+import processing
 from grassprovider.grass_utils import GrassUtils
 from processing.tools.system import getTempFilename
 from pyomo import environ as pyo
 from pyomo.common.errors import ApplicationError
 from pyomo.opt import SolverFactory, SolverStatus, TerminationCondition
 from qgis.core import (Qgis, QgsFeature, QgsFeatureRequest, QgsFeatureSink, QgsField, QgsFields, QgsMessageLog,
-                       QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterDefinition,
-                       QgsProcessingParameterFeatureSink, QgsProcessingParameterFeatureSource,
-                       QgsProcessingParameterField, QgsProcessingParameterFile, QgsProcessingParameterNumber,
-                       QgsProcessingParameterRasterDestination, QgsProcessingParameterRasterLayer,
-                       QgsProcessingParameterString)
+                       QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterBoolean,
+                       QgsProcessingParameterDefinition, QgsProcessingParameterFeatureSink,
+                       QgsProcessingParameterFeatureSource, QgsProcessingParameterField, QgsProcessingParameterFile,
+                       QgsProcessingParameterNumber, QgsProcessingParameterRasterDestination,
+                       QgsProcessingParameterRasterLayer, QgsProcessingParameterString)
 from qgis.PyQt.QtCore import QByteArray, QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 from scipy import stats
@@ -494,6 +495,7 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
     IN_RATIO = "RATIO"
     IN_EXECUTABLE = "EXECUTABLE"
     OUT_LAYER = "OUT_LAYER"
+    GEOMETRY_CHECK_SKIP_INVALID = "GEOMETRY_CHECK_SKIP_INVALID"
 
     solver_exception_msg = ""
 
@@ -517,7 +519,7 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
                 parentLayerParameterName=self.IN_LAYER,
                 type=Qgis.ProcessingFieldParameterDataType.Numeric,
                 allowMultiple=False,
-                optional=False,
+                optional=True,
                 defaultToAllFields=False,
             )
         )
@@ -529,7 +531,7 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
                 parentLayerParameterName=self.IN_LAYER,
                 type=Qgis.ProcessingFieldParameterDataType.Numeric,
                 allowMultiple=False,
-                optional=False,
+                optional=True,
                 defaultToAllFields=False,
             )
         )
@@ -597,10 +599,23 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
         qppf.setFlags(qppf.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(qppf)
 
+        qppb = QgsProcessingParameterBoolean(
+            name=self.GEOMETRY_CHECK_SKIP_INVALID,
+            description=self.tr(
+                "Set invalid geometry check to GeometrySkipInvalid (more options clicking the wrench on the input poly layer)"
+            ),
+            defaultValue=True,
+            optional=True,
+        )
+        qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppb)
+
     def processAlgorithm(self, parameters, context, feedback):
         # setup ignore
-        context.setInvalidGeometryCheck(QgsFeatureRequest.GeometrySkipInvalid)
-        feedback.pushWarning("setInvalidGeometryCheck set to GeometrySkipInvalid")
+        if self.parameterAsBool(parameters, self.GEOMETRY_CHECK_SKIP_INVALID, context):
+            context.setInvalidGeometryCheck(QgsFeatureRequest.GeometrySkipInvalid)
+            feedback.pushWarning("setInvalidGeometryCheck set to GeometrySkipInvalid")
+
         # report solver unavailability
         feedback.pushWarning(f"Solver unavailability:\n{self.solver_exception_msg}\n")
 
@@ -609,23 +624,39 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
             f"{layer=}, {layer.fields()=}, {layer.wkbType()=}, {layer.sourceCrs()=}, {layer.featureCount()=}"
         )
 
-        value_fieldname = self.parameterAsString(parameters, self.IN_VALUE, context)
-        weight_fieldname = self.parameterAsString(parameters, self.IN_WEIGHT, context)
-        # TODO optional fields
-        value_data = []
-        weight_data = []
-        qfr = QgsFeatureRequest().setSubsetOfAttributes([value_fieldname, weight_fieldname], layer.fields())
-        for feat in layer.getFeatures(qfr):
-            value_data += [feat.attribute(value_fieldname)]
-            weight_data += [feat.attribute(weight_fieldname)]
+        request_fields = []
+        if value_fieldname := self.parameterAsString(parameters, self.IN_VALUE, context):
+            request_fields += [value_fieldname]
+        if weight_fieldname := self.parameterAsString(parameters, self.IN_WEIGHT, context):
+            request_fields += [weight_fieldname]
+        qfr = QgsFeatureRequest().setSubsetOfAttributes(request_fields, layer.fields())
+        features = list(layer.getFeatures(qfr))
+        feedback.pushWarning(
+            f"Valid polygons: {len(features)}/{layer.featureCount()} {len(features)/layer.featureCount():.2%}\n"
+        )
+
+        if value_fieldname:
+            value_data = [feat.attribute(value_fieldname) for feat in features]
+        else:
+            value_data = [1] * len(features)
+            feedback.pushWarning("No value field, using 1's")
         value_data = np.array(value_data)
+
+        if weight_fieldname:
+            weight_data = [feat.attribute(weight_fieldname) for feat in features]
+        else:
+            weight_data = [feat.geometry().area() for feat in features]
+            feedback.pushWarning("No weight field, using polygon areas")
         weight_data = np.array(weight_data)
-        feedback.pushDebugInfo(f"{value_data=}, {value_data.shape=},{weight_data=}, {weight_data.shape=}, ")
+
+        feedback.pushDebugInfo(f"{value_data.shape=}, {value_data=}\n{weight_data.shape=}, {weight_data=}\n")
 
         assert len(value_data) == len(weight_data)
         N = len(value_data)
         no_indexes = np.where(np.isnan(value_data) | np.isnan(weight_data))[0]
-        feedback.pushWarning(f"discarded polygons (no_indexes): {len(no_indexes)/N:.2%}\n")
+        feedback.pushWarning(
+            f"discarded polygons (value or weight invalid): {len(no_indexes)}/{N} {len(no_indexes)/N:.2%}\n"
+        )
 
         response, status, termCondition = do_optimization(
             self, value_data, weight_data, no_indexes, feedback, parameters, context
@@ -637,10 +668,10 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
         undecided, skipped, not_selected, selected = np.histogram(response, bins=[-2, -1, 0, 1, 2])[0]
         feedback.pushInfo(
             "Solution histogram:\n"
-            f" {selected=}\n"
-            f" {not_selected=}\n"
-            f" {skipped=} (invalid value or weight)\n"
-            f" {undecided=}\n"
+            f"{selected=}\n"
+            f"{not_selected=}\n"
+            f"{skipped=} (invalid value or weight)\n"
+            f"{undecided=}\n"
         )
 
         fields = QgsFields()
@@ -657,10 +688,7 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
         )
         feedback.pushDebugInfo(f"{sink=}, {dest_id=}")
 
-        total = 100.0 / layer.featureCount() if layer.featureCount() else 0
-        features = layer.getFeatures()
-        feedback.pushCommandInfo(f"input layer {layer.featureCount()=}")
-
+        total = 100.0 / N
         for current, feature in enumerate(features):
             # Stop the algorithm if cancel button has been clicked
             if feedback.isCanceled():
@@ -672,11 +700,27 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
             new_feature.setId(fid)
             new_feature.setAttributes([fid, res])
             new_feature.setGeometry(feature.geometry())
-            feedback.pushDebugInfo(f"{new_feature.id()=}, {current=}, {response[current]=}")
+            # feedback.pushDebugInfo(f"{new_feature.id()=}, {current=}, {response[current]=}")
             # Add a feature in the sink
             sink.addFeature(new_feature, QgsFeatureSink.FastInsert)
             # Update the progress bar
             feedback.setProgress(int(current * total))
+
+        # if showing
+        if context.willLoadLayerOnCompletion(dest_id):
+            layer_details = context.layerToLoadOnCompletionDetails(dest_id)
+            layer_details.groupName = "Recommendations Group"
+            # layer_details.layerSortKey = 2
+            processing.run(
+                "native:setlayerstyle",
+                {
+                    "INPUT": dest_id,
+                    "STYLE": str(Path(Path(__file__).parent, "assets", "knapsack_polygon.qml")),
+                },
+                context=context,
+                feedback=feedback,
+                is_child_algorithm=True,
+            )
 
         write_log(feedback, name=self.name())
         return {
