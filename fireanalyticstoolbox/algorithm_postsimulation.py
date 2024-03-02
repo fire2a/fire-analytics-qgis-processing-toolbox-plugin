@@ -53,7 +53,6 @@ from typing import Any, Tuple
 import processing
 from fire2a.raster import get_geotransform, id2xy, read_raster, transform_coords_to_georef
 from fire2a.utils import loadtxt_nodata
-from grassprovider.grass_utils import GrassUtils
 from networkx import DiGraph, MultiDiGraph, betweenness_centrality, single_source_dijkstra_path
 # from matplotlib import colormaps
 # from matplotlib.colors import to_rgba_array
@@ -76,7 +75,7 @@ from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QColor, QIcon
 from scipy import stats as scipy_stats
 
-from .algorithm_utils import write_log
+from .algorithm_utils import get_output_raster_format, write_log
 from .config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
 
 plugin_dir = Path(__file__).parent
@@ -793,7 +792,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
             unit = None
         # out raster
         output_raster_filename = self.parameterAsOutputLayer(parameters, self.OUTPUT_RASTER, context)
-        raster_format = GrassUtils.getRasterFormatFromFilename(output_raster_filename)
+        raster_format = get_output_raster_format(output_raster_filename, feedback)
         feedback.pushDebugInfo(f"output_raster: {output_raster_filename}, {raster_format}")
         # dtype
         data_type_idx = self.parameterAsEnum(parameters, self.DATA_TYPE, context)
@@ -867,7 +866,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         if len(files) > 1:
             # out raster
             output_raster2_filename = self.parameterAsOutputLayer(parameters, self.OUTPUT_RASTER_2, context)
-            raster_format2 = GrassUtils.getRasterFormatFromFilename(output_raster2_filename)
+            raster_format2 = get_output_raster_format(output_raster2_filename, feedback)
             feedback.pushDebugInfo(f"output_raster2: {output_raster2_filename}, {raster_format2}")
             # create
             dst_ds2 = gdal.GetDriverByName(raster_format2).Create(
@@ -1101,7 +1100,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         # raster
         output_raster_filename = self.parameterAsOutputLayer(parameters, self.OUT_RASTER, context)
         if output_raster_filename != "":
-            raster_format = GrassUtils.getRasterFormatFromFilename(output_raster_filename)
+            raster_format = get_output_raster_format(output_raster_filename, feedback)
             feedback.pushDebugInfo(f"Final grid(s) raster: {output_raster_filename}, {raster_format}")
             dst_ds = gdal.GetDriverByName(raster_format).Create(
                 output_raster_filename, W, H, len(final_grids), GDT_Int16
@@ -1141,7 +1140,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
             stats_min, stats_max = burn_prob_stats.minmax
             feedback.pushInfo(f"Burn Probability (!=0) stats: {burn_prob_stats}\n")
 
-            burn_prob_format = GrassUtils.getRasterFormatFromFilename(burn_prob_fname)
+            burn_prob_format = get_output_raster_format(burn_prob_fname, feedback)
             burn_prob_ds = gdal.GetDriverByName(burn_prob_format).Create(burn_prob_fname, W, H, 1, GDT_Float32)
             burn_prob_ds.SetGeoTransform(GT)  # specify coords
             burn_prob_ds.SetProjection(base_raster.crs().authid())  # export coords to file
@@ -1599,7 +1598,7 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
 
         # raster
         output_raster_filename = self.parameterAsOutputLayer(parameters, self.OUT_R, context)
-        raster_format = GrassUtils.getRasterFormatFromFilename(output_raster_filename)
+        raster_format = get_output_raster_format(output_raster_filename, feedback)
         feedback.pushDebugInfo(f"output_raster: {output_raster_filename}, {raster_format}")
 
         dst_ds = gdal.GetDriverByName(raster_format).Create(output_raster_filename, W, H, 1, GDT_Float32)
@@ -1825,7 +1824,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         feedback.pushInfo(f"stats {msg}: {dpv_stats}")
         # raster
         output_raster_filename = self.parameterAsOutputLayer(parameters, self.OUT_R, context)
-        raster_format = GrassUtils.getRasterFormatFromFilename(output_raster_filename)
+        raster_format = get_output_raster_format(output_raster_filename, feedback)
         feedback.pushDebugInfo(f"output_raster: {output_raster_filename}, {raster_format}")
 
         dst_ds = gdal.GetDriverByName(raster_format).Create(output_raster_filename, W, H, 1, GDT_Float32)

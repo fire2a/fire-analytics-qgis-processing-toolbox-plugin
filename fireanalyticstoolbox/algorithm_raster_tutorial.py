@@ -7,9 +7,10 @@ self.assertTrue(image.save(os.path.join(temp_dir.path(), 'expected.png'), "PNG")
 from pathlib import Path
 
 import numpy as np
-from grassprovider.grass_utils import GrassUtils
 from qgis.core import *
 from qgis.PyQt.QtCore import QByteArray  # , QVariant
+
+from .algorithm_utils import get_output_raster_format
 
 
 class RasterTutorial(QgsProcessingAlgorithm):
@@ -24,7 +25,7 @@ class RasterTutorial(QgsProcessingAlgorithm):
 
     def displayName(self):
         return "raster tutorial"
-    
+
     def createInstance(self):
         return RasterTutorial()
 
@@ -46,10 +47,9 @@ class RasterTutorial(QgsProcessingAlgorithm):
         dst_ext = Path(dst_fname).suffix[1:]
         if dst_ext not in QgsRasterFileWriter.supportedFormatExtensions(QgsRasterFileWriter.RasterFormatOptions()):
             return False, f"Output raster format .{dst_ext} not supported"
-        if QgsRasterFileWriter.driverForExtension(dst_ext) == '':
+        if QgsRasterFileWriter.driverForExtension(dst_ext) == "":
             return False, f"Output raster extension .{dst_ext} not supported"
         return True, ""
-
 
     def processAlgorithm(self, parameters, context, feedback):
         feedback.pushDebugInfo("processAlgorithm start")
@@ -89,7 +89,7 @@ class RasterTutorial(QgsProcessingAlgorithm):
         # OUTPUT
         dst_fname = self.parameterAsOutputLayer(parameters, self.OUT, context)
         dst_name = Path(dst_fname).stem
-        dst_format = GrassUtils.getRasterFormatFromFilename(dst_fname)
+        dst_format = get_output_raster_format(dst_fname, feedback)
         feedback.pushDebugInfo(f"dst_fname: {dst_fname}\ndst_name: {dst_name}\ndst_format: {dst_format}")
         #
         file_writer = QgsRasterFileWriter(dst_fname)
@@ -122,11 +122,13 @@ class RasterTutorial(QgsProcessingAlgorithm):
             src_data = np.float32(src_data)
             bites = QByteArray(src_data.tobytes())
             # block = QgsRasterBlock(src_provider.dataType(1), src_raster.width(), src_raster.height()) # Qgis.Float32
-            block = QgsRasterBlock(Qgis.Float32, src_raster.width(), src_raster.height()) # Qgis.Float32
+            block = QgsRasterBlock(Qgis.Float32, src_raster.width(), src_raster.height())  # Qgis.Float32
             block.setData(bites)
             feedback.pushDebugInfo(f"block: {block}{block.isValid()}")
             # provider = file_writer.createOneBandRaster(src_provider.dataType(1), src_raster.width(), src_raster.height(), src_raster.extent(), src_raster.crs())
-            provider = file_writer.createOneBandRaster(Qgis.Float32, src_raster.width(), src_raster.height(), src_raster.extent(), src_raster.crs())
+            provider = file_writer.createOneBandRaster(
+                Qgis.Float32, src_raster.width(), src_raster.height(), src_raster.extent(), src_raster.crs()
+            )
             if not provider.isEditable():
                 if not provider.setEditable(True):
                     raise QgsProcessingException("Cannot set provider editable")
@@ -140,8 +142,8 @@ class RasterTutorial(QgsProcessingAlgorithm):
                     raise QgsProcessingException("Cannot set provider NOT editable")
             feedback.pushDebugInfo(f"provider: {provider}{provider.isValid()}")
             # del provider, block, bites, file_writer
-        #TODO multiband
-        #else:
+        # TODO multiband
+        # else:
         #    pass
 
         return {self.OUT: dst_fname}
@@ -178,4 +180,3 @@ def qgis2numpy_dtype(qgis_dtype: Qgis.DataType) -> np.dtype:
         return np.float32
     if qgis_dtype == Qgis.DataType.Float64:
         return np.float64
-
