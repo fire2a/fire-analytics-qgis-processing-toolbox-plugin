@@ -155,7 +155,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(qppn)
         # raster output
         # RasterDestinationGpkg inherits from QgsProcessingParameterRasterDestination to set output format
-        self.addParameter(RasterDestinationGpkg(self.OUT_LAYER, self.tr("Output layer")))
+        self.addParameter(RasterDestinationGpkg(self.OUT_LAYER, self.tr("Raster Knapsack Output layer")))
         # SOLVERS
         value_hints, self.solver_exception_msg = check_solver_availability(SOLVER)
         # solver string combobox (enums
@@ -309,6 +309,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         if context.willLoadLayerOnCompletion(output_layer_filename):
             layer_details = context.layerToLoadOnCompletionDetails(output_layer_filename)
             layer_details.groupName = "DecisionOptimizationGroup"
+            layer_details.name = "KnapsackRaster"
             # layer_details.layerSortKey = 2
             processing.run(
                 "native:setlayerstyle",
@@ -468,7 +469,7 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
         qppn.setMetadata({"widget_wrapper": {"decimals": 3}})
         self.addParameter(qppn)
         # output layer
-        self.addParameter(QgsProcessingParameterFeatureSink(self.OUT_LAYER, self.tr("Polygon Knapsack")))
+        self.addParameter(QgsProcessingParameterFeatureSink(self.OUT_LAYER, self.tr("Polygon Knapsack Output Layer")))
         # SOLVERS
         value_hints, self.solver_exception_msg = check_solver_availability(SOLVER)
         # solver string combobox (enums
@@ -617,6 +618,7 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
         if context.willLoadLayerOnCompletion(dest_id):
             layer_details = context.layerToLoadOnCompletionDetails(dest_id)
             layer_details.groupName = "DecisionOptimizationGroup"
+            layer_details.name = "KnapsackPolygons"
             # layer_details.layerSortKey = 2
             processing.run(
                 "native:setlayerstyle",
