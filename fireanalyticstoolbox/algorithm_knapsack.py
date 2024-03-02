@@ -89,28 +89,13 @@ def add_cbc_to_path():
 
 
 class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
-    """
-    This is an example algorithm that takes a vector layer and
-    creates a new identical one.
+    """Algorithm that takes selects the most valuable raster pixels restriced to a total weight using a MIP solver"""
 
-    It is meant to be used as an example of how to create your own
-    algorithms and explain methods and variables used to do it. An
-    algorithm like this will be available in all elements, and there
-    is not need for additional work.
-
-    All Processing algorithms should extend the QgsProcessingAlgorithm
-    class.
-    """
-
-    # Constants used to refer to parameters and outputs. They will be
-    # used when calling the algorithm from another algorithm, or when
-    # calling from the QGIS console.
-    OUTPUT_layer = "OUTPUT_layer"
-    OUTPUT_csv = "OUTPUT_csv"
-    INPUT_value = "INPUT_value"
-    INPUT_weight = "INPUT_weight"
-    INPUT_ratio = "INPUT_ratio"
-    INPUT_executable = "INPUT_executable_path"
+    IN_VALUE = "VALUE"
+    IN_WEIGHT = "WEIGHT"
+    IN_RATIO = "RATIO"
+    IN_EXECUTABLE = "EXECUTABLE"
+    OUT_LAYER = "OUT_LAYER"
 
     solver_exception_msg = ""
 
@@ -118,23 +103,20 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         add_cbc_to_path()
 
     def initAlgorithm(self, config):
-        """
-        Here we define the inputs and output of the algorithm, along
-        with some other properties.
-        """
-        # value
+        """The form reads two raster layers one for the value and one for the weight; also configures the weight ratio and the solver"""
+        # value raster
         self.addParameter(
             QgsProcessingParameterRasterLayer(
-                name=self.INPUT_value,
+                name=self.IN_VALUE,
                 description=self.tr("Values layer (if blank 1's will be used)"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=True,
             )
         )
-        # weight
+        # weight raster
         self.addParameter(
             QgsProcessingParameterRasterLayer(
-                name=self.INPUT_weight,
+                name=self.IN_WEIGHT,
                 description=self.tr("Weights layer (if blank 1's will be used)"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=True,
@@ -142,7 +124,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         )
         # ratio double
         qppn = QgsProcessingParameterNumber(
-            name=self.INPUT_ratio,
+            name=self.IN_RATIO,
             description=self.tr("Capacity ratio (1 = weight.sum)"),
             type=QgsProcessingParameterNumber.Double,
             defaultValue=0.069,
@@ -154,7 +136,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(qppn)
         # raster output
         # RasterDestinationGpkg inherits from QgsProcessingParameterRasterDestination to set output format
-        self.addParameter(RasterDestinationGpkg(self.OUTPUT_layer, self.tr("Output layer")))
+        self.addParameter(RasterDestinationGpkg(self.OUT_LAYER, self.tr("Output layer")))
         # SOLVERS
         # check availability
         solver_available = [False] * len(SOLVER)
@@ -197,7 +179,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(qpps2)
         # executable file
         qppf = QgsProcessingParameterFile(
-            name=self.INPUT_executable,
+            name=self.IN_EXECUTABLE,
             description=self.tr("Set solver executable file [REQUIRED if STATUS]"),
             behavior=QgsProcessingParameterFile.File,
             extension="exe" if platform_system() == "Windows" else "",
@@ -219,12 +201,12 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo(f"Solver unavailability:\n{self.solver_exception_msg}\n")
 
         # get raster data
-        value_layer = self.parameterAsRasterLayer(parameters, self.INPUT_value, context)
+        value_layer = self.parameterAsRasterLayer(parameters, self.IN_VALUE, context)
         value_data = get_raster_data(value_layer)
         value_nodata = get_raster_nodata(value_layer, feedback)
         value_map_info = get_raster_info(value_layer)
 
-        weight_layer = self.parameterAsRasterLayer(parameters, self.INPUT_weight, context)
+        weight_layer = self.parameterAsRasterLayer(parameters, self.IN_WEIGHT, context)
         weight_data = get_raster_data(weight_layer)
         weight_nodata = get_raster_nodata(weight_layer, feedback)
         weight_map_info = get_raster_info(weight_layer)
@@ -232,7 +214,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         # raster(s) conditions
         if not value_layer and not weight_layer:
             feedback.reportError("No input layers, need at least one raster!")
-            return {self.OUTPUT_layer: None, "SOLVER_STATUS": None, "SOLVER_TERMINATION_CONDITION": None}
+            return {self.OUT_LAYER: None, "SOLVER_STATUS": None, "SOLVER_TERMINATION_CONDITION": None}
         elif value_layer and weight_layer:
             if not (
                 value_map_info["width"] == weight_map_info["width"]
@@ -241,7 +223,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
                 and value_map_info["cellsize_y"] == weight_map_info["cellsize_y"]
             ):
                 feedback.reportError("Layers must have the same width, height and cellsizes")
-                return {self.OUTPUT_layer: None, "SOLVER_STATUS": None, "SOLVER_TERMINATION_CONDITION": None}
+                return {self.OUT_LAYER: None, "SOLVER_STATUS": None, "SOLVER_TERMINATION_CONDITION": None}
             width, height, extent, crs, _, _ = value_map_info.values()
         elif value_layer and not weight_layer:
             width, height, extent, crs, _, _ = value_map_info.values()
@@ -286,7 +268,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         mask = np.ones(N, dtype=bool)
         mask[no_indexes] = False
 
-        ratio = self.parameterAsDouble(parameters, self.INPUT_ratio, context)
+        ratio = self.parameterAsDouble(parameters, self.IN_RATIO, context)
         weight_sum = weight_data[mask].sum()
         capacity = round(weight_sum * ratio)
         feedback.pushInfo(f"capacity bound: ratio {ratio}, weight_sum: {weight_sum}, capacity: {capacity}\n")
@@ -308,7 +290,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
 
         m.capacity = pyo.Constraint(rule=capacity_rule)
 
-        executable = self.parameterAsString(parameters, self.INPUT_executable, context)
+        executable = self.parameterAsString(parameters, self.IN_EXECUTABLE, context)
         # feedback.pushDebugInfo(f"exesolver_string:{executable}")
 
         solver_string = self.parameterAsString(parameters, "SOLVER", context)
@@ -354,14 +336,14 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             and termCondition != TerminationCondition.intermediateNonInteger
         ):
             feedback.reportError(f"Solver status: {status}, termination condition: {termCondition}")
-            return {self.OUTPUT_layer: None, "SOLVER_STATUS": status, "SOLVER_TERMINATION_CONDITION": termCondition}
+            return {self.OUT_LAYER: None, "SOLVER_STATUS": status, "SOLVER_TERMINATION_CONDITION": termCondition}
         if termCondition in [
             TerminationCondition.infeasibleOrUnbounded,
             TerminationCondition.infeasible,
             TerminationCondition.unbounded,
         ]:
             feedback.reportError(f"Optimization problem is {termCondition}. No output is generated.")
-            return {self.OUTPUT_layer: None, "SOLVER_STATUS": status, "SOLVER_TERMINATION_CONDITION": termCondition}
+            return {self.OUT_LAYER: None, "SOLVER_STATUS": status, "SOLVER_TERMINATION_CONDITION": termCondition}
         if not termCondition == TerminationCondition.optimal:
             feedback.pushWarning(
                 "Output is generated for a non-optimal solution! Try running again with different solver options or"
@@ -379,7 +361,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         base[mask] = response
         base.resize(height, width)
 
-        output_layer_filename = self.parameterAsOutputLayer(parameters, self.OUTPUT_layer, context)
+        output_layer_filename = self.parameterAsOutputLayer(parameters, self.OUT_LAYER, context)
         outFormat = GrassUtils.getRasterFormatFromFilename(output_layer_filename)
 
         nodatas, zeros, ones = np.histogram(base, bins=[NODATA, 0, 1, 2])[0]
@@ -413,7 +395,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
 
         write_log(feedback, name=self.name())
         return {
-            self.OUTPUT_layer: output_layer_filename,
+            self.OUT_LAYER: output_layer_filename,
             "SOLVER_STATUS": status,
             "SOLVER_TERMINATION_CONDITION": termCondition,
         }
@@ -449,45 +431,45 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             """Optimizes the classical knapsack problem using layers as values and/or weights, returns a layer with the selected pixels."""
         )
 
-    def shortHelpString(self):
-        return self.tr(
-            """By selecting a Values layer and/or a Weights layer, and setting the bound on the total capacity, a layer that maximizes the sum of the values of the selected pixels is created.
-
-A new raster (default .gpkg) will show selected pixels in red and non-selected green (values 1, 0 and no-data=-1).
-
-The capacity constraint is set up by choosing a ratio (between 0 and 1), that multiplies the sum of all weights (except no-data). Hence 1 selects all pixels that aren't no-data in both layers.
-
-This raster knapsack problem is NP-hard, so a MIP solver engine is used to find "nearly" the optimal solution (**), because -often- is asymptotically hard to prove the optimal value. So a default gap of 0.5% and a timelimit of 5 minutes cuts off the solver run. The user can experiment with these parameters to trade-off between accuracy, speed and instance size(*). On Windows closing the blank terminal window will abort the run!
-
-By using Pyomo, several MIP solvers can be used: CBC, GLPK, Gurobi, CPLEX or Ipopt; If they're accessible through the system PATH, else the executable file can be selected by the user. Installation of solvers is up to the user.
-
-Although windows version is bundled with CBC unsigned binaries, so their users may face a "Windows protected your PC" warning, please avoid pressing the "Don't run" button, follow the "More info" link, scroll then press "Run anyway". Nevertheless windows cbc does not support multithreading, so ignore that warning (or switch to Linux).
-
-(*): Complexity can be reduced greatly by rescaling and/or rounding values into integers, or even better coarsing the raster resolution (see gdal translate resolution).
-(**): There are specialized knapsack algorithms that solve in polynomial time, but not for every data type combination; hence using a MIP solver is the most flexible approach.
-
-----
-
-USE CASE:
-
-If you want to determine where to allocate fuel treatments throughout the landscape to protect a specific value that is affected by both the fire and the fuel treatments, use the following:
-
-    - Values: Downstream Protection Value layer calculated with the respective value that you want to protect.
-
-    - Weights: The layer, that contains the value that you want to protect and that is affected also by the fuel treatments (e.g., animal habitat).
-If you want to determine where to allocate fuel treatments through out the landscape to protect and specific value that is affected by both, the fire and the fuel treatments use: 
-"""
-        )
-
     def helpString(self):
         return self.shortHelpString()
 
     def icon(self):
         return QIcon(":/plugins/fireanalyticstoolbox/assets/firebreakmap.svg")
 
+    def shortHelpString(self):
+        return self.tr(
+            """By selecting a Values layer and/or a Weights layer, and setting the bound on the total capacity, a layer that maximizes the sum of the values of the selected pixels is created.
+
+            A new raster (default .gpkg) will show selected pixels in red and non-selected green (values 1, 0 and no-data=-1).
+
+            The capacity constraint is set up by choosing a ratio (between 0 and 1), that multiplies the sum of all weights (except no-data). Hence 1 selects all pixels that aren't no-data in both layers.
+
+            This raster knapsack problem is NP-hard, so a MIP solver engine is used to find "nearly" the optimal solution (**), because -often- is asymptotically hard to prove the optimal value. So a default gap of 0.5% and a timelimit of 5 minutes cuts off the solver run. The user can experiment with these parameters to trade-off between accuracy, speed and instance size(*). On Windows closing the blank terminal window will abort the run!
+
+            By using Pyomo, several MIP solvers can be used: CBC, GLPK, Gurobi, CPLEX or Ipopt; If they're accessible through the system PATH, else the executable file can be selected by the user. Installation of solvers is up to the user.
+
+            Although windows version is bundled with CBC unsigned binaries, so their users may face a "Windows protected your PC" warning, please avoid pressing the "Don't run" button, follow the "More info" link, scroll then press "Run anyway". Nevertheless windows cbc does not support multithreading, so ignore that warning (or switch to Linux).
+
+            (*): Complexity can be reduced greatly by rescaling and/or rounding values into integers, or even better coarsing the raster resolution (see gdal translate resolution).
+            (**): There are specialized knapsack algorithms that solve in polynomial time, but not for every data type combination; hence using a MIP solver is the most flexible approach.
+
+            ----
+
+            USE CASE:
+
+            If you want to determine where to allocate fuel treatments throughout the landscape to protect a specific value that is affected by both the fire and the fuel treatments, use the following:
+
+                - Values: Downstream Protection Value layer calculated with the respective value that you want to protect.
+
+                - Weights: The layer, that contains the value that you want to protect and that is affected also by the fuel treatments (e.g., animal habitat).
+            If you want to determine where to allocate fuel treatments through out the landscape to protect and specific value that is affected by both, the fire and the fuel treatments use: 
+            """
+        )
+
 
 class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
-    """Algorithm that takes selects the most valuable polygons restriced to a total weight using a MIP solver"""
+    """Algorithm that selects the most valuable polygons restriced to a total weight using a MIP solver"""
 
     IN_LAYER = "IN_LAYER"
     IN_VALUE = "VALUE"
@@ -504,6 +486,7 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
 
     def initAlgorithm(self, config):
         """The form reads a vector layer and two fields, one for the value and one for the weight; also configures the weight ratio and the solver"""
+        # input layer
         self.addParameter(
             QgsProcessingParameterFeatureSource(
                 name=self.IN_LAYER,
@@ -511,10 +494,11 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
                 types=[QgsProcessing.TypeVectorPolygon],
             )
         )
+        # value field
         self.addParameter(
             QgsProcessingParameterField(
                 name=self.IN_VALUE,
-                description=self.tr("Attribute table field name for VALUE"),
+                description=self.tr("Attribute table field name for VALUE (if blank 1's will be used)"),
                 defaultValue="VALUE",
                 parentLayerParameterName=self.IN_LAYER,
                 type=Qgis.ProcessingFieldParameterDataType.Numeric,
@@ -523,10 +507,11 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
                 defaultToAllFields=False,
             )
         )
+        # weight field
         self.addParameter(
             QgsProcessingParameterField(
                 name=self.IN_WEIGHT,
-                description=self.tr("Attribute table field name for WEIGHT"),
+                description=self.tr("Attribute table field name for WEIGHT (if blank polygon's area will be used)"),
                 defaultValue="WEIGHT",
                 parentLayerParameterName=self.IN_LAYER,
                 type=Qgis.ProcessingFieldParameterDataType.Numeric,
@@ -535,7 +520,6 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
                 defaultToAllFields=False,
             )
         )
-        self.addParameter(QgsProcessingParameterFeatureSink(self.OUT_LAYER, self.tr("Polygon Knapsack Layer")))
         # ratio double
         qppn = QgsProcessingParameterNumber(
             name=self.IN_RATIO,
@@ -548,6 +532,8 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
         )
         qppn.setMetadata({"widget_wrapper": {"decimals": 3}})
         self.addParameter(qppn)
+        # output layer
+        self.addParameter(QgsProcessingParameterFeatureSink(self.OUT_LAYER, self.tr("Polygon Knapsack Layer")))
         # SOLVERS
         # check availability
         solver_available = [False] * len(SOLVER)
