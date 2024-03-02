@@ -4,8 +4,8 @@
     <categories>
       <category type="long" render="true" symbol="0" uuid="{f3d320a8-7d31-45e6-9f7d-e2a6930cc82e}" value="0" label="not selected"/>
       <category type="long" render="true" symbol="1" uuid="{656a3b48-9755-4cf2-a319-31cecb8404bf}" value="1" label="selected"/>
-      <category type="double" render="true" symbol="2" uuid="{8a77a72e-b573-4dbf-a65e-ab7634246e91}" value="-1" label="undecided"/>
-      <category type="double" render="true" symbol="3" uuid="{dccce65e-6647-4d6e-a44b-7c205249625b}" value="-2" label="skipped"/>
+      <category type="double" render="true" symbol="2" uuid="{8a77a72e-b573-4dbf-a65e-ab7634246e91}" value="-1" label="skipped"/>
+      <category type="double" render="true" symbol="3" uuid="{dccce65e-6647-4d6e-a44b-7c205249625b}" value="-2" label="undecided"/>
     </categories>
     <symbols>
       <symbol type="fill" force_rhr="0" frame_rate="10" name="0" clip_to_extent="1" is_animated="0" alpha="1">
