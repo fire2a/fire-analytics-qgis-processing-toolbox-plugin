@@ -37,7 +37,6 @@ from time import sleep
 
 import numpy as np
 import processing
-from grassprovider.grass_utils import GrassUtils
 from processing.tools.system import getTempFilename
 from pyomo import environ as pyo
 from pyomo.common.errors import ApplicationError
@@ -52,8 +51,8 @@ from qgis.PyQt.QtCore import QByteArray, QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 from scipy import stats
 
-from .algorithm_utils import (array2rasterInt16, get_raster_data, get_raster_info, get_raster_nodata,
-                              run_alg_styler_bin, write_log)
+from .algorithm_utils import (array2rasterInt16, get_output_raster_format, get_raster_data, get_raster_info,
+                              get_raster_nodata, run_alg_styler_bin, write_log)
 from .config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
 
 SOLVER = {
@@ -291,8 +290,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         response[response == -1] = self.NODATA
 
         output_layer_filename = self.parameterAsOutputLayer(parameters, self.OUT_LAYER, context)
-        outFormat = GrassUtils.getRasterFormatFromFilename(output_layer_filename)
-        feedback.pushDebugInfo(f"{output_layer_filename=}, {outFormat=}")
+        outFormat = get_output_raster_format(output_layer_filename, feedback)
 
         array2rasterInt16(
             response,
