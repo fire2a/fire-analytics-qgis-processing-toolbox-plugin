@@ -21,7 +21,7 @@ repository=https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plug
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-changelog=1.Fix renamed Grass7Utils module for latest QGIS update
+changelog=added PolygonKnapsack algorithm into Decision Optimization Group, moved RasterKnapsack into Decision Optimization
 
 
 
