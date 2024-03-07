@@ -692,6 +692,14 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
     def icon(self):
         return QIcon(":/plugins/fireanalyticstoolbox/assets/burntime.svg")
 
+    def helpString(self):
+        return self.shortHelpString()
+
+    def shortHelpString(self):
+        return self.tr(
+            "Warning: Uncheck 'Open output file after running algorithm' if the graph is too big or your computer too slow."
+        )
+
 
 class StatisticSIMPP(QgsProcessingAlgorithm):
     """Statistic Simulation Post Processing Algorithm"""
