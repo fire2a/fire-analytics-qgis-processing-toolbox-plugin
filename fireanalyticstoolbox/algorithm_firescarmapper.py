@@ -22,7 +22,7 @@
 
 from fire2a.raster import get_rlayer_data, get_rlayer_info
 from qgis.core import (QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterMultipleLayers,
-                       QgsProcessingParameterRasterDestination, QgsProcessingParameterFile, QgsProject, QgsRasterLayer)
+                       QgsProcessingParameterRasterDestination, QgsProcessingParameterFile, QgsProject, QgsRasterLayer, QgsProcessingException)
 from qgis.PyQt.QtCore import QCoreApplication
 
 import torch
@@ -90,7 +90,7 @@ class FireScarMapper(QgsProcessingAlgorithm):
                 "type": "before" if i < len(before) else "burnt",
                 "id": i,
                 "qid": layer.id(),
-                "name": layer.name(),
+                "name": layer.name()[8:],
                 "data": get_rlayer_data(layer),
                 "layer": layer,
             }
@@ -100,42 +100,30 @@ class FireScarMapper(QgsProcessingAlgorithm):
 
         before_files = []
         after_files = []
-        
+        before_files_data = []
+        after_files_data = []
+
+        #Order rasters
         for i in range(len(rasters)//2):
-            before_files.append(rasters[i]['data'])
-            for j in range(len(rasters)//2):
-                if rasters[i]['name'][7:] == rasters[j + (len(rasters)//2)]['name'][7:]:
-                    after_files.append(rasters[j + (len(rasters)//2)]['data'])
-            
+            before_files.append(rasters[i])
+            before_files_data.append(before_files[i]['data'])
+            for j in range(len(rasters)//2): #starts iterating from the second half
+                if rasters[i]['name'] == rasters[j + (len(rasters)//2)]['name']:
+                    after_files.append(rasters[j + (len(rasters)//2)])
+                    after_files_data.append(after_files[i]['data'])
+
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
 
         np.random.seed(3)
         torch.manual_seed(3)    
         
-        data_eval = create_datasetAS(before_files, after_files, mult=1)
+        data_eval = create_datasetAS(before_files_data, after_files_data, mult=1)
         
         batch_size = 1 # 1 to create diagnostic images, any value otherwise
         all_dl = DataLoader(data_eval, batch_size=batch_size)#, shuffle=True)
 
         model.eval()
-
-        def print_matrix(matrix):
-            """
-            Imprime la matriz de manera legible, reemplazando 0 y 1 con caracteres distinguibles.
-            
-            Args:
-                matrix (list): La matriz representada como una lista de listas.
-            """
-            # Mapea los valores de la matriz a caracteres distinguibles
-            char_map = {0.0: ' _ ', 1.0: ' X '}  # Puedes cambiar los caracteres según tus preferencias
-            
-            # Itera sobre cada fila de la matriz
-            for row in matrix:
-                # Convierte los valores de la fila usando el mapeo de caracteres y únelos en una cadena
-                row_str = ''.join(char_map[val] for val in row)
-                # Imprime la fila
-                feedback.pushDebugInfo(row_str)
 
         for i, batch in enumerate(all_dl):
             x = batch['img'].float().to(device)
@@ -144,22 +132,18 @@ class FireScarMapper(QgsProcessingAlgorithm):
             # obtain binary prediction map
             pred = np.zeros(output.shape)
             pred[output >= 0] = 1
-            
-            np.set_printoptions(threshold=np.inf, linewidth=np.inf)
-            generated_matrix = pred[0][0]
-            #print_matrix(generated_matrix)
-            #feedback.pushDebugInfo(" ")
-            #feedback.pushDebugInfo(" ")
-            if output_path:
-                # Escribir la matriz en un archivo TIF
-                self.writeRaster(generated_matrix, output_path, context)
 
-                # Añadir la capa TIF resultante al proyecto de QGIS
-                self.addRasterLayer(output_path, context)
+            generated_matrix = pred[0][0]
+            
+            if output_path:
+                # Ajustar el nombre del archivo de salida para que sea único para cada cicatriz
+                output_path_with_index = output_path[:-4] + f"_{i+1}.tif"
+
+                self.writeRaster(generated_matrix, output_path_with_index, context)
+                #it's (-1*i)-1 because it starts from the last
+                self.addRasterLayer(output_path_with_index, before_files[(-1*i)-1]['name'], context)
 
         return {}
-
-    
 
     def writeRaster(self, matrix, file_path, context):
         """
@@ -169,7 +153,6 @@ class FireScarMapper(QgsProcessingAlgorithm):
         :param file_path: Ruta del archivo TIF de salida.
         :param context: Contexto de procesamiento.
         """
-        # Obtener el tamaño de la matriz
         height, width = matrix.shape
 
         # Definir la transformación (resolución y origen)
@@ -191,20 +174,18 @@ class FireScarMapper(QgsProcessingAlgorithm):
             dst.write(matrix, 1)  # Escribir la matriz en la primera banda del archivo TIF
 
 
-    def addRasterLayer(self, file_path, context):
+    def addRasterLayer(self, file_path, layer_name, context):
         """
-        Añade un archivo raster como una capa al proyecto de QGIS.
-
         :param file_path: Ruta del archivo raster.
         :param context: Contexto de procesamiento.
         """
         # Cargar el archivo TIF como una capa raster en QGIS
-        layer = QgsRasterLayer(file_path, "Fire Scar Layer", "gdal")
+        layer = QgsRasterLayer(file_path, layer_name, "gdal")
         if not layer.isValid():
             raise QgsProcessingException(f"Failed to load raster layer from {file_path}")
 
-        # Agregar la capa al proyecto de QGIS
         QgsProject.instance().addMapLayer(layer)
+
     def name(self):
         return "firescarmapper"
     
