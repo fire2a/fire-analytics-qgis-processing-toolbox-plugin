@@ -23,7 +23,7 @@
 __author__ = "fdo"
 __date__ = "2024-03-01"
 __copyright__ = "(C) 2024 by fdo"
-__version__ = "$Format:%H$"
+__version__ = "36a1735e0b62d3ef40d40b97a217722449a70bed"
 
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
@@ -46,7 +46,7 @@ from qgis.core import (Qgis, QgsFeature, QgsFeatureRequest, QgsFeatureSink, QgsF
                        QgsProcessingParameterDefinition, QgsProcessingParameterFeatureSink,
                        QgsProcessingParameterFeatureSource, QgsProcessingParameterField, QgsProcessingParameterFile,
                        QgsProcessingParameterNumber, QgsProcessingParameterRasterDestination,
-                       QgsProcessingParameterRasterLayer, QgsProcessingParameterString)
+                       QgsProcessingParameterRasterLayer, QgsProcessingParameterString, QgsProcessingParameterField)
 from qgis.PyQt.QtCore import QByteArray, QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 from scipy import stats
@@ -435,7 +435,7 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
                 description=self.tr("Attribute table field name for VALUE (if blank 1's will be used)"),
                 defaultValue="VALUE",
                 parentLayerParameterName=self.IN_LAYER,
-                type=Qgis.ProcessingFieldParameterDataType.Numeric,
+                type=QgsProcessingParameterField.Numeric,
                 allowMultiple=False,
                 optional=True,
                 defaultToAllFields=False,
@@ -448,7 +448,7 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
                 description=self.tr("Attribute table field name for WEIGHT (if blank polygon's area will be used)"),
                 defaultValue="WEIGHT",
                 parentLayerParameterName=self.IN_LAYER,
-                type=Qgis.ProcessingFieldParameterDataType.Numeric,
+                type=QgsProcessingParameterField.Numeric,
                 allowMultiple=False,
                 optional=True,
                 defaultToAllFields=False,
