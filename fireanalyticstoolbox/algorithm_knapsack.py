@@ -772,6 +772,280 @@ def do_knapsack(self, value_data, weight_data, no_indexes, feedback, parameters,
     return base, status, termCondition
 
 
+class BinTreatmentAlgorithm(QgsProcessingAlgorithm):
+    """Algorithm that selects the most valuable polygons restriced to a total weight using a MIP solver"""
+
+    IN_LAYER = "IN_LAYER"
+    IN_CURR = "CurrentFuelType"
+    IN_TRGT = "TargetFuelType"
+    IN_COST = "TreatmentCost"
+    IN_BUDGET = "RATIO"
+    IN_RATIO = "RATIO"
+    IN_EXECUTABLE = "EXECUTABLE"
+    OUT_LAYER = "OUT_LAYER"
+    GEOMETRY_CHECK_SKIP_INVALID = "GEOMETRY_CHECK_SKIP_INVALID"
+
+    solver_exception_msg = ""
+
+    if platform_system() == "Windows":
+        add_cbc_to_path()
+
+    def initAlgorithm(self, config):
+        """The form reads a vector layer and two fields, one for the value and one for the weight; also configures the weight ratio and the solver"""
+        # input layer
+        self.addParameter(
+            QgsProcessingParameterFeatureSource(
+                name=self.IN_LAYER,
+                description=self.tr("Input Polygons Layer"),
+                types=[QgsProcessing.TypeVectorPolygon],
+            )
+        )
+        # value field
+        for field_value in [self.IN_CURR, self.IN_TRGT, self.IN_COST]:
+            self.addParameter(
+                QgsProcessingParameterField(
+                    name=field_value,
+                    description=self.tr(f"Attribute table field name for {field_value}"),
+                    defaultValue=field_value,
+                    parentLayerParameterName=self.IN_LAYER,
+                    type=(
+                        Qgis.ProcessingFieldParameterDataType.String
+                        if field_value in [self.IN_CURR, self.IN_TRGT]
+                        else Qgis.ProcessingFieldParameterDataType.Numeric
+                    ),
+                    allowMultiple=False,
+                    optional=False,
+                    defaultToAllFields=False,
+                )
+            )
+        # BUDGET double
+        qppn = QgsProcessingParameterNumber(
+            name=self.IN_BUDGET,
+            description=self.tr("Total Budget"),
+            type=QgsProcessingParameterNumber.Double,
+            defaultValue=131.20,
+            optional=False,
+            minValue=0.01,
+            # maxValue=1.0,
+        )
+        qppn.setMetadata({"widget_wrapper": {"decimals": 2}})
+        self.addParameter(qppn)
+        # RATIO double
+        qppn = QgsProcessingParameterNumber(
+            name=self.IN_RATIO,
+            description=self.tr("Capacity ratio (1 = weight.sum)"),
+            type=QgsProcessingParameterNumber.Double,
+            defaultValue=0.069,
+            optional=False,
+            minValue=0.0,
+            maxValue=1.0,
+        )
+        qppn.setMetadata({"widget_wrapper": {"decimals": 3}})
+        self.addParameter(qppn)
+        # output layer
+        self.addParameter(QgsProcessingParameterFeatureSink(self.OUT_LAYER, self.tr("Polygon Knapsack Output Layer")))
+        # SOLVERS
+        value_hints, self.solver_exception_msg = check_solver_availability(SOLVER)
+        # solver string combobox (enums
+        qpps = QgsProcessingParameterString(
+            name="SOLVER",
+            description="Solver: recommended options string [and executable STATUS]",
+        )
+        qpps.setMetadata(
+            {
+                "widget_wrapper": {
+                    "value_hints": value_hints,
+                    "setEditable": True,  # not working
+                }
+            }
+        )
+        qpps.setFlags(qpps.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qpps)
+        # options_string
+        qpps2 = QgsProcessingParameterString(
+            name="CUSTOM_OPTIONS_STRING",
+            description="Override options_string (type a single space ' ' to not send any options to the solver)",
+            defaultValue="",
+            optional=True,
+        )
+        qpps2.setFlags(qpps2.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qpps2)
+        # executable file
+        qppf = QgsProcessingParameterFile(
+            name=self.IN_EXECUTABLE,
+            description=self.tr("Set solver executable file [REQUIRED if STATUS]"),
+            behavior=QgsProcessingParameterFile.File,
+            extension="exe" if platform_system() == "Windows" else "",
+            optional=True,
+        )
+        qppf.setFlags(qppf.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppf)
+
+        qppb = QgsProcessingParameterBoolean(
+            name=self.GEOMETRY_CHECK_SKIP_INVALID,
+            description=self.tr(
+                "Set invalid geometry check to GeometrySkipInvalid (more options clicking the wrench on the input poly layer)"
+            ),
+            defaultValue=True,
+            optional=True,
+        )
+        qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppb)
+
+    def processAlgorithm(self, parameters, context, feedback):
+        # setup ignore
+        if self.parameterAsBool(parameters, self.GEOMETRY_CHECK_SKIP_INVALID, context):
+            context.setInvalidGeometryCheck(QgsFeatureRequest.GeometrySkipInvalid)
+            feedback.pushWarning("setInvalidGeometryCheck set to GeometrySkipInvalid")
+
+        # report solver unavailability
+        feedback.pushWarning(f"Solver unavailability:\n{self.solver_exception_msg}\n")
+
+        layer = self.parameterAsSource(parameters, self.IN_LAYER, context)
+        feedback.pushDebugInfo(
+            f"{layer=}, {layer.fields()=}, {layer.wkbType()=}, {layer.sourceCrs()=}, {layer.featureCount()=}"
+        )
+
+        request_fields = {
+            fieldname: self.parameterAsString(parameters, fieldname, context)
+            for fieldname in [self.IN_CURR, self.IN_TRGT, self.IN_COST]
+        }
+        qfr = QgsFeatureRequest().setSubsetOfAttributes(request_fields, layer.fields())
+        features = list(layer.getFeatures(qfr))
+        feedback.pushWarning(
+            f"Valid polygons: {len(features)}/{layer.featureCount()} {len(features)/layer.featureCount():.2%}\n"
+        )
+
+        if value_fieldname:
+            value_data = [feat.attribute(value_fieldname) for feat in features]
+        else:
+            value_data = [1] * len(features)
+            feedback.pushWarning("No value field, using 1's")
+        value_data = np.array(value_data)
+
+        if weight_fieldname:
+            weight_data = [feat.attribute(weight_fieldname) for feat in features]
+        else:
+            weight_data = [feat.geometry().area() for feat in features]
+            feedback.pushWarning("No weight field, using polygon areas")
+        weight_data = np.array(weight_data)
+
+        feedback.pushDebugInfo(f"{value_data.shape=}, {value_data=}\n{weight_data.shape=}, {weight_data=}\n")
+
+        assert len(value_data) == len(weight_data)
+        N = len(value_data)
+        no_indexes = np.where(np.isnan(value_data) | np.isnan(weight_data))[0]
+        feedback.pushWarning(
+            f"discarded polygons (value or weight invalid): {len(no_indexes)}/{N} {len(no_indexes)/N:.2%}\n"
+        )
+
+        response, status, termCondition = do_knapsack(
+            self, value_data, weight_data, no_indexes, feedback, parameters, context
+        )
+        feedback.pushDebugInfo(f"{response=}, {response.shape=}")
+        # response[response == None] = -2
+        assert N == len(response)
+
+        undecided, skipped, not_selected, selected = np.histogram(response, bins=[-2, -1, 0, 1, 2])[0]
+        feedback.pushInfo(
+            "Solution histogram:\n"
+            f"{selected=}\n"
+            f"{not_selected=}\n"
+            f"{skipped=} (invalid value or weight)\n"
+            f"{undecided=}\n"
+        )
+
+        fields = QgsFields()
+        fields.append(QgsField(name="fid", type=QVariant.Int))  # , len=10))
+        fields.append(QgsField(name="knapsack", type=QVariant.Int))  # , len=10))
+
+        (sink, dest_id) = self.parameterAsSink(
+            parameters,
+            self.OUT_LAYER,
+            context,
+            fields,
+            layer.wkbType(),
+            layer.sourceCrs(),
+        )
+        feedback.pushDebugInfo(f"{sink=}, {dest_id=}")
+
+        total = 100.0 / N
+        for current, feature in enumerate(features):
+            # Stop the algorithm if cancel button has been clicked
+            if feedback.isCanceled():
+                break
+            # Prepare feature
+            new_feature = QgsFeature(fields)
+            fid = int(feature.id())
+            res = int(response[current])
+            new_feature.setId(fid)
+            new_feature.setAttributes([fid, res])
+            new_feature.setGeometry(feature.geometry())
+            # feedback.pushDebugInfo(f"{new_feature.id()=}, {current=}, {response[current]=}")
+            # Add a feature in the sink
+            sink.addFeature(new_feature, QgsFeatureSink.FastInsert)
+            # Update the progress bar
+            feedback.setProgress(int(current * total))
+
+        # if showing
+        if context.willLoadLayerOnCompletion(dest_id):
+            layer_details = context.layerToLoadOnCompletionDetails(dest_id)
+            layer_details.groupName = "DecisionOptimizationGroup"
+            layer_details.name = "KnapsackPolygons"
+            # layer_details.layerSortKey = 2
+            processing.run(
+                "native:setlayerstyle",
+                {
+                    "INPUT": dest_id,
+                    "STYLE": str(Path(Path(__file__).parent, "assets", "knapsack_polygon.qml")),
+                },
+                context=context,
+                feedback=feedback,
+                is_child_algorithm=True,
+            )
+
+        write_log(feedback, name=self.name())
+        return {
+            self.OUT_LAYER: dest_id,
+            "SOLVER_STATUS": status,
+            "SOLVER_TERMINATION_CONDITION": termCondition,
+        }
+
+    def name(self):
+        """processing.run('provider:name',{..."""
+        return "bintrmt"
+
+    def displayName(self):
+        """
+        Returns the translated algorithm name, which should be used for any
+        user-visible display of the algorithm name.
+        """
+        return self.tr("AABINTRMTPolygon Knapsack")
+
+    # def group(self):
+    #     return self.tr("Decision Optimization")
+
+    # def groupId(self):
+    #     return "do"
+
+    def tr(self, string):
+        return QCoreApplication.translate("Processing", string)
+
+    def createInstance(self):
+        return BinTreatmentAlgorithm()
+
+    def helpUrl(self):
+        return "https://www.github.com/fdobad/qgis-processingplugin-template/issues"
+
+    def shortDescription(self):
+        return self.tr(
+            """Optimizes the classical knapsack problem using polygons with values and/or weights attributes, returns a polygon layer with the selected polygons."""
+        )
+
+    def icon(self):
+        return QIcon(":/plugins/fireanalyticstoolbox/assets/firebreakmap.svg")
+
+
 class RasterDestinationGpkg(QgsProcessingParameterRasterDestination):
     """overrides the defaultFileExtension method to gpkg
     ALTERNATIVE:
