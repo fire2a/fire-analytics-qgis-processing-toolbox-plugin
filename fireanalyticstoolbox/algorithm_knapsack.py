@@ -23,7 +23,7 @@
 __author__ = "fdo"
 __date__ = "2024-03-01"
 __copyright__ = "(C) 2024 by fdo"
-__version__ = "36a1735e0b62d3ef40d40b97a217722449a70bed"
+__version__ = "$Format:%H$"
 
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
