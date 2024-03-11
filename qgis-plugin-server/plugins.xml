@@ -570,7 +570,7 @@ NOTICE: Must restart QGIS for the plugin to appear in the processing toolbox pan
 		<file_name>fireanalyticstoolbox</file_name>
 		<icon>https://raw.githubusercontent.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/main/fireanalyticstoolbox/assets/forestfire.svg</icon>
 		<author_name>fdobad</author_name>
-		<download_url>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases/download/v0.1.17/fireanalyticstoolbox_v0.1.16.zip</download_url>
+		<download_url>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases/download/v0.1.17/fireanalyticstoolbox_v0.1.17.zip</download_url>
 		<uploaded_by>fdobad</uploaded_by>
 		<create_date>"2006-06-06"</create_date>
 		<update_date>"2024-03-08"</update_date>
