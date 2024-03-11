@@ -148,22 +148,23 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         #         optional=False,
         #     )
         # )
-        raise QgsProcessingException(f"error {self.defaultValue=}")
-        df = pd.read_csv(Path(self.defaultValue))
-        nr, nc = df.shape
-        columns = df.columns
-        values = df.values
-        self.addParameter(
-            QgsProcessingParameterMatrix(
-                name="wea",
-                description="weather builder",
-                numberRows=nr,
-                hasFixedNumberRows=False,
-                headers=columns,
-                defaultValue=values,
-                optional=False,
-            )
-        )
+
+        # raise QgsProcessingException(f"error {self.defaultValue=}")
+        # df = pd.read_csv(Path(self.defaultValue))
+        # nr, nc = df.shape
+        # columns = df.columns
+        # values = df.values
+        # self.addParameter(
+        #     QgsProcessingParameterMatrix(
+        #         name="wea",
+        #         description="weather builder",
+        #         numberRows=nr,
+        #         hasFixedNumberRows=False,
+        #         headers=columns,
+        #         defaultValue=values,
+        #         optional=False,
+        #     )
+        # )
 
         # bool
         # self.addParameter(

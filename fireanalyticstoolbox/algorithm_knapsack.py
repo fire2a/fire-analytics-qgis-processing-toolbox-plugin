@@ -776,11 +776,11 @@ class BinTreatmentAlgorithm(QgsProcessingAlgorithm):
     """Algorithm that selects the most valuable polygons restriced to a total weight using a MIP solver"""
 
     IN_LAYER = "IN_LAYER"
+    IN_VALU = "Value"
     IN_CURR = "CurrentFuelType"
     IN_TRGT = "TargetFuelType"
     IN_COST = "TreatmentCost"
-    IN_BUDGET = "RATIO"
-    IN_RATIO = "RATIO"
+    IN_BUDGET = "Budget"
     IN_EXECUTABLE = "EXECUTABLE"
     OUT_LAYER = "OUT_LAYER"
     GEOMETRY_CHECK_SKIP_INVALID = "GEOMETRY_CHECK_SKIP_INVALID"
@@ -801,7 +801,7 @@ class BinTreatmentAlgorithm(QgsProcessingAlgorithm):
             )
         )
         # value field
-        for field_value in [self.IN_CURR, self.IN_TRGT, self.IN_COST]:
+        for field_value in [self.IN_VALU, self.IN_CURR, self.IN_TRGT, self.IN_COST]:
             self.addParameter(
                 QgsProcessingParameterField(
                     name=field_value,
@@ -906,37 +906,51 @@ class BinTreatmentAlgorithm(QgsProcessingAlgorithm):
             f"{layer=}, {layer.fields()=}, {layer.wkbType()=}, {layer.sourceCrs()=}, {layer.featureCount()=}"
         )
 
-        request_fields = {
-            fieldname: self.parameterAsString(parameters, fieldname, context)
-            for fieldname in [self.IN_CURR, self.IN_TRGT, self.IN_COST]
-        }
-        qfr = QgsFeatureRequest().setSubsetOfAttributes(request_fields, layer.fields())
+        request_fields = []
+        if current_fieldname := self.parameterAsString(parameters, self.IN_CURR, context):
+            request_fields += [current_fieldname]
+        if target_fieldname := self.parameterAsString(parameters, self.IN_TRGT, context):
+            request_fields += [target_fieldname]
+        if cost_fieldname := self.parameterAsString(parameters, self.IN_COST, context):
+            request_fields += [cost_fieldname]
+        qft = QgsFeatureRequest().setSubsetOfAttributes(request_fields, layer.fields())
         features = list(layer.getFeatures(qfr))
         feedback.pushWarning(
             f"Valid polygons: {len(features)}/{layer.featureCount()} {len(features)/layer.featureCount():.2%}\n"
         )
-
-        if value_fieldname:
-            value_data = [feat.attribute(value_fieldname) for feat in features]
+        #
+        # if are not provided
+        #
+        if current_fieldname:
+            current_data = [feat.attribute(current_fieldname) for feat in features]
         else:
-            value_data = [1] * len(features)
-            feedback.pushWarning("No value field, using 1's")
-        value_data = np.array(value_data)
+            current_data = [1] * len(features)
+            feedback.pushWarning("No current field, using 1's")
+        current_data = np.array(current_data)
 
-        if weight_fieldname:
-            weight_data = [feat.attribute(weight_fieldname) for feat in features]
+        if target_fieldname:
+            target_data = [feat.attribute(target_fieldname) for feat in features]
         else:
-            weight_data = [feat.geometry().area() for feat in features]
-            feedback.pushWarning("No weight field, using polygon areas")
-        weight_data = np.array(weight_data)
+            target_data = [1] * len(features)
+            feedback.pushWarning("No target field, using 1's")
+        target_data = np.array(target_data)
 
-        feedback.pushDebugInfo(f"{value_data.shape=}, {value_data=}\n{weight_data.shape=}, {weight_data=}\n")
+        if cost_fieldname:
+            cost_data = [feat.attribute(cost_fieldname) for feat in features]
+        else:
+            cost_data = [1] * len(features)
+            feedback.pushWarning("No cost field, using 1's")
+        cost_data = np.array(cost_data)
 
-        assert len(value_data) == len(weight_data)
-        N = len(value_data)
-        no_indexes = np.where(np.isnan(value_data) | np.isnan(weight_data))[0]
+        feedback.pushDebugInfo(f"{current_data.shape=}, {current_data=}")
+        feedback.pushDebugInfo(f"{target_data.shape=}, {target_data=}")
+        feedback.pushDebugInfo(f"{cost_data.shape=}, {cost_data=}")
+
+        assert len(current_data) == len(target_data) == len(cost_data)
+        N = len(current_data)
+        no_indexes = np.where(np.isnan(current_data) | np.isnan(target_data) | np.isnan(cost_data))[0]
         feedback.pushWarning(
-            f"discarded polygons (value or weight invalid): {len(no_indexes)}/{N} {len(no_indexes)/N:.2%}\n"
+            f"discarded polygons (current target or cost invalid): {len(no_indexes)}/{N} {len(no_indexes)/N:.2%}\n"
         )
 
         response, status, termCondition = do_knapsack(
