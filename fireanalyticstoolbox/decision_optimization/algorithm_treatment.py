@@ -392,21 +392,21 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
     def shortDescription(self):
         return self.tr(
             """<b>Objetive:</b> Maximize the changed value of the treated polygons<br> 
-               <b>Decisions:</b> Which treatment to apply to each polygon (or no change)<br>
-               <b>Contraints:</b><br>
-               (a) fixed+area costs less than budget<br>
-               (b) treated area less than total area<br> 
-               <b>Inputs:</b><br>
-               (i) A polygon layer with <b>current</b> attributes: [fid],<b>treatment, value/m2, fixed_cost</b><br>
-               (ii) A .csv table defining <b>target</b> treatments: <b>fid, treatment, value/m2, cost/m2</b> (use these column names)<br>
-               - fid is the feature id of each polygon so it's given in the attribute table, but must be specified in the .csv table<br>
-               - current & target treatment are just strings, but each polygon needs at least one feasible treatment (one row)<br>
-               - current & target values/m2 weight towards the objective when no change or a target treatment is recommended respectively<br>
-               (iii) <b>Budget</b> (same units than costs)<br>
-               (iv) <b>Area</b> (same units than the geometry of the polygons)<br>
-               <br>
-               sample: """
-            + (Path(__file__).parent / "treat_sample").as_uri()
+            <b>Decisions:</b> Which treatment to apply to each polygon (or no change)<br>
+            <b>Contraints:</b><br>
+            (a) fixed+area costs less than budget<br>
+            (b) treated area less than total area<br> 
+            <b>Inputs:</b><br>
+            (i) A polygon layer with <b>current</b> attributes: [fid],<b>treatment, value, value/m2</b><br>
+            (ii) A .csv table defining <b>target</b> treatments: <b>fid, treatment, value, value/m2, cost, cost/m2</b> (use these column names)<br>
+            - fid is the feature id of each polygon so it's given in the attribute table, but must be specified in the .csv table<br>
+            - current & target treatment are just strings, but each polygon needs at least one feasible treatment (one row)<br>
+            - current & target values[/m2] weight towards the objective when no change (keep current) or a target treatment is recommended<br>
+            (iii) <b>Budget</b> (same units than costs)<br>
+            (iv) <b>Area</b> (same units than the geometry of the polygons)<br>
+            <br>
+            sample: """
+            + (Path(__file__).parent / "treatments_sample").as_uri()
         )
 
     def icon(self):
