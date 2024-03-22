@@ -1,0 +1,3 @@
+treat_names=['EJF', 'HNV', 'IIE', 'MOG', 'ROZ']
+budget=4958.112012022211
+area=55162.15275894997
