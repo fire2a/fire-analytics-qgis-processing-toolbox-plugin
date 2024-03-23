@@ -492,3 +492,4 @@ def do_poly_treatment(fid, treat_names, treat_cube, dfa, dft, area, budget, feed
     print(m.display())
     # for i, j, k in m.AllSets:
     #     print(i, j, k, pyo.value(m.X[i, j, k], exception=False))
+    return { (i,j,k):pyo.value(m.X[i, j, k], exception=False) for i, j, k in m.FeasibleSet }
