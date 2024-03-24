@@ -26,7 +26,6 @@ __copyright__ = "(C) 2024 by fdo"
 __version__ = "$Format:%H$"
 
 
-from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from itertools import compress, product
 from multiprocessing import cpu_count
@@ -57,30 +56,29 @@ from scipy import stats
 from ..algorithm_utils import (array2rasterInt16, get_output_raster_format, get_raster_data, get_raster_info,
                                get_raster_nodata, run_alg_styler_bin, write_log)
 from ..config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
-from .doop import SOLVER, FileLikeFeedback, add_cbc_to_path, check_solver_availability
+from .doop import add_cbc_to_path, pyomo_init_algorithm, pyomo_parse_results, pyomo_run_model
 
 
 class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
     """Algorithm that selects the most valuable polygons restriced to a total weight using a MIP solver"""
 
     IN_LAYER = "IN_LAYER"
-    IN_TRT = "CurrentTreatment"
-    IN_VAL = "CurrentValue"
-    IN_VALm2 = "CurrentValue/m2"
+    IN_TRT = "treatment"
+    IN_VAL = "value"
+    IN_VALm2 = "value/m2"
 
     IN_TREATS = "TreatmentsCostsTable"
 
     IN_AREA = "Area"
     IN_BUDGET = "Budget"
 
-    IN_EXECUTABLE = "EXECUTABLE"
     OUT_LAYER = "OUT_LAYER"
     GEOMETRY_CHECK_SKIP_INVALID = "GEOMETRY_CHECK_SKIP_INVALID"
 
     solver_exception_msg = ""
 
     if platform_system() == "Windows":
-        add_cbc_to_path()
+        add_cbc_to_path(QgsMessageLog)
 
     def initAlgorithm(self, config):
         """The form reads a vector layer and two fields, one for the value and one for the weight; also configures the weight ratio and the solver"""
@@ -126,7 +124,6 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
                 description=self.tr("Treatments table (fid,treatment,value,value/m2,cost,cost/m2)"),
                 behavior=QgsProcessingParameterFile.File,
                 extension="csv",
-                optional=True,
             )
         )
         # AREA double
@@ -154,43 +151,8 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
 
         # output layer
         self.addParameter(QgsProcessingParameterFeatureSink(self.OUT_LAYER, self.tr("Polygon Treatment Output Layer")))
-        # SOLVERS
-        value_hints, self.solver_exception_msg = check_solver_availability(SOLVER)
-        # solver string combobox (enums
-        qpps = QgsProcessingParameterString(
-            name="SOLVER",
-            description="Solver: recommended options string [and executable STATUS]",
-        )
-        qpps.setMetadata(
-            {
-                "widget_wrapper": {
-                    "value_hints": value_hints,
-                    "setEditable": True,  # not working
-                }
-            }
-        )
-        qpps.setFlags(qpps.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
-        self.addParameter(qpps)
-        # options_string
-        qpps2 = QgsProcessingParameterString(
-            name="CUSTOM_OPTIONS_STRING",
-            description="Override options_string (type a single space ' ' to not send any options to the solver)",
-            defaultValue="",
-            optional=True,
-        )
-        qpps2.setFlags(qpps2.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
-        self.addParameter(qpps2)
-        # executable file
-        qppf = QgsProcessingParameterFile(
-            name=self.IN_EXECUTABLE,
-            description=self.tr("Set solver executable file [REQUIRED if STATUS]"),
-            behavior=QgsProcessingParameterFile.File,
-            extension="exe" if platform_system() == "Windows" else "",
-            optional=True,
-        )
-        qppf.setFlags(qppf.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
-        self.addParameter(qppf)
 
+        # advanced skip invalid geometry
         qppb = QgsProcessingParameterBoolean(
             name=self.GEOMETRY_CHECK_SKIP_INVALID,
             description=self.tr(
@@ -201,6 +163,8 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
         )
         qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(qppb)
+
+        pyomo_init_algorithm(self, config)
 
     def processAlgorithm(self, parameters, context, feedback):
         retdic = {}
@@ -231,6 +195,9 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
         feedback.pushWarning(
             f"Valid polygons: {len(features)}/{layer.featureCount()} {len(features)/layer.featureCount():.2%}\n"
         )
+        # required
+        current_treatment = [feat.attribute(current_treatment_fieldname) for feat in features]
+        fids = [feat.id() for feat in features]
         # get else not provided
         if current_value_fieldname:
             current_value = [feat.attribute(current_value_fieldname) for feat in features]
@@ -246,8 +213,8 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
                 zip(
                     attr_names,
                     [
-                        [feat.id() for feat in features],
-                        [feat.attribute(current_treatment_fieldname) for feat in features],
+                        fids,
+                        current_treatment,
                         current_value,
                         current_valuem2,
                         [feat.geometry().area() for feat in features],
@@ -271,45 +238,50 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
         treat_names = np.unique(dft["treatment"].to_list() + current_treatment).tolist()
         retdic["treat_names"] = treat_names
 
-        treat_cube = np.zeros((len(dfa), len(treat_names), len(treat_names)), dtype=bool)
+        # treat_cube = np.zeros((len(dfa), len(treat_names), len(treat_names)), dtype=bool)
+        # for i, current in dfa.iterrows():
+        #     # get targets
+        #     targets = dft[dft["fid"] == current["fid"]]
+        #     for _, target in targets.iterrows():
+        #         treat_cube[i, treat_names.index(current["treatment"]), treat_names.index(target["treatment"])] = True
+        # retdic["treat_cube"] = treat_cube
+        treat_table = np.zeros((len(dfa), len(treat_names)), dtype=bool)
         for i, current in dfa.iterrows():
-            # get targets
             targets = dft[dft["fid"] == current["fid"]]
-            for _, target in targets.iterrows():
-                treat_cube[i, treat_names.index(current["treatment"]), treat_names.index(target["treatment"])] = True
-        # feedback.pushDebugInfo(f"{treat_cube=}")
-        retdic["treat_cube"] = treat_cube
+            for j, target in targets.iterrows():
+                treat_table[i, treat_names.index(target["treatment"])] = True
+        # feedback.pushDebugInfo(f"{treat_table=}")
+        retdic["treat_table"] = treat_table
 
-        feedback.pushDebugInfo(f"instance read: {retdic=}")
+        # feedback.pushDebugInfo(f"instance read: {retdic=}")
+        # model = do_poly_treatment(treat_names, treat_cube, dfa, dft, area, budget)
+        model = do_poly_treatment_table(treat_names, treat_table, dfa, dft, area, budget)
+        results = pyomo_run_model(self, parameters, context, feedback, model)
+        retval, solver_dic = pyomo_parse_results(results, feedback)
+        retdic.update(solver_dic)
 
-        return retdic
+        if retval >= 1:
+            return retdic
 
-    def stop(self):
-        """
-        # fmt : off
-        def at_most_one_treatment_rule(m, ii):
-            return sum(m.X[i, j, k] for i, j, k in m.FeasibleSet if i == ii) <= 1
+        # treats_dic = {(i, j, k): pyo.value(model.X[i, j, k], exception=False) for i, j, k in model.FeasibleSet}
+        # treats_arr = np.array([treats_dic[i, j, k] for i, j, k in model.FeasibleSet])
+        treats_dic = {(i, k): pyo.value(model.X[i, k], exception=False) for i, k in model.FeasibleSet}
+        # treats_arr = np.array([treats_dic[i, k] for i, k in model.FeasibleSet])
+        # treats_arr[treats_arr is None] = -1
+        # for trt in treat_names:
+        #     treats_arr[treats_arr == trt] = treat_names.index(trt)
 
-        m.at_most_one_treatment = pyo.Constraint(m.N, rule=at_most_one_treatment_rule)
-        # fmt : on
-        """
-
-        feedback.pushDebugInfo(f"{response=}, {response.shape=}")
-        # response[response == None] = -2
-        assert N == len(response)
-
-        undecided, skipped, not_selected, selected = np.histogram(response, bins=[-2, -1, 0, 1, 2])[0]
-        feedback.pushInfo(
-            "Solution histogram:\n"
-            f"{selected=}\n"
-            f"{not_selected=}\n"
-            f"{skipped=} (invalid value or weight)\n"
-            f"{undecided=}\n"
-        )
+        # msg = "Solution histogram:\n"
+        # hist = np.histogram(treats_arr, bins=[-1] + list(range(len(treat_names))))[0]
+        # for trt, count in zip(["undecided"] + treat_names, hist):
+        #     msg += f"{trt}: {count}\n"
+        # feedback.pushInfo(msg)
 
         fields = QgsFields()
         fields.append(QgsField(name="fid", type=QVariant.Int))  # , len=10))
-        fields.append(QgsField(name="knapsack", type=QVariant.Int))  # , len=10))
+        fields.append(QgsField(name="current", type=QVariant.String))  # , len=10))
+        fields.append(QgsField(name="treatment", type=QVariant.String))  # , len=10))
+        fields.append(QgsField(name="changed", type=QVariant.Bool))  # , len=10))
 
         (sink, dest_id) = self.parameterAsSink(
             parameters,
@@ -321,21 +293,30 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
         )
         feedback.pushDebugInfo(f"{sink=}, {dest_id=}")
 
-        total = 100.0 / N
-        for current, feature in enumerate(features):
+        total = 100.0 / len(features)
+        for current, feat in enumerate(features):
             # Stop the algorithm if cancel button has been clicked
             if feedback.isCanceled():
                 break
             # Prepare feature
-            new_feature = QgsFeature(fields)
-            fid = int(feature.id())
-            res = int(response[current])
-            new_feature.setId(fid)
-            new_feature.setAttributes([fid, res])
-            new_feature.setGeometry(feature.geometry())
-            # feedback.pushDebugInfo(f"{new_feature.id()=}, {current=}, {response[current]=}")
+            new_feat = QgsFeature(fields)
+            ifid = int(feat.id())
+            curr = feat[current_treatment_fieldname]
+            chg = False
+            trgt = ""
+            for tn in treat_names:
+                if treats_dic.get((feat.id(), tn)) == 1:
+                    trgt = tn
+                    chg = True
+                    break
+            new_feat.setId(ifid)
+            new_feat.setAttributes([ifid, curr, trgt, chg])
+            new_feat.setGeometry(feat.geometry())
+            feedback.pushDebugInfo(
+                f"{current=}, {new_feat.id()=}, {[treats_dic.get((ifid, tn)) for tn in treat_names]}"
+            )
             # Add a feature in the sink
-            sink.addFeature(new_feature, QgsFeatureSink.FastInsert)
+            sink.addFeature(new_feat, QgsFeatureSink.FastInsert)
             # Update the progress bar
             feedback.setProgress(int(current * total))
 
@@ -343,13 +324,13 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
         if context.willLoadLayerOnCompletion(dest_id):
             layer_details = context.layerToLoadOnCompletionDetails(dest_id)
             layer_details.groupName = "DecisionOptimizationGroup"
-            layer_details.name = "KnapsackPolygons"
-            # layer_details.layerSortKey = 2
+            layer_details.name = "TreatmentPolygons"
+            layer_details.layerSortKey = 1
             processing.run(
                 "native:setlayerstyle",
                 {
                     "INPUT": dest_id,
-                    "STYLE": str(Path(Path(__file__).parent, "assets", "knapsack_polygon.qml")),
+                    "STYLE": str(Path(Path(__file__).parent, "treatment_polygon.qml")),
                 },
                 context=context,
                 feedback=feedback,
@@ -357,15 +338,11 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
             )
 
         write_log(feedback, name=self.name())
-        return {
-            self.OUT_LAYER: dest_id,
-            "SOLVER_STATUS": status,
-            "SOLVER_TERMINATION_CONDITION": termCondition,
-        }
+        return retdic
 
     def name(self):
         """processing.run('provider:name',{..."""
-        return "bintrmt"
+        return "polytreatment"
 
     def displayName(self):
         """
@@ -413,8 +390,70 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
         return QIcon(":/plugins/fireanalyticstoolbox/assets/firebreakmap.svg")
 
 
-def do_poly_treatment(fid, treat_names, treat_cube, dfa, dft, area, budget, feedback):
-    # Mixed Integer Linear Programming
+def do_poly_treatment_table(treat_names, treat_table, dfa, dft, area, budget):
+    # Integer Programming
+    m = pyo.ConcreteModel(name="polygon_treatment")
+
+    # Sets
+    m.N = pyo.Set(initialize=dfa.fid, ordered=True)
+    m.T = pyo.Set(initialize=treat_names)
+    m.FeasibleSet = pyo.Set(
+        initialize=[
+            (i, k) for i, k in product(m.N, m.T) if treat_table[dfa[dfa.fid == i].index[0], treat_names.index(k)]
+        ]
+    )
+    # TODO
+    # dfa[dfa.fid == i].index[0] -> dfa.set_index("fid").loc[i]
+    dfa.set_index("fid", inplace=True)
+
+    # Params
+    m.area = pyo.Param(m.N, within=pyo.Reals, initialize=dfa["area"].to_dict())
+    m.current_value = pyo.Param(m.N, within=pyo.Reals, initialize=dfa["value"].to_dict())
+    m.current_valuem2 = pyo.Param(m.N, within=pyo.Reals, initialize=dfa["value/m2"].to_dict())
+    m.target_value = pyo.Param(
+        m.N, m.T, within=pyo.Reals, initialize=dft.set_index(["fid", "treatment"])["value"].to_dict()
+    )
+    m.target_valuem2 = pyo.Param(
+        m.N, m.T, within=pyo.Reals, initialize=dft.set_index(["fid", "treatment"])["value/m2"].to_dict()
+    )
+    m.cost = pyo.Param(m.N, m.T, within=pyo.Reals, initialize=dft.set_index(["fid", "treatment"])["cost"].to_dict())
+    m.costm2 = pyo.Param(
+        m.N, m.T, within=pyo.Reals, initialize=dft.set_index(["fid", "treatment"])["cost/m2"].to_dict()
+    )
+
+    # initialize=df_stands[treatments].stack().to_dict(),
+
+    # Variables
+    m.X = pyo.Var(
+        m.FeasibleSet,
+        within=pyo.Binary,
+    )
+    # Constraints
+    m.at_most_one_treatment = pyo.Constraint(
+        m.N, rule=lambda m, ii: sum(m.X[i, k] for i, k in m.FeasibleSet if i == ii) <= 1
+    )
+
+    m.area_capacity = pyo.Constraint(rule=lambda m: sum(m.X[i, k] * m.area[i] for i, k in m.FeasibleSet) <= area)
+
+    m.budget_capacity = pyo.Constraint(
+        rule=lambda m: sum(m.X[i, k] * (m.cost[i, k] + m.costm2[i, k] * m.area[i]) for i, k in m.FeasibleSet) <= budget
+    )
+
+    # Objective
+    m.obj = pyo.Objective(
+        expr=sum(
+            m.X[i, k] * (m.target_value[i, k] + m.target_valuem2[i, k] * m.area[i])
+            + (1 - m.X[i, k]) * (m.current_value[i] + m.current_valuem2[i] * m.area[i])
+            for i, k in m.FeasibleSet
+        ),
+        sense=pyo.maximize,
+    )
+
+    return m
+
+
+def do_poly_treatment(treat_names, treat_cube, dfa, dft, area, budget):
+    # Integer Programming
     m = pyo.ConcreteModel(name="polygon_treatment")
 
     # Sets
@@ -427,6 +466,8 @@ def do_poly_treatment(fid, treat_names, treat_cube, dfa, dft, area, budget, feed
             if treat_cube[dfa[dfa.fid == i].index[0], treat_names.index(j), treat_names.index(k)]
         ]
     )
+    # TODO
+    # dfa[dfa.fid == i].index[0] -> dfa.set_index("fid").loc[i]
 
     # Params
     m.area = pyo.Param(m.N, within=pyo.Reals, initialize=dfa.set_index("fid")["area"].to_dict())
@@ -471,25 +512,5 @@ def do_poly_treatment(fid, treat_names, treat_cube, dfa, dft, area, budget, feed
         ),
         sense=pyo.maximize,
     )
-    print("PPRINT")
-    print(m.pprint())
 
-    # Solve
-    solver = "cbc"
-    executable = None
-    if executable:
-        opt = SolverFactory(solver, executable=executable)
-    else:
-        opt = SolverFactory(solver)
-
-    options_string = None
-    if options_string:
-        results = opt.solve(m, tee=True, options_string=options_string)
-    else:
-        results = opt.solve(m, tee=True)
-
-    print("DISPLAY")
-    print(m.display())
-    # for i, j, k in m.AllSets:
-    #     print(i, j, k, pyo.value(m.X[i, j, k], exception=False))
-    return { (i,j,k):pyo.value(m.X[i, j, k], exception=False) for i, j, k in m.FeasibleSet }
+    return m
