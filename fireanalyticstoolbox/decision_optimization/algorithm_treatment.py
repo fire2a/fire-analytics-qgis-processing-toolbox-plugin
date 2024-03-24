@@ -305,9 +305,14 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
             chg = False
             trgt = ""
             for tn in treat_names:
-                if treats_dic.get((feat.id(), tn)) == 1:
+                resp = treats_dic.get((ifid, tn))
+                if resp == 1:
                     trgt = tn
                     chg = True
+                    break
+                if resp is None:
+                    trgt = "undecided"
+                    chg = None
                     break
             new_feat.setId(ifid)
             new_feat.setAttributes([ifid, curr, trgt, chg])
