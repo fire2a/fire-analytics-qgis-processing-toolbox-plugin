@@ -73,9 +73,8 @@ def add_cbc_to_path(qgs_message_log=None):
 
     qml_print = lambda x, y: QgsMessageLog.logMessage(x, TAG) if qgs_message_log else print(x)
 
-    cbc_exe = Path(__file__).parent / "cbc" / "bin" / "cbc.exe"
-    if cbc_exe := which("cbc.exe"):
-        qml_print(f"cbc.exe already in {cbc_exe=}", qgs_message_log)
+    if which_cbc:= which("cbc.exe"):
+        qml_print(f"cbc.exe already in {which_cbc=}", qgs_message_log)
         return True
     if which("cbc.exe") is None and "__file__" in globals():
         cbc_exe = Path(__file__).parents[1] / "cbc" / "bin" / "cbc.exe"
