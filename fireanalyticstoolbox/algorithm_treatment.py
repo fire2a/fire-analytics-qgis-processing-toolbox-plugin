@@ -53,10 +53,10 @@ from qgis.core import (Qgis, QgsFeature, QgsFeatureRequest, QgsFeatureSink, QgsF
 from qgis.PyQt.QtCore import QByteArray, QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 
-from ..algorithm_utils import (QgsProcessingParameterRasterDestinationGpkg, array2rasterInt16, get_output_raster_format,
-                               get_raster_data, get_raster_info, get_raster_nodata, run_alg_styler_bin, write_log)
-from ..config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
-from .doop import add_cbc_to_path, pyomo_init_algorithm, pyomo_parse_results, pyomo_run_model
+from .algorithm_utils import (QgsProcessingParameterRasterDestinationGpkg, array2rasterInt16, get_output_raster_format,
+                              get_raster_data, get_raster_info, get_raster_nodata, run_alg_styler_bin, write_log)
+from .config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
+from .decision_optimization.doop import add_cbc_to_path, pyomo_init_algorithm, pyomo_parse_results, pyomo_run_model
 
 
 class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
@@ -292,7 +292,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
                 "native:setlayerstyle",
                 {
                     "INPUT": dest_id,
-                    "STYLE": str(Path(Path(__file__).parent, "treatment_polygon.qml")),
+                    "STYLE": str(Path(__file__).parent / "decision_optimization" / "treatment_polygon.qml"),
                 },
                 context=context,
                 feedback=feedback,
@@ -345,7 +345,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
             (iv) <b>Area</b> (same units than the geometry of the polygons)<br>
             <br>
             sample: """
-            + (Path(__file__).parent / "treatments_sample").as_uri()
+            + (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri()
         )
 
     def icon(self):
@@ -624,7 +624,7 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
                 "native:setlayerstyle",
                 {
                     "INPUT": dest_id,
-                    "STYLE": str(Path(Path(__file__).parent, "treatment_polygon.qml")),
+                    "STYLE": str(Path(__file__).parent / "decision_optimization" / "treatment_polygon.qml"),
                 },
                 context=context,
                 feedback=feedback,
@@ -677,7 +677,7 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
             (iv) <b>Area</b> (same units than the geometry of the polygons)<br>
             <br>
             sample: """
-            + (Path(__file__).parent / "treatments_sample").as_uri()
+            + (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri()
         )
 
     def icon(self):

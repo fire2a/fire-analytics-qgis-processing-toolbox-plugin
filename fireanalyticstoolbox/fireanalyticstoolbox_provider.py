@@ -35,15 +35,15 @@ from qgis.PyQt.QtGui import QIcon
 
 from .algorithm_clusterize import ClusterizeAlgorithm
 from .algorithm_instance_downloader import InstanceDownloader
+from .algorithm_knapsack import PolygonKnapsackAlgorithm, RasterKnapsackAlgorithm
 from .algorithm_postsimulation import (BetweennessCentralityMetric, DownStreamProtectionValueMetric,
                                        IgnitionPointsSIMPP, MessagesSIMPP, PostSimulationAlgorithm, ScarSIMPP,
                                        StatisticSIMPP)
 from .algorithm_raster_tutorial import RasterTutorial
 from .algorithm_sandbox import SandboxAlgorithm
 from .algorithm_simulator import FireSimulatorAlgorithm
+from .algorithm_treatment import PolyTreatmentAlgorithm, RasterTreatmentAlgorithm
 from .assets.resources import *
-from .decision_optimization.algorithm_knapsack import PolygonKnapsackAlgorithm, RasterKnapsackAlgorithm
-from .decision_optimization.algorithm_treatment import PolyTreatmentAlgorithm, RasterTreatmentAlgorithm
 from .fireanalyticstoolbox_algorithm import FireToolboxAlgorithm
 
 

@@ -47,10 +47,10 @@ from qgis.PyQt.QtCore import QByteArray, QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 from scipy import stats
 
-from ..algorithm_utils import (QgsProcessingParameterRasterDestinationGpkg, array2rasterInt16, get_output_raster_format,
-                               get_raster_data, get_raster_info, get_raster_nodata, run_alg_styler_bin, write_log)
-from ..config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
-from .doop import SOLVER, FileLikeFeedback, add_cbc_to_path, check_solver_availability
+from .algorithm_utils import (QgsProcessingParameterRasterDestinationGpkg, array2rasterInt16, get_output_raster_format,
+                              get_raster_data, get_raster_info, get_raster_nodata, run_alg_styler_bin, write_log)
+from .config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
+from .decision_optimization.doop import SOLVER, FileLikeFeedback, add_cbc_to_path, check_solver_availability
 
 
 class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
