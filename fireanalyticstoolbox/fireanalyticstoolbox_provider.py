@@ -43,7 +43,7 @@ from .algorithm_sandbox import SandboxAlgorithm
 from .algorithm_simulator import FireSimulatorAlgorithm
 from .assets.resources import *
 from .decision_optimization.algorithm_knapsack import PolygonKnapsackAlgorithm, RasterKnapsackAlgorithm
-from .decision_optimization.algorithm_treatment import PolyTreatmentAlgorithm
+from .decision_optimization.algorithm_treatment import PolyTreatmentAlgorithm, RasterTreatmentAlgorithm
 from .fireanalyticstoolbox_algorithm import FireToolboxAlgorithm
 
 
@@ -81,6 +81,7 @@ class FireToolboxProvider(QgsProcessingProvider):
         self.addAlgorithm(RasterTutorial())
         self.addAlgorithm(InstanceDownloader())
         self.addAlgorithm(PolyTreatmentAlgorithm())
+        self.addAlgorithm(RasterTreatmentAlgorithm())
 
     def id(self):
         """

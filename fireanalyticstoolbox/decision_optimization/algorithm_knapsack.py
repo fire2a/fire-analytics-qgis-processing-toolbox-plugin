@@ -47,8 +47,8 @@ from qgis.PyQt.QtCore import QByteArray, QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 from scipy import stats
 
-from ..algorithm_utils import (array2rasterInt16, get_output_raster_format, get_raster_data, get_raster_info,
-                               get_raster_nodata, run_alg_styler_bin, write_log)
+from ..algorithm_utils import (QgsProcessingParameterRasterDestinationGpkg, array2rasterInt16, get_output_raster_format,
+                               get_raster_data, get_raster_info, get_raster_nodata, run_alg_styler_bin, write_log)
 from ..config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
 from .doop import SOLVER, FileLikeFeedback, add_cbc_to_path, check_solver_availability
 
@@ -731,20 +731,3 @@ def do_knapsack(self, value_data, weight_data, no_indexes, feedback, parameters,
     base = -np.ones(N, dtype=np.int16)
     base[mask] = response
     return base, status, termCondition
-
-
-class QgsProcessingParameterRasterDestinationGpkg(QgsProcessingParameterRasterDestination):
-    """overrides the defaultFileExtension method to gpkg
-    ALTERNATIVE:
-    from types import MethodType
-    QPPRD = QgsProcessingParameterRasterDestination(self.OUTPUT_layer, self.tr("Output layer"))
-    def _defaultFileExtension(self):
-        return "gpkg"
-    QPPRD.defaultFileExtension = MethodType(_defaultFileExtension, QPPRD)
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def defaultFileExtension(self):
-        return "gpkg"
