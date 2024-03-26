@@ -273,7 +273,7 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
                 "native:setlayerstyle",
                 {
                     "INPUT": dest_id,
-                    "STYLE": str(Path(__file__).parent / "knapsack_polygon.qml"),
+                    "STYLE": str(Path(__file__).parent / "decision_optimization" / "knapsack_raster.qml"),
                 },
                 context=context,
                 feedback=feedback,
@@ -362,7 +362,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             name=self.IN_RATIO,
             description=self.tr("Capacity ratio (1 = weight.sum)"),
             type=QgsProcessingParameterNumber.Double,
-            defaultValue=0.069,
+            defaultValue=0.068,
             optional=False,
             minValue=0.0,
             maxValue=1.0,
@@ -541,7 +541,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
                 "native:setlayerstyle",
                 {
                     "INPUT": output_layer_filename,
-                    "STYLE": str(Path(__file__).parent / "knapsack_raster.qml"),
+                    "STYLE": str(Path(__file__).parent / "decision_optimization" / "knapsack_raster.qml"),
                 },
                 context=context,
                 feedback=feedback,
