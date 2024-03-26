@@ -47,16 +47,16 @@ jobs:
           #       Cell2FireC/DataGeneratorC.py
           #     sparse-checkout-cone-mode: false
 
-          #- name: CheckoutFire2a-lib
-          #  uses: actions/checkout@master
-          #  with:
-          #    repository: "fire2a/fire2a-lib" 
-          #    path: "fireanalyticstoolbox/fire2a"
-          #    sparse-checkout: |
-          #      src/fire2a/raster.py
-          #      src/fire2a/utils.py
-          #      src/fire2a/__init__.py
-          #    sparse-checkout-cone-mode: false
+    - name: CheckoutFire2a-lib
+      uses: actions/checkout@master
+      with:
+        repository: "fire2a/fire2a-lib" 
+        path: "fireanalyticstoolbox/fire2a"
+        sparse-checkout: |
+          src/fire2a/raster.py
+          src/fire2a/utils.py
+          src/fire2a/__init__.py
+        sparse-checkout-cone-mode: false
 
     - name: download cell2fire
       uses: robinraju/release-downloader@v1.8
@@ -82,15 +82,15 @@ jobs:
          rm -f fireanalyticstoolbox/simulator/C2F/Cell2FireC/*sln
          rm -f fireanalyticstoolbox/simulator/C2F/Cell2FireC/*vcxproj*
 
-         # mv fireanalyticstoolbox/fire2a/src/fire2a/* fireanalyticstoolbox/fire2a
-         # rm -rf fireanalyticstoolbox/fire2a/.git* fireanalyticstoolbox/fire2a/src
-         # grep -Rl --include=*py "from fire2a" | tee will.change | xargs -I {} sed -i "s/^from fire2a/from .fire2a/" {}
-         # cat will.change 
-         # rm will.change
+         mv fireanalyticstoolbox/fire2a/src/fire2a/* fireanalyticstoolbox/fire2a
+         rm -rf fireanalyticstoolbox/fire2a/.git* fireanalyticstoolbox/fire2a/src
+         grep -Rl --include=*py "from fire2a" | tee will.change | xargs -I {} sed -i "s/^from fire2a/from .fire2a/" {}
+         cat will.change 
+         rm will.change
 
          git add fireanalyticstoolbox/cbc
          git add fireanalyticstoolbox/simulator/C2F
-         # git add fireanalyticstoolbox/fire2a
+         git add fireanalyticstoolbox/fire2a
          lestash=`git stash create`
 
          git archive --output "fireanalyticstoolbox_${{ github.ref_name }}.zip" $lestash fireanalyticstoolbox
