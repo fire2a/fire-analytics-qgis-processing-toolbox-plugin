@@ -42,6 +42,7 @@ from .algorithm_postsimulation import (BetweennessCentralityMetric, DownStreamPr
 from .algorithm_raster_tutorial import RasterTutorial
 from .algorithm_sandbox import SandboxAlgorithm
 from .algorithm_simulator import FireSimulatorAlgorithm
+from .algorithm_treatment import PolyTreatmentAlgorithm, RasterTreatmentAlgorithm
 from .assets.resources import *
 from .fireanalyticstoolbox_algorithm import FireToolboxAlgorithm
 
@@ -79,6 +80,8 @@ class FireToolboxProvider(QgsProcessingProvider):
         self.addAlgorithm(DownStreamProtectionValueMetric())
         self.addAlgorithm(RasterTutorial())
         self.addAlgorithm(InstanceDownloader())
+        self.addAlgorithm(PolyTreatmentAlgorithm())
+        self.addAlgorithm(RasterTreatmentAlgorithm())
 
     def id(self):
         """

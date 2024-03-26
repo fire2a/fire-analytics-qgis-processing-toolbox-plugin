@@ -25,14 +25,10 @@ __date__ = "2024-03-01"
 __copyright__ = "(C) 2024 by fdo"
 __version__ = "$Format:%H$"
 
+
 from contextlib import redirect_stderr, redirect_stdout
-from io import StringIO
-from itertools import compress
-from multiprocessing import cpu_count
-from os import environ, pathsep
 from pathlib import Path
 from platform import system as platform_system
-from shutil import which
 from time import sleep
 
 import numpy as np
@@ -51,355 +47,10 @@ from qgis.PyQt.QtCore import QByteArray, QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 from scipy import stats
 
-from .algorithm_utils import (array2rasterInt16, get_output_raster_format, get_raster_data, get_raster_info,
-                              get_raster_nodata, run_alg_styler_bin, write_log)
+from .algorithm_utils import (QgsProcessingParameterRasterDestinationGpkg, array2rasterInt16, get_output_raster_format,
+                              get_raster_data, get_raster_info, get_raster_nodata, run_alg_styler_bin, write_log)
 from .config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
-
-SOLVER = {
-    "cbc": f"ratioGap=0.005 seconds=300 threads={cpu_count() - 1}",
-    "glpk": "mipgap=0.005 tmlim=300",
-    "ipopt": "",
-    "gurobi": "MIPGap=0.005 TimeLimit=300",
-    "cplex_direct": "mipgap=0.005 timelimit=300",
-}
-
-
-def check_solver_availability(SOLVER):
-    # check availability
-    solver_exception_msg = ""
-    solver_available = [False] * len(SOLVER)
-    for i, solver in enumerate(SOLVER):
-        try:
-            if SolverFactory(solver).available():
-                solver_available[i] = True
-        except Exception as e:
-            solver_exception_msg += f"solver:{solver}, problem:{e}\n"
-    # prepare hints
-    value_hints = []
-    for i, (k, v) in enumerate(SOLVER.items()):
-        if solver_available[i]:
-            value_hints += [f"{k}: {v}"]
-        else:
-            value_hints += [f"{k}: {v} MUST SET EXECUTABLE"]
-    return value_hints, solver_exception_msg
-
-
-def check_solver_availabilityBASED():
-    pyomo_solvers_list = pyo.SolverFactory.__dict__["_cls"].keys()
-    solvers_filter = []
-    for s in pyomo_solvers_list:
-        try:
-            solvers_filter.append(pyo.SolverFactory(s).available())
-        except (ApplicationError, NameError, ImportError) as e:
-            solvers_filter.append(False)
-    pyomo_solvers_list = list(compress(pyomo_solvers_list, solvers_filter))
-    return pyomo_solvers_list
-
-
-def add_cbc_to_path():
-    """Add cbc to path if it is not already there"""
-    if which("cbc.exe") is None and "__file__" in globals():
-        cbc_exe = Path(__file__).parent / "cbc" / "bin" / "cbc.exe"
-        if cbc_exe.is_file():
-            environ["PATH"] += pathsep + str(cbc_exe.parent)
-            QgsMessageLog.logMessage(f"Added {cbc_exe} to path", TAG, Qgis.Info)
-
-
-class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
-    """Algorithm that takes selects the most valuable raster pixels restriced to a total weight using a MIP solver"""
-
-    IN_VALUE = "VALUE"
-    IN_WEIGHT = "WEIGHT"
-    IN_RATIO = "RATIO"
-    IN_EXECUTABLE = "EXECUTABLE"
-    OUT_LAYER = "OUT_LAYER"
-
-    NODATA = -32768  # -1?
-    solver_exception_msg = ""
-
-    if platform_system() == "Windows":
-        add_cbc_to_path()
-
-    def initAlgorithm(self, config):
-        """The form reads two raster layers one for the value and one for the weight; also configures the weight ratio and the solver"""
-        # value raster
-        self.addParameter(
-            QgsProcessingParameterRasterLayer(
-                name=self.IN_VALUE,
-                description=self.tr("Values layer (if blank 1's will be used)"),
-                defaultValue=[QgsProcessing.TypeRaster],
-                optional=True,
-            )
-        )
-        # weight raster
-        self.addParameter(
-            QgsProcessingParameterRasterLayer(
-                name=self.IN_WEIGHT,
-                description=self.tr("Weights layer (if blank 1's will be used)"),
-                defaultValue=[QgsProcessing.TypeRaster],
-                optional=True,
-            )
-        )
-        # ratio double
-        qppn = QgsProcessingParameterNumber(
-            name=self.IN_RATIO,
-            description=self.tr("Capacity ratio (1 = weight.sum)"),
-            type=QgsProcessingParameterNumber.Double,
-            defaultValue=0.069,
-            optional=False,
-            minValue=0.0,
-            maxValue=1.0,
-        )
-        qppn.setMetadata({"widget_wrapper": {"decimals": 3}})
-        self.addParameter(qppn)
-        # raster output
-        # RasterDestinationGpkg inherits from QgsProcessingParameterRasterDestination to set output format
-        self.addParameter(RasterDestinationGpkg(self.OUT_LAYER, self.tr("Raster Knapsack Output layer")))
-        # SOLVERS
-        value_hints, self.solver_exception_msg = check_solver_availability(SOLVER)
-        # solver string combobox (enums
-        qpps = QgsProcessingParameterString(
-            name="SOLVER",
-            description="Solver: recommended options string [and executable STATUS]",
-        )
-        qpps.setMetadata(
-            {
-                "widget_wrapper": {
-                    "value_hints": value_hints,
-                    "setEditable": True,  # not working
-                }
-            }
-        )
-        qpps.setFlags(qpps.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
-        self.addParameter(qpps)
-        # options_string
-        qpps2 = QgsProcessingParameterString(
-            name="CUSTOM_OPTIONS_STRING",
-            description="Override options_string (type a single space ' ' to not send any options to the solver)",
-            defaultValue="",
-            optional=True,
-        )
-        qpps2.setFlags(qpps2.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
-        self.addParameter(qpps2)
-        # executable file
-        qppf = QgsProcessingParameterFile(
-            name=self.IN_EXECUTABLE,
-            description=self.tr("Set solver executable file [REQUIRED if STATUS]"),
-            behavior=QgsProcessingParameterFile.File,
-            extension="exe" if platform_system() == "Windows" else "",
-            optional=True,
-        )
-        qppf.setFlags(qppf.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
-        self.addParameter(qppf)
-
-    def processAlgorithm(self, parameters, context, feedback):
-        # feedback.pushCommandInfo(f"processAlgorithm START")
-        # feedback.pushCommandInfo(f"parameters {parameters}")
-        # feedback.pushCommandInfo(f"context args: {context.asQgisProcessArguments()}")
-
-        # ?
-        # feedback.reportError(f"context.logLevel(): {context.logLevel()}")
-        # context.setLogLevel(context.logLevel()+1)
-
-        # report solver unavailability
-        feedback.pushInfo(f"Solver unavailability:\n{self.solver_exception_msg}\n")
-
-        # get raster data
-        value_layer = self.parameterAsRasterLayer(parameters, self.IN_VALUE, context)
-        value_data = get_raster_data(value_layer)
-        value_nodata = get_raster_nodata(value_layer, feedback)
-        value_map_info = get_raster_info(value_layer)
-
-        weight_layer = self.parameterAsRasterLayer(parameters, self.IN_WEIGHT, context)
-        weight_data = get_raster_data(weight_layer)
-        weight_nodata = get_raster_nodata(weight_layer, feedback)
-        weight_map_info = get_raster_info(weight_layer)
-
-        # raster(s) conditions
-        if not value_layer and not weight_layer:
-            feedback.reportError("No input layers, need at least one raster!")
-            return {self.OUT_LAYER: None, "SOLVER_STATUS": None, "SOLVER_TERMINATION_CONDITION": None}
-        elif value_layer and weight_layer:
-            # TODO == -> math.isclose
-            if not (
-                value_map_info["width"] == weight_map_info["width"]
-                and value_map_info["height"] == weight_map_info["height"]
-                and value_map_info["cellsize_x"] == weight_map_info["cellsize_x"]
-                and value_map_info["cellsize_y"] == weight_map_info["cellsize_y"]
-            ):
-                feedback.reportError("Layers must have the same width, height and cellsizes")
-                return {self.OUT_LAYER: None, "SOLVER_STATUS": None, "SOLVER_TERMINATION_CONDITION": None}
-            width, height, extent, crs, _, _ = value_map_info.values()
-        elif value_layer and not weight_layer:
-            width, height, extent, crs, _, _ = value_map_info.values()
-            weight_data = np.ones(height * width)
-        elif not value_layer and weight_layer:
-            width, height, extent, crs, _, _ = weight_map_info.values()
-            value_data = np.ones(height * width)
-
-        # instance summary
-        N = width * height
-
-        feedback.pushInfo(
-            f"width: {width}, height: {height}, N:{N}\n"
-            f"extent: {extent}, crs: {crs}\n"
-            "\n"
-            f"value !=0: {np.any(value_data!=0)}\n"
-            f"nodata: {value_nodata}\n"
-            f"preview: {value_data}\n"
-            f"stats: {stats.describe(value_data[value_data!=value_nodata])}\n"
-            "\n"
-            f"weight !=1: {np.any(weight_data!=1)}\n"
-            f"nodata: {weight_nodata}\n"
-            f"preview: {weight_data}\n"
-            f"stats: {stats.describe(weight_data[weight_data!=weight_nodata])}\n"
-        )
-        if isinstance(value_nodata, list):
-            feedback.pushError(f"value_nodata: {value_nodata} is list, not implemented!")
-        if isinstance(weight_nodata, list):
-            feedback.pushError(f"weight_nodata: {weight_nodata} is list, not implemented!")
-        # nodata fest
-        if value_nodata is None and weight_nodata is None:
-            pass
-        elif value_nodata is None and weight_nodata is not None:
-            self.NODATA = weight_nodata
-        elif value_nodata is not None and weight_nodata is None:
-            self.NODATA = value_nodata
-        elif value_nodata == weight_nodata:
-            self.NODATA = value_nodata
-        elif value_nodata != weight_nodata:
-            feedback.pushWarning(f"Rasters have different nodata values: {value_nodata=}, {weight_nodata=}")
-        feedback.pushDebugInfo(f"Using {self.NODATA=}\n")
-
-        no_indexes = np.union1d(np.where(value_data == value_nodata)[0], np.where(weight_data == weight_nodata)[0])
-        feedback.pushInfo(f"discarded pixels (no_indexes): {len(no_indexes)/N:.2%}\n")
-
-        response, status, termCondition = do_knapsack(
-            self, value_data, weight_data, no_indexes, feedback, parameters, context
-        )
-        response.resize(height, width)
-
-        undecided, nodata, not_selected, selected = np.histogram(response, bins=[-2, -1, 0, 1, 2])[0]
-        feedback.pushInfo(
-            "Solution histogram:\n"
-            f"{selected=}\n"
-            f"{not_selected=}\n"
-            f"{nodata=} (invalid value or weight)\n"
-            f"{undecided=}\n"
-        )
-        response[response == -1] = self.NODATA
-
-        output_layer_filename = self.parameterAsOutputLayer(parameters, self.OUT_LAYER, context)
-        outFormat = get_output_raster_format(output_layer_filename, feedback)
-
-        array2rasterInt16(
-            response,
-            "knapsack",
-            output_layer_filename,
-            extent,
-            crs,
-            nodata=self.NODATA,
-        )
-        feedback.setProgress(100)
-        feedback.setProgressText("Writing new raster to file ended, progress 100%")
-
-        # if showing
-        if context.willLoadLayerOnCompletion(output_layer_filename):
-            layer_details = context.layerToLoadOnCompletionDetails(output_layer_filename)
-            layer_details.groupName = "DecisionOptimizationGroup"
-            layer_details.name = "KnapsackRaster"
-            # layer_details.layerSortKey = 2
-            processing.run(
-                "native:setlayerstyle",
-                {
-                    "INPUT": output_layer_filename,
-                    "STYLE": str(Path(Path(__file__).parent, "assets", "knapsack_raster.qml")),
-                },
-                context=context,
-                feedback=feedback,
-                is_child_algorithm=True,
-            )
-            feedback.pushDebugInfo(f"Showing layer {output_layer_filename}")
-
-        write_log(feedback, name=self.name())
-        return {
-            self.OUT_LAYER: output_layer_filename,
-            "SOLVER_STATUS": status,
-            "SOLVER_TERMINATION_CONDITION": termCondition,
-        }
-
-    def name(self):
-        """
-        Returns the algorithm name, used for identifying the algorithm. This
-        string should be fixed for the algorithm, and must not be localised.
-        The name should be unique within each provider. Names should contain
-        lowercase alphanumeric characters only and no spaces or other
-        formatting characters.
-        """
-        return "rasterknapsack"
-
-    def displayName(self):
-        """
-        Returns the translated algorithm name, which should be used for any
-        user-visible display of the algorithm name.
-        """
-        return self.tr("Raster Knapsack")
-
-    def group(self):
-        return self.tr("Decision Optimization")
-
-    def groupId(self):
-        return "do"
-
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
-
-    def createInstance(self):
-        return RasterKnapsackAlgorithm()
-
-    def helpUrl(self):
-        return "https://www.github.com/fdobad/qgis-processingplugin-template/issues"
-
-    def shortDescription(self):
-        return self.tr(
-            """Optimizes the classical knapsack problem using layers as values and/or weights, returns a layer with the selected pixels."""
-        )
-
-    def helpString(self):
-        return self.shortHelpString()
-
-    def icon(self):
-        return QIcon(":/plugins/fireanalyticstoolbox/assets/firebreakmap.svg")
-
-    def shortHelpString(self):
-        return self.tr(
-            """By selecting a Values layer and/or a Weights layer, and setting the bound on the total capacity, a layer that maximizes the sum of the values of the selected pixels is created.
-
-            A new raster (default .gpkg) will show selected pixels in red and non-selected green (values 1, 0 and no-data=-1).
-
-            The capacity constraint is set up by choosing a ratio (between 0 and 1), that multiplies the sum of all weights (except no-data). Hence 1 selects all pixels that aren't no-data in both layers.
-
-            This raster knapsack problem is NP-hard, so a MIP solver engine is used to find "nearly" the optimal solution (**), because -often- is asymptotically hard to prove the optimal value. So a default gap of 0.5% and a timelimit of 5 minutes cuts off the solver run. The user can experiment with these parameters to trade-off between accuracy, speed and instance size(*). On Windows closing the blank terminal window will abort the run!
-
-            By using Pyomo, several MIP solvers can be used: CBC, GLPK, Gurobi, CPLEX or Ipopt; If they're accessible through the system PATH, else the executable file can be selected by the user. Installation of solvers is up to the user.
-
-            Although windows version is bundled with CBC unsigned binaries, so their users may face a "Windows protected your PC" warning, please avoid pressing the "Don't run" button, follow the "More info" link, scroll then press "Run anyway". Nevertheless windows cbc does not support multithreading, so ignore that warning (or switch to Linux).
-
-            (*): Complexity can be reduced greatly by rescaling and/or rounding values into integers, or even better coarsing the raster resolution (see gdal translate resolution).
-            (**): There are specialized knapsack algorithms that solve in polynomial time, but not for every data type combination; hence using a MIP solver is the most flexible approach.
-
-            ----
-
-            USE CASE:
-
-            If you want to determine where to allocate fuel treatments throughout the landscape to protect a specific value that is affected by both the fire and the fuel treatments, use the following:
-
-                - Values: Downstream Protection Value layer calculated with the respective value that you want to protect.
-
-                - Weights: The layer, that contains the value that you want to protect and that is affected also by the fuel treatments (e.g., animal habitat).
-            If you want to determine where to allocate fuel treatments through out the landscape to protect and specific value that is affected by both, the fire and the fuel treatments use: 
-            """
-        )
+from .decision_optimization.doop import SOLVER, FileLikeFeedback, add_cbc_to_path, check_solver_availability
 
 
 class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
@@ -622,7 +273,7 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
                 "native:setlayerstyle",
                 {
                     "INPUT": dest_id,
-                    "STYLE": str(Path(Path(__file__).parent, "assets", "knapsack_polygon.qml")),
+                    "STYLE": str(Path(__file__).parent / "knapsack_polygon.qml"),
                 },
                 context=context,
                 feedback=feedback,
@@ -671,6 +322,314 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
         return QIcon(":/plugins/fireanalyticstoolbox/assets/firebreakmap.svg")
 
 
+class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
+    """Algorithm that takes selects the most valuable raster pixels restriced to a total weight using a MIP solver"""
+
+    IN_VALUE = "VALUE"
+    IN_WEIGHT = "WEIGHT"
+    IN_RATIO = "RATIO"
+    IN_EXECUTABLE = "EXECUTABLE"
+    OUT_LAYER = "OUT_LAYER"
+
+    NODATA = -32768  # -1?
+    solver_exception_msg = ""
+
+    if platform_system() == "Windows":
+        add_cbc_to_path()
+
+    def initAlgorithm(self, config):
+        """The form reads two raster layers one for the value and one for the weight; also configures the weight ratio and the solver"""
+        # value raster
+        self.addParameter(
+            QgsProcessingParameterRasterLayer(
+                name=self.IN_VALUE,
+                description=self.tr("Values layer (if blank 1's will be used)"),
+                defaultValue=[QgsProcessing.TypeRaster],
+                optional=True,
+            )
+        )
+        # weight raster
+        self.addParameter(
+            QgsProcessingParameterRasterLayer(
+                name=self.IN_WEIGHT,
+                description=self.tr("Weights layer (if blank 1's will be used)"),
+                defaultValue=[QgsProcessing.TypeRaster],
+                optional=True,
+            )
+        )
+        # ratio double
+        qppn = QgsProcessingParameterNumber(
+            name=self.IN_RATIO,
+            description=self.tr("Capacity ratio (1 = weight.sum)"),
+            type=QgsProcessingParameterNumber.Double,
+            defaultValue=0.069,
+            optional=False,
+            minValue=0.0,
+            maxValue=1.0,
+        )
+        qppn.setMetadata({"widget_wrapper": {"decimals": 3}})
+        self.addParameter(qppn)
+        # raster output
+        # DestinationGpkg inherits from QgsProcessingParameterRasterDestination to set default gpkg output format
+        self.addParameter(
+            QgsProcessingParameterRasterDestinationGpkg(self.OUT_LAYER, self.tr("Raster Knapsack Output layer"))
+        )
+        # SOLVERS
+        value_hints, self.solver_exception_msg = check_solver_availability(SOLVER)
+        # solver string combobox (enums
+        qpps = QgsProcessingParameterString(
+            name="SOLVER",
+            description="Solver: recommended options string [and executable STATUS]",
+        )
+        qpps.setMetadata(
+            {
+                "widget_wrapper": {
+                    "value_hints": value_hints,
+                    "setEditable": True,  # not working
+                }
+            }
+        )
+        qpps.setFlags(qpps.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qpps)
+        # options_string
+        qpps2 = QgsProcessingParameterString(
+            name="CUSTOM_OPTIONS_STRING",
+            description="Override options_string (type a single space ' ' to not send any options to the solver)",
+            defaultValue="",
+            optional=True,
+        )
+        qpps2.setFlags(qpps2.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qpps2)
+        # executable file
+        qppf = QgsProcessingParameterFile(
+            name=self.IN_EXECUTABLE,
+            description=self.tr("Set solver executable file [REQUIRED if STATUS]"),
+            behavior=QgsProcessingParameterFile.File,
+            # extension="exe" if platform_system() == "Windows" else "",
+            optional=True,
+            fileFilter="binary (*)",
+            defaultValue="/opt/ibm/ILOG/CPLEX_Studio2211/cplex/bin/x86-64_linux/cplex",
+        )
+        qppf.setFlags(qppf.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppf)
+
+    def checkParameterValues(self, parameters, context) -> tuple[bool, str]:
+        """log file exists and is not empty"""
+        # solver = Path(self.parameterAsString(parameters, self.IN_EXECUTABLE, context))
+        # from stat import S_IXGRP, S_IXOTH, S_IXUSR
+        # chmod(c2f_bin, st.st_mode | S_IXUSR | S_IXGRP | S_IXOTH)
+        return True, ""
+
+    def processAlgorithm(self, parameters, context, feedback):
+        # feedback.pushCommandInfo(f"processAlgorithm START")
+        # feedback.pushCommandInfo(f"parameters {parameters}")
+        # feedback.pushCommandInfo(f"context args: {context.asQgisProcessArguments()}")
+
+        # ?
+        # feedback.reportError(f"context.logLevel(): {context.logLevel()}")
+        # context.setLogLevel(context.logLevel()+1)
+
+        # report solver unavailability
+        feedback.pushInfo(f"Solver unavailability:\n{self.solver_exception_msg}\n")
+
+        # get raster data
+        value_layer = self.parameterAsRasterLayer(parameters, self.IN_VALUE, context)
+        value_data = get_raster_data(value_layer)
+        value_nodata = get_raster_nodata(value_layer, feedback)
+        value_map_info = get_raster_info(value_layer)
+
+        weight_layer = self.parameterAsRasterLayer(parameters, self.IN_WEIGHT, context)
+        weight_data = get_raster_data(weight_layer)
+        weight_nodata = get_raster_nodata(weight_layer, feedback)
+        weight_map_info = get_raster_info(weight_layer)
+
+        # raster(s) conditions
+        if not value_layer and not weight_layer:
+            feedback.reportError("No input layers, need at least one raster!")
+            return {self.OUT_LAYER: None, "SOLVER_STATUS": None, "SOLVER_TERMINATION_CONDITION": None}
+        elif value_layer and weight_layer:
+            # TODO == -> math.isclose
+            if not (
+                value_map_info["width"] == weight_map_info["width"]
+                and value_map_info["height"] == weight_map_info["height"]
+                and value_map_info["cellsize_x"] == weight_map_info["cellsize_x"]
+                and value_map_info["cellsize_y"] == weight_map_info["cellsize_y"]
+            ):
+                feedback.reportError("Layers must have the same width, height and cellsizes")
+                return {self.OUT_LAYER: None, "SOLVER_STATUS": None, "SOLVER_TERMINATION_CONDITION": None}
+            width, height, extent, crs, _, _ = value_map_info.values()
+        elif value_layer and not weight_layer:
+            width, height, extent, crs, _, _ = value_map_info.values()
+            weight_data = np.ones(height * width)
+        elif not value_layer and weight_layer:
+            width, height, extent, crs, _, _ = weight_map_info.values()
+            value_data = np.ones(height * width)
+
+        # instance summary
+        N = width * height
+
+        feedback.pushInfo(
+            f"width: {width}, height: {height}, N:{N}\n"
+            f"extent: {extent}, crs: {crs}\n"
+            "\n"
+            f"value !=0: {np.any(value_data!=0)}\n"
+            f"nodata: {value_nodata}\n"
+            f"preview: {value_data}\n"
+            f"stats: {stats.describe(value_data[value_data!=value_nodata])}\n"
+            "\n"
+            f"weight !=1: {np.any(weight_data!=1)}\n"
+            f"nodata: {weight_nodata}\n"
+            f"preview: {weight_data}\n"
+            f"stats: {stats.describe(weight_data[weight_data!=weight_nodata])}\n"
+        )
+        if isinstance(value_nodata, list):
+            feedback.pushError(f"value_nodata: {value_nodata} is list, not implemented!")
+        if isinstance(weight_nodata, list):
+            feedback.pushError(f"weight_nodata: {weight_nodata} is list, not implemented!")
+        # nodata fest
+        if value_nodata is None and weight_nodata is None:
+            pass
+        elif value_nodata is None and weight_nodata is not None:
+            self.NODATA = weight_nodata
+        elif value_nodata is not None and weight_nodata is None:
+            self.NODATA = value_nodata
+        elif value_nodata == weight_nodata:
+            self.NODATA = value_nodata
+        elif value_nodata != weight_nodata:
+            feedback.pushWarning(f"Rasters have different nodata values: {value_nodata=}, {weight_nodata=}")
+        feedback.pushDebugInfo(f"Using {self.NODATA=}\n")
+
+        no_indexes = np.union1d(np.where(value_data == value_nodata)[0], np.where(weight_data == weight_nodata)[0])
+        feedback.pushInfo(f"discarded pixels (no_indexes): {len(no_indexes)/N:.2%}\n")
+
+        response, status, termCondition = do_knapsack(
+            self, value_data, weight_data, no_indexes, feedback, parameters, context
+        )
+        response.resize(height, width)
+
+        undecided, nodata, not_selected, selected = np.histogram(response, bins=[-2, -1, 0, 1, 2])[0]
+        feedback.pushInfo(
+            "Solution histogram:\n"
+            f"{selected=}\n"
+            f"{not_selected=}\n"
+            f"{nodata=} (invalid value or weight)\n"
+            f"{undecided=}\n"
+        )
+        response[response == -1] = self.NODATA
+
+        output_layer_filename = self.parameterAsOutputLayer(parameters, self.OUT_LAYER, context)
+        outFormat = get_output_raster_format(output_layer_filename, feedback)
+
+        array2rasterInt16(
+            response,
+            "knapsack",
+            output_layer_filename,
+            extent,
+            crs,
+            nodata=self.NODATA,
+        )
+        feedback.setProgress(100)
+        feedback.setProgressText("Writing new raster to file ended, progress 100%")
+
+        # if showing
+        if context.willLoadLayerOnCompletion(output_layer_filename):
+            layer_details = context.layerToLoadOnCompletionDetails(output_layer_filename)
+            layer_details.groupName = "DecisionOptimizationGroup"
+            layer_details.name = "KnapsackRaster"
+            # layer_details.layerSortKey = 2
+            processing.run(
+                "native:setlayerstyle",
+                {
+                    "INPUT": output_layer_filename,
+                    "STYLE": str(Path(__file__).parent / "knapsack_raster.qml"),
+                },
+                context=context,
+                feedback=feedback,
+                is_child_algorithm=True,
+            )
+            feedback.pushDebugInfo(f"Showing layer {output_layer_filename}")
+
+        write_log(feedback, name=self.name())
+        return {
+            self.OUT_LAYER: output_layer_filename,
+            "SOLVER_STATUS": status,
+            "SOLVER_TERMINATION_CONDITION": termCondition,
+        }
+
+    def name(self):
+        """
+        Returns the algorithm name, used for identifying the algorithm. This
+        string should be fixed for the algorithm, and must not be localised.
+        The name should be unique within each provider. Names should contain
+        lowercase alphanumeric characters only and no spaces or other
+        formatting characters.
+        """
+        return "rasterknapsack"
+
+    def displayName(self):
+        """
+        Returns the translated algorithm name, which should be used for any
+        user-visible display of the algorithm name.
+        """
+        return self.tr("Raster Knapsack")
+
+    def group(self):
+        return self.tr("Decision Optimization")
+
+    def groupId(self):
+        return "do"
+
+    def tr(self, string):
+        return QCoreApplication.translate("Processing", string)
+
+    def createInstance(self):
+        return RasterKnapsackAlgorithm()
+
+    def helpUrl(self):
+        return "https://www.github.com/fdobad/qgis-processingplugin-template/issues"
+
+    def shortDescription(self):
+        return self.tr(
+            """Optimizes the classical knapsack problem using layers as values and/or weights, returns a layer with the selected pixels."""
+        )
+
+    def helpString(self):
+        return self.shortHelpString()
+
+    def icon(self):
+        return QIcon(":/plugins/fireanalyticstoolbox/assets/firebreakmap.svg")
+
+    def shortHelpString(self):
+        return self.tr(
+            """By selecting a Values layer and/or a Weights layer, and setting the bound on the total capacity, a layer that maximizes the sum of the values of the selected pixels is created.
+
+            A new raster (default .gpkg) will show selected pixels in red and non-selected green (values 1, 0 and no-data=-1).
+
+            The capacity constraint is set up by choosing a ratio (between 0 and 1), that multiplies the sum of all weights (except no-data). Hence 1 selects all pixels that aren't no-data in both layers.
+
+            This raster knapsack problem is NP-hard, so a MIP solver engine is used to find "nearly" the optimal solution (**), because -often- is asymptotically hard to prove the optimal value. So a default gap of 0.5% and a timelimit of 5 minutes cuts off the solver run. The user can experiment with these parameters to trade-off between accuracy, speed and instance size(*). On Windows closing the blank terminal window will abort the run!
+
+            By using Pyomo, several MIP solvers can be used: CBC, GLPK, Gurobi, CPLEX or Ipopt; If they're accessible through the system PATH, else the executable file can be selected by the user. Installation of solvers is up to the user.
+
+            Although windows version is bundled with CBC unsigned binaries, so their users may face a "Windows protected your PC" warning, please avoid pressing the "Don't run" button, follow the "More info" link, scroll then press "Run anyway". Nevertheless windows cbc does not support multithreading, so ignore that warning (or switch to Linux).
+
+            (*): Complexity can be reduced greatly by rescaling and/or rounding values into integers, or even better coarsing the raster resolution (see gdal translate resolution).
+            (**): There are specialized knapsack algorithms that solve in polynomial time, but not for every data type combination; hence using a MIP solver is the most flexible approach.
+
+            ----
+
+            USE CASE:
+
+            If you want to determine where to allocate fuel treatments throughout the landscape to protect a specific value that is affected by both the fire and the fuel treatments, use the following:
+
+                - Values: Downstream Protection Value layer calculated with the respective value that you want to protect.
+
+                - Weights: The layer, that contains the value that you want to protect and that is affected also by the fuel treatments (e.g., animal habitat).
+            If you want to determine where to allocate fuel treatments through out the landscape to protect and specific value that is affected by both, the fire and the fuel treatments use: 
+            """
+        )
+
+
 def do_knapsack(self, value_data, weight_data, no_indexes, feedback, parameters, context):
     """paste into processAlgorithm to be used in any KnapsackAlgorithm
     Returns:
@@ -701,7 +660,7 @@ def do_knapsack(self, value_data, weight_data, no_indexes, feedback, parameters,
     m.capacity = pyo.Constraint(rule=capacity_rule)
 
     executable = self.parameterAsString(parameters, self.IN_EXECUTABLE, context)
-    # feedback.pushDebugInfo(f"exesolver_string:{executable}")
+    feedback.pushDebugInfo(f"exesolver_string:{executable}")
 
     solver_string = self.parameterAsString(parameters, "SOLVER", context)
     # feedback.pushDebugInfo(f"solver_string:{solver_string}")
@@ -720,6 +679,8 @@ def do_knapsack(self, value_data, weight_data, no_indexes, feedback, parameters,
 
     if executable:
         opt = SolverFactory(solver, executable=executable)
+        # FIXME if solver is cplex_persistent
+        # opt.set_instance(m)
     else:
         opt = SolverFactory(solver)
 
@@ -770,53 +731,3 @@ def do_knapsack(self, value_data, weight_data, no_indexes, feedback, parameters,
     base = -np.ones(N, dtype=np.int16)
     base[mask] = response
     return base, status, termCondition
-
-
-class RasterDestinationGpkg(QgsProcessingParameterRasterDestination):
-    """overrides the defaultFileExtension method to gpkg
-    ALTERNATIVE:
-    from types import MethodType
-    QPPRD = QgsProcessingParameterRasterDestination(self.OUTPUT_layer, self.tr("Output layer"))
-    def _defaultFileExtension(self):
-        return "gpkg"
-    QPPRD.defaultFileExtension = MethodType(_defaultFileExtension, QPPRD)
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def defaultFileExtension(self):
-        return "gpkg"
-
-
-class FileLikeFeedback(StringIO):
-    def __init__(self, feedback, std):
-        super().__init__()
-        if std:
-            self.print = feedback.pushConsoleInfo
-        else:
-            self.print = feedback.pushWarning
-        # self.std = std
-        # self.feedback = feedback
-        # self.feedback.pushDebugInfo(f"{self.std} FileLikeFeedback init")
-
-    def write(self, msg):
-        # self.feedback.pushDebugInfo(f"{self.std} FileLikeFeedback write")
-        super().write(msg)
-        self.flush()
-
-    def flush(self):
-        self.print(super().getvalue())
-        super().__init__()
-        # self.feedback.pushDebugInfo(f"{self.std} FileLikeFeedback flush")
-
-
-# class FileLikeFeedback:
-#     def __init__(self, feedback):
-#         super().__init__()
-#         self.feedback = feedback
-#     def write(self, msg):
-#        self.msg+=msg
-#     def flush(self):
-#        self.feedback.pushConsoleInfo(self.msg)
-#        self.msg = ""

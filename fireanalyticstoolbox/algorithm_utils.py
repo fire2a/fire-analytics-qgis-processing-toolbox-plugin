@@ -6,7 +6,8 @@ from tempfile import NamedTemporaryFile
 import numpy as np
 from processing.algs.gdal.GdalUtils import GdalUtils
 from qgis.core import (Qgis, QgsColorRampShader, QgsMessageLog, QgsPalettedRasterRenderer, QgsProcessingFeedback,
-                       QgsProcessingLayerPostProcessorInterface, QgsRasterBlock, QgsRasterFileWriter)
+                       QgsProcessingLayerPostProcessorInterface, QgsProcessingParameterRasterDestination,
+                       QgsRasterBlock, QgsRasterFileWriter)
 from qgis.PyQt.QtCore import QByteArray
 from qgis.PyQt.QtGui import QColor
 
@@ -192,3 +193,20 @@ def write_log(feedback, name="", file_name=None):
     with open(file_name, "w") as f:
         f.write(feedback.htmlLog())
     QgsMessageLog.logMessage(name + " " + file_name.as_uri(), tag=TAG, level=Qgis.Info)
+
+
+class QgsProcessingParameterRasterDestinationGpkg(QgsProcessingParameterRasterDestination):
+    """overrides the defaultFileExtension method to gpkg
+    ALTERNATIVE:
+    from types import MethodType
+    QPPRD = QgsProcessingParameterRasterDestination(self.OUTPUT_layer, self.tr("Output layer"))
+    def _defaultFileExtension(self):
+        return "gpkg"
+    QPPRD.defaultFileExtension = MethodType(_defaultFileExtension, QPPRD)
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def defaultFileExtension(self):
+        return "gpkg"

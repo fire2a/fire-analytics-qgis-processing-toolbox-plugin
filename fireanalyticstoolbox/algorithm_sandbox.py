@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 """
 /***************************************************************************
  ProcessingPluginClass
@@ -31,12 +30,15 @@ __copyright__ = "(C) 2023 by fdo"
 __version__ = "$Format:%H$"
 
 from os import sep
+from pathlib import Path
 from time import sleep
 
+import numpy as np
+import pandas as pd
 import processing
 from pandas import DataFrame
 from qgis.core import (Qgis, QgsApplication, QgsFeatureSink, QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm,
-                       QgsProcessingLayerPostProcessorInterface, QgsProcessingParameterBoolean,
+                       QgsProcessingException, QgsProcessingLayerPostProcessorInterface, QgsProcessingParameterBoolean,
                        QgsProcessingParameterEnum, QgsProcessingParameterFeatureSink,
                        QgsProcessingParameterFeatureSource, QgsProcessingParameterField, QgsProcessingParameterFile,
                        QgsProcessingParameterFileDestination, QgsProcessingParameterMatrix,
@@ -48,43 +50,44 @@ from qgis.PyQt.QtCore import QCoreApplication
 class SandboxAlgorithm(QgsProcessingAlgorithm):
     """comment uncomment to try"""
 
-    OUTPUT = "OUTPUT"
-    INPUT = "INPUT"
+    # OUTPUT = "OUTPUT"
+    # INPUT = "INPUT"
     # INPUT_bool = "INPUT_bool"
-    # INPUT_file = "INPUT_file"
+    INPUT_file = "INPUT_file"
     # INPUT_folder = "INPUT_folder"
     # INPUT_integer = "INPUT_integer"
     # INPUT_double = "INPUT_double"
     # INPUT_enum = "INPUT_enum"
-    IN_FIELD = "IN_FIELD"
-    IN_LAYER = "IN_LAYER"
+    # IN_FIELD = "IN_FIELD"
+    # IN_LAYER = "IN_LAYER"
     # OUTPUT_csv = "OUTPUT_csv"
-    o_raster = "OutputRaster"
-    o_rasterb = "OutputRasterB"
+    # o_raster = "OutputRaster"
+    # o_rasterb = "OutputRasterB"
+    defaultValue = None
+    df = None
 
     def initAlgorithm(self, config):
         """
         Here we define the inputs and output of the algorithm, along
         with some other properties.
         """
-        # TODO
         # qplppi = QPLPPI()
         # add parameter
         # self.addParameter(
         #     )
         # )
-        self.addParameter(
-            QgsProcessingParameterField(
-                name=self.IN_FIELD,
-                description="QgsProcessingParameterField",
-                defaultValue="VALUE",
-                parentLayerParameterName=self.IN_LAYER,
-                # type: Qgis.ProcessingFieldParameterDataType = Qgis.ProcessingFieldParameterDataType.Any,
-                allowMultiple=False,
-                optional=False,
-                defaultToAllFields=False,
-            )
-        )
+        # self.addParameter(
+        #     QgsProcessingParameterField(
+        #         name=self.IN_FIELD,
+        #         description="QgsProcessingParameterField",
+        #         defaultValue="VALUE",
+        #         parentLayerParameterName=self.IN_LAYER,
+        #         # type: Qgis.ProcessingFieldParameterDataType = Qgis.ProcessingFieldParameterDataType.Any,
+        #         allowMultiple=False,
+        #         optional=False,
+        #         defaultToAllFields=False,
+        #     )
+        # )
         # self.addParameter(
         #     QgsProcessingParameterRasterDestination(
         #         self.o_raster,
@@ -92,17 +95,17 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         #     )
         # )
         # devuelve in memory memory:Output layer
-        self.addParameter(
-            QgsProcessingParameterFeatureSink(
-                name=self.o_rasterb,
-                description=self.tr(self.o_rasterb),
-                type=QgsProcessing.TypeRaster,
-                # defaultValue: Any = None,
-                optional=True,  #: bool = False,
-                # createByDefault: bool = True,
-                # supportsAppend: bool = False
-            )
-        )
+        # self.addParameter(
+        #     QgsProcessingParameterFeatureSink(
+        #         name=self.o_rasterb,
+        #         description=self.tr(self.o_rasterb),
+        #         type=QgsProcessing.TypeRaster,
+        #         # defaultValue: Any = None,
+        #         optional=True,  #: bool = False,
+        #         # createByDefault: bool = True,
+        #         # supportsAppend: bool = False
+        #     )
+        # )
         # devuelve obj con fields?
         # self.addParameter(
         #    QgsProcessingParameterFeatureSink(
@@ -112,37 +115,55 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
 
         # We add the input vector features source. It can have any kind of geometry.
         # BUT RASTER IS NOT A GEOEMTRY
-        self.addParameter(
-            QgsProcessingParameterFeatureSource(
-                self.IN_LAYER,
-                self.tr("Input TypeVectorAnyGeometry"),
-                [QgsProcessing.TypeVectorAnyGeometry],
-            )
-        )
-        self.addParameter(
-            QgsProcessingParameterRasterLayer(
-                name=self.INPUT,
-                description=self.tr("Input Raster"),
-                defaultValue=[QgsProcessing.TypeRaster],
-                optional=False,
-            )
-        )
+        # self.addParameter(
+        #     QgsProcessingParameterFeatureSource(
+        #         self.IN_LAYER,
+        #         self.tr("Input TypeVectorAnyGeometry"),
+        #         [QgsProcessing.TypeVectorAnyGeometry],
+        #     )
+        # )
+        # self.addParameter(
+        #     QgsProcessingParameterRasterLayer(
+        #         name=self.INPUT,
+        #         description=self.tr("Input Raster"),
+        #         defaultValue=[QgsProcessing.TypeRaster],
+        #         optional=False,
+        #     )
+        # )
 
         # We add a feature sink in which to store our processed features (this
         # usually takes the form of a newly created vector layer when the
         # algorithm is run in QGIS).
         # self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUT, self.tr("Output layer")))
 
+        # MATRIX
         # self.addParameter(
-        #    QgsProcessingParameterMatrix(
-        #        name="wea",
-        #        description="weather builder",
-        #        numberRows=3,
-        #        hasFixedNumberRows=False,
-        #        headers=["datetime", "WS", "WD", "TMP", "RH"],
-        #        defaultValue=None,
-        #        optional=False,
-        #    )
+        #     QgsProcessingParameterMatrix(
+        #         name="wea",
+        #         description="weather builder",
+        #         numberRows=3,
+        #         hasFixedNumberRows=False,
+        #         headers=["datetime", "WS", "WD", "TMP", "RH"],
+        #         defaultValue=None,
+        #         optional=False,
+        #     )
+        # )
+
+        # raise QgsProcessingException(f"error {self.defaultValue=}")
+        # df = pd.read_csv(Path(self.defaultValue))
+        # nr, nc = df.shape
+        # columns = df.columns
+        # values = df.values
+        # self.addParameter(
+        #     QgsProcessingParameterMatrix(
+        #         name="wea",
+        #         description="weather builder",
+        #         numberRows=nr,
+        #         hasFixedNumberRows=False,
+        #         headers=columns,
+        #         defaultValue=values,
+        #         optional=False,
+        #     )
         # )
 
         # bool
@@ -184,18 +205,18 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         # self.addParameter(qppn)
 
         # file
-        # self.addParameter(
-        #     QgsProcessingParameterFile(
-        #         name=self.INPUT_file,
-        #         description=self.tr("Input File"),
-        #         behavior=QgsProcessingParameterFile.File,
-        #         extension="csv",  # only 1
-        #         # >1 ?? fileFilter="csv(*.csv), text(*.txt)",
-        #         optional=True,
-        #         # defaultValue = None,
-        #         # fileFilter: str = ''
-        #     )
-        # )
+        self.addParameter(
+            QgsProcessingParameterFile(
+                name=self.INPUT_file,
+                description=self.tr("Input File"),
+                behavior=QgsProcessingParameterFile.File,
+                extension="csv",  # only 1
+                # >1 ?? fileFilter="csv(*.csv), text(*.txt)",
+                optional=True,
+                defaultValue=self.defaultValue,
+                # fileFilter: str = ''
+            )
+        )
 
         # folder
         # self.addParameter(
@@ -234,21 +255,32 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         # qparamfd.setMetadata({"widget_wrapper": {"dontconfirmoverwrite": True}})
         # self.addParameter(qparamfd)
 
+    def canExecute(self):
+        """checks stuff before, returns True|False,fail reason"""
+        if qpiap := QgsProject().instance().absolutePath():
+            self.defaultValue = qpiap + sep + "treatments.csv"
+        return True, "ok"
+
     def processAlgorithm(self, parameters, context, feedback):
         """
-        Here is where the processing itself takes place.
         feedback : <class 'qgis._core.QgsProcessingFeedback'>
         context : <class 'qgis._core.QgsProcessingContext'>
         parameters : <class 'dict'>
         """
-        # feedback.pushCommandInfo(f"feedback \n {type(feedback)} \n {dir(feedback)}")
-        feedback.pushCommandInfo(f"parameters {parameters}")
-        feedback.pushCommandInfo(f"context args: {context.asQgisProcessArguments()}")
-        feedback.pushCommandInfo(
-            f"processing.core.ProcessingConfig.cpu_count {processing.core.ProcessingConfig.cpu_count()}"
-        )
-        feedback.pushCommandInfo(f"context max threads: {context.maximumThreads()}")
-        feedback.pushCommandInfo(f"context log_level: {context.logLevel()}")
+        # feedback.pushVersionInfo()
+        # feedback.pushCommandInfo("pushCommandInfo")
+        # feedback.pushConsoleInfo("pushConsoleInfo")  # monospace gray
+        # feedback.pushDebugInfo("pushDebugInfo")  # gray
+        # feedback.pushInfo("pushInfo")
+        # feedback.pushWarning("pushWarning")  # yellow
+        # feedback.reportError("reportError")  # red
+
+        # feedback.pushCommandInfo(f"{feedback=}")
+        # feedback.pushCommandInfo(f"{parameters=}")
+        # feedback.pushCommandInfo(f"{context.asQgisProcessArguments()=}")
+        # feedback.pushCommandInfo(f"{processing.core.ProcessingConfig.cpu_count()=}")
+        # feedback.pushCommandInfo(f"{context.maximumThreads()=}")
+        # feedback.pushCommandInfo(f"{context.logLevel()=}")
         # feedback.pushCommandInfo(f"context env: {dir(context)}")
 
         # feedback.setProgress 0.0 -> 100.0
@@ -256,14 +288,8 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         #    sleep(0.1)
         #    feedback.setProgress(i*10)
         #    feedback.setProgressText(f"setProgressText {i*10}")
-
-        # feedback.pushVersionInfo()
-        # feedback.pushCommandInfo(f"pushCommandInfo")
-        # feedback.pushConsoleInfo("pushConsoleInfo")  # monospace gray
-        # feedback.pushDebugInfo(f"pushDebugInfo")  # gray
-        # feedback.pushInfo("pushInfo")
-        # feedback.pushWarning("pushWarning")  # yellow
-        # feedback.reportError("reportError")  # red
+        #    if feedback.isCanceled():
+        #        break
 
         # Retrieve the feature source and sink. The 'dest_id' variable is used
         # to uniquely identify the feature sink, and must be included in the
@@ -312,8 +338,8 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         # df.to_csv(output_file, index=False)
         # return {self.OUTPUT: dest_id, self.OUTPUT_csv: output_file}
 
-        i_raster = self.parameterAsRasterLayer(parameters, self.INPUT, context)
-        feedback.pushCommandInfo(f"i_raster: {i_raster}, type: {type(i_raster)}")
+        # i_raster = self.parameterAsRasterLayer(parameters, self.INPUT, context)
+        # feedback.pushCommandInfo(f"i_raster: {i_raster}, type: {type(i_raster)}")
 
         # raster_fs, raster_str = self.parameterAsSink(
         #     parameters,
@@ -329,21 +355,21 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         # )
         # feedback.pushCommandInfo(f"raster_fs: {raster_fs}, type: {type(raster_fs)}")
 
-        raster = self.parameterAsOutputLayer(parameters, self.o_raster, context)
+        # raster = self.parameterAsOutputLayer(parameters, self.o_raster, context)
         # raster = self.parameterAsRasterLayer(parameters, self.o_raster, context)
         # raster = self.parameterAsSink(parameters, self.o_raster, context)
-        feedback.pushCommandInfo(f"raster: {raster}, type: {type(raster)}")
+        # feedback.pushCommandInfo(f"raster: {raster}, type: {type(raster)}")
 
-        rasterb = self.parameterAsOutputLayer(parameters, self.o_rasterb, context)
+        # rasterb = self.parameterAsOutputLayer(parameters, self.o_rasterb, context)
         # rasterb = self.parameterAsRasterLayer(parameters, self.o_rasterb, context)
         # rasterb = self.parameterAsSink(parameters, self.o_rasterb, context)
-        feedback.pushCommandInfo(f"rasterb: {rasterb}, type: {type(rasterb)}")
+        # feedback.pushCommandInfo(f"rasterb: {rasterb}, type: {type(rasterb)}")
 
-        rasterc = parameters[self.o_raster]
-        feedback.pushCommandInfo(f"rasterc: {rasterc}, type: {type(rasterc)}")
+        # rasterc = parameters[self.o_raster]
+        # feedback.pushCommandInfo(f"rasterc: {rasterc}, type: {type(rasterc)}")
 
-        rasterd = parameters[self.o_rasterb]
-        feedback.pushCommandInfo(f"rasterd: {rasterd}, type: {type(rasterd)}")
+        # rasterd = parameters[self.o_rasterb]
+        # feedback.pushCommandInfo(f"rasterd: {rasterd}, type: {type(rasterd)}")
 
         return {"foo": "bar"}
 
@@ -363,7 +389,7 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         user-visible display of the algorithm name.
         return self.tr(self.name())
         """
-        return self.tr("Sandbox")
+        return self.tr("AASandbox")
 
     def group(self):
         """
