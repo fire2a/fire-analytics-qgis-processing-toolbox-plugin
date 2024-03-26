@@ -408,7 +408,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             # extension="exe" if platform_system() == "Windows" else "",
             optional=True,
             fileFilter="binary (*)",
-            defaultValue="/opt/ibm/ILOG/CPLEX_Studio2211/cplex/bin/x86-64_linux/cplex",
+            # defaultValue="/opt/ibm/ILOG/CPLEX_Studio2211/cplex/bin/x86-64_linux/cplex",
         )
         qppf.setFlags(qppf.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(qppf)
