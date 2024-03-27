@@ -50,8 +50,7 @@ from scipy import stats
 from .algorithm_utils import (QgsProcessingParameterRasterDestinationGpkg, array2rasterInt16, get_output_raster_format,
                               get_raster_data, get_raster_info, get_raster_nodata, run_alg_styler_bin, write_log)
 from .config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
-from .decision_optimization.doop import (SOLVER, FileLikeFeedback, add_cbc_to_path, check_solver_availability,
-                                         pyomo_init_algorithm, pyomo_parse_results, pyomo_run_model)
+from .decision_optimization.doop import add_cbc_to_path, pyomo_init_algorithm, pyomo_parse_results, pyomo_run_model
 
 
 class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
@@ -61,7 +60,6 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
     IN_VALUE = "VALUE"
     IN_WEIGHT = "WEIGHT"
     IN_RATIO = "RATIO"
-    IN_EXECUTABLE = "EXECUTABLE"
     OUT_LAYER = "OUT_LAYER"
     GEOMETRY_CHECK_SKIP_INVALID = "GEOMETRY_CHECK_SKIP_INVALID"
 
@@ -193,7 +191,7 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
 
         assert len(value_data) == len(weight_data)
         N = len(value_data)
-        no_indexes = np.where(np.isnan(value_data, casting="unsafe") | np.isnan(weight_data, casting="unsafe"))[0]
+        no_indexes = np.where(np.isnan(value_data) | np.isnan(weight_data))[0]
         feedback.pushWarning(
             f"discarded polygons (value or weight invalid): {len(no_indexes)}/{N} {len(no_indexes)/N:.2%}\n"
         )
@@ -223,7 +221,6 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
         response[mask] = masked_response
 
         feedback.pushDebugInfo(f"{response=}, {response.shape=}")
-        # response[response == None] = -2
         assert N == len(response)
 
         undecided, skipped, not_selected, selected = np.histogram(response, bins=[-2, -1, 0, 1, 2])[0]
@@ -326,7 +323,6 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
     IN_VALUE = "VALUE"
     IN_WEIGHT = "WEIGHT"
     IN_RATIO = "RATIO"
-    IN_EXECUTABLE = "EXECUTABLE"
     OUT_LAYER = "OUT_LAYER"
 
     NODATA = -32768  # -1?
@@ -372,15 +368,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterDestinationGpkg(self.OUT_LAYER, self.tr("Raster Knapsack Output layer"))
         )
-
         pyomo_init_algorithm(self, config)
-
-    def checkParameterValues(self, parameters, context) -> tuple[bool, str]:
-        """log file exists and is not empty"""
-        # solver = Path(self.parameterAsString(parameters, self.IN_EXECUTABLE, context))
-        # from stat import S_IXGRP, S_IXOTH, S_IXUSR
-        # chmod(c2f_bin, st.st_mode | S_IXUSR | S_IXGRP | S_IXOTH)
-        return True, ""
 
     def processAlgorithm(self, parameters, context, feedback):
         # feedback.pushCommandInfo(f"processAlgorithm START")
@@ -463,17 +451,40 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
 
         no_indexes = np.union1d(np.where(value_data == value_nodata)[0], np.where(weight_data == weight_nodata)[0])
         feedback.pushInfo(f"discarded pixels (no_indexes): {len(no_indexes)/N:.2%}\n")
+        mask = np.ones(N, dtype=bool)
+        mask[no_indexes] = False
 
-        response, status, termCondition = do_knapsack(
-            self, value_data, weight_data, no_indexes, feedback, parameters, context
-        )
-        response.resize(height, width)
+        ratio = self.parameterAsDouble(parameters, self.IN_RATIO, context)
+        weight_sum = weight_data[mask].sum()
+        capacity = np.round(weight_sum * ratio)
+        feedback.pushInfo(f"capacity bound: {ratio=}, {weight_sum=}, {capacity=}\n")
+
+        model = do_knapsack(value_data[mask], weight_data[mask], capacity)
+        results = pyomo_run_model(self, parameters, context, feedback, model)
+        retval, solver_dic = pyomo_parse_results(results, feedback)
+
+        if retval >= 1:
+            solver_dic.update({self.OUT_LAYER: None})
+            return solver_dic
+
+        # pyomo solution to squared numpy array
+        masked_response = np.array([pyo.value(model.X[i], exception=False) for i in model.X])
+        # -2 undecided
+        masked_response[masked_response == None] = -2
+        masked_response = masked_response.astype(np.int16)
+        # -1 left out
+        response = -np.ones(N, dtype=np.int16)
+        response[mask] = masked_response
+
+        feedback.pushDebugInfo(f"{response=}, {response.shape=}")
+        assert N == len(response)
 
         undecided, nodata, not_selected, selected = np.histogram(response, bins=[-2, -1, 0, 1, 2])[0]
         feedback.pushInfo(
             f"Solution histogram:\n{selected=}\n{not_selected=}\n{nodata=} (invalid value or weight)\n{undecided=}\n"
         )
         response[response == -1] = self.NODATA
+        response.resize(height, width)
 
         output_layer_filename = self.parameterAsOutputLayer(parameters, self.OUT_LAYER, context)
         outFormat = get_output_raster_format(output_layer_filename, feedback)
@@ -507,12 +518,10 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             )
             feedback.pushDebugInfo(f"Showing layer {output_layer_filename}")
 
+        solver_dic.update({self.OUT_LAYER: dest_id})
+        feedback.pushDebugInfo(f"{solver_dic=}")
         write_log(feedback, name=self.name())
-        return {
-            self.OUT_LAYER: output_layer_filename,
-            "SOLVER_STATUS": status,
-            "SOLVER_TERMINATION_CONDITION": termCondition,
-        }
+        return solver_dic
 
     def name(self):
         """
@@ -588,7 +597,6 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         )
 
 
-# def do_knapsack(self, value_data, weight_data, no_indexes, feedback, parameters, context):
 def do_knapsack(value_data, weight_data, capacity):
     """paste into processAlgorithm to be used in any KnapsackAlgorithm
     Returns:
@@ -610,77 +618,3 @@ def do_knapsack(value_data, weight_data, capacity):
 
     m.capacity = pyo.Constraint(rule=capacity_rule)
     return m
-
-    # executable = self.parameterAsString(parameters, self.IN_EXECUTABLE, context)
-    # feedback.pushDebugInfo(f"exesolver_string:{executable}")
-
-    # solver_string = self.parameterAsString(parameters, "SOLVER", context)
-    # # feedback.pushDebugInfo(f"solver_string:{solver_string}")
-
-    # solver_string = solver_string.replace(" MUST SET EXECUTABLE", "")
-
-    # solver, options_string = solver_string.split(": ", 1) if ": " in solver_string else (solver_string, "")
-    # # feedback.pushDebugInfo(f"solver:{solver}, options_string:{options_string}")
-
-    # if len(custom_options := self.parameterAsString(parameters, "CUSTOM_OPTIONS_STRING", context)) > 0:
-    #     if custom_options == " ":
-    #         options_string = None
-    #     else:
-    #         options_string = custom_options
-    # feedback.pushDebugInfo(f"options_string: {options_string}\n")
-
-    # if executable:
-    #     opt = SolverFactory(solver, executable=executable)
-    #     # FIXME if solver is cplex_persistent
-    #     # opt.set_instance(m)
-    # else:
-    #     opt = SolverFactory(solver)
-
-    # feedback.setProgress(20)
-    # feedback.setProgressText("pyomo model built, solver object created 20%")
-
-    # pyomo_std_feedback = FileLikeFeedback(feedback, True)
-    # pyomo_err_feedback = FileLikeFeedback(feedback, False)
-    # with redirect_stdout(pyomo_std_feedback), redirect_stderr(pyomo_err_feedback):
-    #     if options_string:
-    #         results = opt.solve(m, tee=True, options_string=options_string)
-    #     else:
-    #         results = opt.solve(m, tee=True)
-    #     # TODO
-    #     # # Stop the algorithm if cancel button has been clicked
-    #     # if feedback.isCanceled():
-
-    # status = results.solver.status
-    # termCondition = results.solver.termination_condition
-    # feedback.pushConsoleInfo(f"Solver status: {status}, termination condition: {termCondition}")
-    # if (
-    #     status in [SolverStatus.error, SolverStatus.aborted, SolverStatus.unknown]
-    #     and termCondition != TerminationCondition.intermediateNonInteger
-    # ):
-    #     feedback.reportError(f"Solver status: {status}, termination condition: {termCondition}")
-    #     return {self.OUTPUT_layer: None, "SOLVER_STATUS": status, "SOLVER_TERMINATION_CONDITION": termCondition}
-    # if termCondition in [
-    #     TerminationCondition.infeasibleOrUnbounded,
-    #     TerminationCondition.infeasible,
-    #     TerminationCondition.unbounded,
-    # ]:
-    #     feedback.reportError(f"Optimization problem is {termCondition}. No output is generated.")
-    #     return {self.OUTPUT_layer: None, "SOLVER_STATUS": status, "SOLVER_TERMINATION_CONDITION": termCondition}
-    # if not termCondition == TerminationCondition.optimal:
-    #     feedback.pushWarning(
-    #         "Output is generated for a non-optimal solution! Try running again with different solver options or"
-    #         " tweak the layers..."
-    #     )
-
-    # feedback.setProgress(90)
-    # feedback.setProgressText("pyomo integer programming finished, progress 80%")
-    # # pyomo solution to squared numpy array
-    # response = np.array([pyo.value(m.X[i], exception=False) for i in m.X])
-    # feedback.pushDebugInfo(f"raw {response=}, {response.shape=}")
-    # # -2 undecided
-    # response[response == None] = -2
-    # response = response.astype(np.int16)
-    # # -1 left out
-    # base = -np.ones(N, dtype=np.int16)
-    # base[mask] = response
-    # return base, status, termCondition
