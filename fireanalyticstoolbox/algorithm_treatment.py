@@ -87,7 +87,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
                     name=raster,
                     description=self.tr(f"Raster layer for {raster}"),
                     defaultValue=[QgsProcessing.TypeRaster],
-                    optional=True,
+                    # optional=True,
                 )
             )
         # treatments
@@ -129,7 +129,8 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         qppb = QgsProcessingParameterBoolean(
             name=self.GEOMETRY_CHECK_SKIP_INVALID,
             description=self.tr(
-                "Set invalid geometry check to GeometrySkipInvalid (more options clicking the wrench on the input poly layer)"
+                "Set invalid geometry check to GeometrySkipInvalid (more options clicking the wrench on the input poly"
+                " layer)"
             ),
             defaultValue=True,
             optional=True,
@@ -140,6 +141,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         pyomo_init_algorithm(self, config)
 
     def processAlgorithm(self, parameters, context, feedback):
+        """ """
         retdic = {}
         # report solver unavailability
         feedback.pushWarning(f"Solver unavailability:\n{self.solver_exception_msg}\n")
@@ -329,8 +331,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         return "https://www.github.com/fdobad/qgis-processingplugin-template/issues"
 
     def shortDescription(self):
-        return self.tr(
-            """<b>Objetive:</b> Maximize the changed value of the treated polygons<br> 
+        return self.tr("""<b>Objetive:</b> Maximize the changed value of the treated polygons<br> 
             <b>Decisions:</b> Which treatment to apply to each polygon (or no change)<br>
             <b>Contraints:</b><br>
             (a) fixed+area costs less than budget<br>
@@ -344,9 +345,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
             (iii) <b>Budget</b> (same units than costs)<br>
             (iv) <b>Area</b> (same units than the geometry of the polygons)<br>
             <br>
-            sample: """
-            + (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri()
-        )
+            sample: """ + (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri())
 
     def icon(self):
         return QIcon(":/plugins/fireanalyticstoolbox/assets/firebreakmap.svg")
@@ -449,7 +448,8 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
         qppb = QgsProcessingParameterBoolean(
             name=self.GEOMETRY_CHECK_SKIP_INVALID,
             description=self.tr(
-                "Set invalid geometry check to GeometrySkipInvalid (more options clicking the wrench on the input poly layer)"
+                "Set invalid geometry check to GeometrySkipInvalid (more options clicking the wrench on the input poly"
+                " layer)"
             ),
             defaultValue=True,
             optional=True,
@@ -470,7 +470,8 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
         # poly layer
         layer = self.parameterAsSource(parameters, self.IN_LAYER, context)
         feedback.pushDebugInfo(
-            f"{layer.sourceName()=}, {layer.fields().names()=}, {layer.wkbType()=}, {layer.sourceCrs().authid()=}, {layer.featureCount()=}"
+            f"{layer.sourceName()=}, {layer.fields().names()=}, {layer.wkbType()=}, {layer.sourceCrs().authid()=},"
+            f" {layer.featureCount()=}"
         )
         retdic["layer"] = layer
         # fields
@@ -661,8 +662,7 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
         return "https://www.github.com/fdobad/qgis-processingplugin-template/issues"
 
     def shortDescription(self):
-        return self.tr(
-            """<b>Objetive:</b> Maximize the changed value of the treated polygons<br> 
+        return self.tr("""<b>Objetive:</b> Maximize the changed value of the treated polygons<br> 
             <b>Decisions:</b> Which treatment to apply to each polygon (or no change)<br>
             <b>Contraints:</b><br>
             (a) fixed+area costs less than budget<br>
@@ -676,46 +676,53 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
             (iii) <b>Budget</b> (same units than costs)<br>
             (iv) <b>Area</b> (same units than the geometry of the polygons)<br>
             <br>
-            sample: """
-            + (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri()
-        )
+            sample: """ + (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri())
 
     def icon(self):
         return QIcon(":/plugins/fireanalyticstoolbox/assets/firebreakmap.svg")
 
 
-def do_raster_treatment(treat_names, treat_matrix, current_values, target_values, px_area, area, budget):
+def do_raster_treatment(
+    nodata, treat_names, treat_cost, current_treatment, current_value, target_value, px_area, area, budget
+):
     # Integer Programming
-    m = pyo.ConcreteModel(name="polygon_treatment")
+    m = pyo.ConcreteModel(name="raster_treatment")
+
+    H, W = current_value.shape
+    assert len(treat_names) == target_value.shape[0]
+
+    nodata_idx = []
+    nodata_idx += list(zip(*np.where(current_value == nodata)))
+    nodata_idx += list(zip(*np.where(current_treatment == nodata)))
+    tr, hh, ww = np.where(target_value == nodata)
+    nodata_idx += [(h, w) for h, w in zip(hh, ww)]
 
     # Sets
-    m.N = pyo.Set(initialize=dfa.fid, ordered=True)
-    m.T = pyo.Set(initialize=treat_names)
-    m.FeasibleSet = pyo.Set(
-        initialize=[
-            (i, k) for i, k in product(m.N, m.T) if treat_table[dfa[dfa.fid == i].index[0], treat_names.index(k)]
-        ]
-    )
-    # TODO
-    # dfa[dfa.fid == i].index[0] -> dfa.set_index("fid").loc[i]
-    dfa.set_index("fid", inplace=True)
+    m.H = pyo.Set(initialize=range(H))
+    m.W = pyo.Set(initialize=range(W))
+    m.TR = pyo.Set(initialize=treat_names)
+
+    # list indices of H,W not in nodata_idx
+    m.FeasibleSet = pyo.Set(initialize=[(h, w, tr) for h, w, tr in product(m.H, m.W, m.TR) if (h, w) not in nodata_idx])
 
     # Params
-    m.area = pyo.Param(m.N, within=pyo.Reals, initialize=dfa["area"].to_dict())
-    m.current_value = pyo.Param(m.N, within=pyo.Reals, initialize=dfa["value"].to_dict())
-    m.current_valuem2 = pyo.Param(m.N, within=pyo.Reals, initialize=dfa["value/m2"].to_dict())
+    m.px_area = pyo.Param(within=pyo.Reals, initialize=px_area)
+    m.area = pyo.Param(within=pyo.Reals, initialize=area)
+    m.budget = pyo.Param(within=pyo.Reals, initialize=budget)
+
+    dict_filter = lambda arr: {idx: val for idx, val in np.ndenumerate(arr) if idx not in nodata_idx}
+
+    m.current_value = pyo.Param(m.H, m.W, within=pyo.Reals, initialize=dict_filter(current_value))
+
     m.target_value = pyo.Param(
-        m.N, m.T, within=pyo.Reals, initialize=dft.set_index(["fid", "treatment"])["value"].to_dict()
-    )
-    m.target_valuem2 = pyo.Param(
-        m.N, m.T, within=pyo.Reals, initialize=dft.set_index(["fid", "treatment"])["value/m2"].to_dict()
-    )
-    m.cost = pyo.Param(m.N, m.T, within=pyo.Reals, initialize=dft.set_index(["fid", "treatment"])["cost"].to_dict())
-    m.costm2 = pyo.Param(
-        m.N, m.T, within=pyo.Reals, initialize=dft.set_index(["fid", "treatment"])["cost/m2"].to_dict()
+        m.H,
+        m.W,
+        m.TR,
+        within=pyo.Reals,
+        initialize={idx: val for idx, val in np.ndenumerate(target_value) if (idx[1], idx[2]) not in nodata_idx},
     )
 
-    # initialize=df_stands[treatments].stack().to_dict(),
+    m.treat_cost = pyo.Param(m.TR, m.TR, within=pyo.Reals, initialize=dict_filter(treat_cost))
 
     # Variables
     m.X = pyo.Var(
@@ -724,21 +731,26 @@ def do_raster_treatment(treat_names, treat_matrix, current_values, target_values
     )
     # Constraints
     m.at_most_one_treatment = pyo.Constraint(
-        m.N, rule=lambda m, ii: sum(m.X[i, k] for i, k in m.FeasibleSet if i == ii) <= 1
+        m.H, m.W, rule=lambda m, hh, ww: sum(m.X[h, w, tr] for h, w, tr in m.FeasibleSet if h == hh and w == ww) <= 1
     )
 
-    m.area_capacity = pyo.Constraint(rule=lambda m: sum(m.X[i, k] * m.area[i] for i, k in m.FeasibleSet) <= area)
+    m.area_capacity = pyo.Constraint(
+        rule=lambda m: sum(m.X[h, w, tr] * m.px_area for h, w, tr in m.FeasibleSet) <= area
+    )
 
     m.budget_capacity = pyo.Constraint(
-        rule=lambda m: sum(m.X[i, k] * (m.cost[i, k] + m.costm2[i, k] * m.area[i]) for i, k in m.FeasibleSet) <= budget
+        rule=lambda m: sum(
+            m.X[h, w, tr] * m.treat_cost[current_treatment[h, w], tr] * m.px_area for h, w, tr in m.FeasibleSet
+        )
+        <= budget
     )
 
     # Objective
     m.obj = pyo.Objective(
         expr=sum(
-            m.X[i, k] * (m.target_value[i, k] + m.target_valuem2[i, k] * m.area[i])
-            + (1 - m.X[i, k]) * (m.current_value[i] + m.current_valuem2[i] * m.area[i])
-            for i, k in m.FeasibleSet
+            m.X[h, w, tr] * (m.target_values[h, w, tr] * m.px_area)
+            + (1 - m.X[h, w, tr]) * (m.current_values[h, w] * m.px_area)
+            for h, w, tr in m.FeasibleSet
         ),
         sense=pyo.maximize,
     )
