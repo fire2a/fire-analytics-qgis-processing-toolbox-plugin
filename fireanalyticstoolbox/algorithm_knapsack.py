@@ -518,7 +518,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             )
             feedback.pushDebugInfo(f"Showing layer {output_layer_filename}")
 
-        solver_dic.update({self.OUT_LAYER: dest_id})
+        solver_dic.update({self.OUT_LAYER: output_layer_filename})
         feedback.pushDebugInfo(f"{solver_dic=}")
         write_log(feedback, name=self.name())
         return solver_dic
