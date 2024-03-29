@@ -73,7 +73,7 @@ def add_cbc_to_path(qgs_message_log=None):
 
     qml_print = lambda x, y: QgsMessageLog.logMessage(x, TAG) if qgs_message_log else print(x)
 
-    if which_cbc:= which("cbc.exe"):
+    if which_cbc := which("cbc.exe"):
         qml_print(f"cbc.exe already in {which_cbc=}", qgs_message_log)
         return True
     if which("cbc.exe") is None and "__file__" in globals():
@@ -174,7 +174,7 @@ def pyomo_init_algorithm(self, config):
     self.addParameter(qppf)
 
 
-def pyomo_run_model(self, parameters, context, feedback, model):
+def pyomo_run_model(self, parameters, context, feedback, model, display_model=True):
     """runs a pyomo model reading parameters from a QgsProcessingAlgorithm form, returns the results object
     Reserves the following variables in the algorithm:
     SOLVER: solver name and options
@@ -220,7 +220,8 @@ def pyomo_run_model(self, parameters, context, feedback, model):
         # # Stop the algorithm if cancel button has been clicked
         # if feedback.isCanceled():
         # print("DISPLAY")
-        model.display()
+        if display_model:
+            model.display()
     return results
 
 
@@ -287,3 +288,26 @@ def pyomo_parse_results(results, feedback=None):
         return retval, retdic
     # TODO are there more cases?
     return retval, retdic
+
+
+def simplest_pyomo_solve(model):
+    print("PPRINT")
+    print(model.pprint())
+
+    # Solve
+    solver = "cbc"
+    executable = None
+    if executable:
+        opt = SolverFactory(solver, executable=executable)
+    else:
+        opt = SolverFactory(solver)
+
+    options_string = None
+    if options_string:
+        results = opt.solve(model, tee=True, options_string=options_string)
+    else:
+        results = opt.solve(model, tee=True)
+
+    print("DISPLAY")
+    print(model.display())
+    return model
