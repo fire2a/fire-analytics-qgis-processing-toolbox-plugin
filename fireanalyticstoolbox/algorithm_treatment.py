@@ -331,7 +331,8 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         return "https://www.github.com/fdobad/qgis-processingplugin-template/issues"
 
     def shortDescription(self):
-        return self.tr("""<b>Objetive:</b> Maximize the changed value of the treated polygons<br> 
+        return self.tr(
+            """<b>Objetive:</b> Maximize the changed value of the treated polygons<br> 
             <b>Decisions:</b> Which treatment to apply to each polygon (or no change)<br>
             <b>Contraints:</b><br>
             (a) fixed+area costs less than budget<br>
@@ -345,7 +346,9 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
             (iii) <b>Budget</b> (same units than costs)<br>
             (iv) <b>Area</b> (same units than the geometry of the polygons)<br>
             <br>
-            sample: """ + (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri())
+            sample: """
+            + (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri()
+        )
 
     def icon(self):
         return QIcon(":/plugins/fireanalyticstoolbox/assets/firebreakmap.svg")
@@ -662,7 +665,8 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
         return "https://www.github.com/fdobad/qgis-processingplugin-template/issues"
 
     def shortDescription(self):
-        return self.tr("""<b>Objetive:</b> Maximize the changed value of the treated polygons<br> 
+        return self.tr(
+            """<b>Objetive:</b> Maximize the changed value of the treated polygons<br> 
             <b>Decisions:</b> Which treatment to apply to each polygon (or no change)<br>
             <b>Contraints:</b><br>
             (a) fixed+area costs less than budget<br>
@@ -676,7 +680,9 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
             (iii) <b>Budget</b> (same units than costs)<br>
             (iv) <b>Area</b> (same units than the geometry of the polygons)<br>
             <br>
-            sample: """ + (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri())
+            sample: """
+            + (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri()
+        )
 
     def icon(self):
         return QIcon(":/plugins/fireanalyticstoolbox/assets/firebreakmap.svg")
@@ -691,11 +697,12 @@ def do_raster_treatment(
     H, W = current_value.shape
     assert len(treat_names) == target_value.shape[0]
 
-    nodata_idx = []
-    nodata_idx += list(zip(*np.where(current_value == nodata)))
-    nodata_idx += list(zip(*np.where(current_treatment == nodata)))
-    tr, hh, ww = np.where(target_value == nodata)
-    nodata_idx += [(h, w) for h, w in zip(hh, ww)]
+    current_value_nodata = list(zip(*np.where(current_value == nodata)))
+    current_treatment_nodata = list(zip(*np.where(current_treatment == nodata)))
+    target_value_nodata = [(h, w) for h, w in np.ndindex(H, W) if np.all(target_value[:, h, w] == nodata)]
+    print(f"{current_value_nodata=}, {current_treatment_nodata=}, {target_value_nodata=}")
+    nodata_idxs = set(current_value_nodata + current_treatment_nodata + target_value_nodata)
+    print(f"{nodata_idxs=}")
 
     # Sets
     m.H = pyo.Set(initialize=range(H))
@@ -703,54 +710,73 @@ def do_raster_treatment(
     m.TR = pyo.Set(initialize=treat_names)
 
     # list indices of H,W not in nodata_idx
-    m.FeasibleSet = pyo.Set(initialize=[(h, w, tr) for h, w, tr in product(m.H, m.W, m.TR) if (h, w) not in nodata_idx])
+    m.FeasibleTRMap = pyo.Set(
+        initialize=[(h, w, tr) for h, w, tr in product(m.H, m.W, m.TR) if (h, w) not in nodata_idxs]
+    )
+    m.FeasibleMap = pyo.Set(initialize=[(h, w) for h, w in product(m.H, m.W) if (h, w) not in nodata_idxs])
 
     # Params
+    # 1d
     m.px_area = pyo.Param(within=pyo.Reals, initialize=px_area)
     m.area = pyo.Param(within=pyo.Reals, initialize=area)
     m.budget = pyo.Param(within=pyo.Reals, initialize=budget)
-
-    dict_filter = lambda arr: {idx: val for idx, val in np.ndenumerate(arr) if idx not in nodata_idx}
-
-    m.current_value = pyo.Param(m.H, m.W, within=pyo.Reals, initialize=dict_filter(current_value))
-
-    m.target_value = pyo.Param(
-        m.H,
-        m.W,
+    # 2d
+    m.current_value = pyo.Param(
+        m.FeasibleMap,
+        within=pyo.Reals,
+        initialize={idx: val for idx, val in np.ndenumerate(current_value) if idx not in nodata_idxs},
+    )
+    m.treat_cost = pyo.Param(
+        m.TR,
         m.TR,
         within=pyo.Reals,
-        initialize={idx: val for idx, val in np.ndenumerate(target_value) if (idx[1], idx[2]) not in nodata_idx},
+        initialize={
+            (treat_names[tr1], treat_names[tr2]): val for (tr1, tr2), val in np.ndenumerate(treat_cost) if tr1 != tr2
+        },
     )
-
-    m.treat_cost = pyo.Param(m.TR, m.TR, within=pyo.Reals, initialize=dict_filter(treat_cost))
+    # 3d
+    m.target_value = pyo.Param(
+        m.FeasibleTRMap,
+        within=pyo.Reals,
+        initialize={
+            (h, w, treat_names[tr]): val
+            for (tr, h, w), val in np.ndenumerate(target_value)
+            if (h, w) not in nodata_idxs
+        },
+    )
 
     # Variables
     m.X = pyo.Var(
-        m.FeasibleSet,
+        m.FeasibleTRMap,
         within=pyo.Binary,
     )
+
     # Constraints
     m.at_most_one_treatment = pyo.Constraint(
-        m.H, m.W, rule=lambda m, hh, ww: sum(m.X[h, w, tr] for h, w, tr in m.FeasibleSet if h == hh and w == ww) <= 1
+        m.FeasibleMap,
+        rule=lambda m, hh, ww: sum(m.X[h, w, tr] for h, w, tr in m.FeasibleTRMap if h == hh and w == ww) <= 1,
     )
 
     m.area_capacity = pyo.Constraint(
-        rule=lambda m: sum(m.X[h, w, tr] * m.px_area for h, w, tr in m.FeasibleSet) <= area
+        rule=lambda m: sum(m.X[h, w, tr] * m.px_area for h, w, tr in m.FeasibleTRMap) <= m.area
     )
 
     m.budget_capacity = pyo.Constraint(
         rule=lambda m: sum(
-            m.X[h, w, tr] * m.treat_cost[current_treatment[h, w], tr] * m.px_area for h, w, tr in m.FeasibleSet
+            m.X[h, w, tr] * m.treat_cost[treat_names[current_treatment[h, w]], tr] * m.px_area
+            for h, w, tr in m.FeasibleTRMap
+            if treat_names[current_treatment[h, w]] != tr
         )
-        <= budget
+        <= m.budget
     )
 
     # Objective
     m.obj = pyo.Objective(
         expr=sum(
-            m.X[h, w, tr] * (m.target_values[h, w, tr] * m.px_area)
-            + (1 - m.X[h, w, tr]) * (m.current_values[h, w] * m.px_area)
-            for h, w, tr in m.FeasibleSet
+            m.X[h, w, tr] * (m.target_value[h, w, tr] * m.px_area)
+            + (1 - m.X[h, w, tr]) * (m.current_value[h, w] * m.px_area)
+            for h, w, tr in m.FeasibleTRMap
+            if treat_names[current_treatment[h, w]] != tr
         ),
         sense=pyo.maximize,
     )
