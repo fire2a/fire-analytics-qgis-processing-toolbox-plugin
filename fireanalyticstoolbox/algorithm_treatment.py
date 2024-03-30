@@ -64,7 +64,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
 
     IN_TRT = "current_treatment"
     IN_VAL = "current_value"
-    IN_TRGTS = "target_values"
+    IN_TRGTS = "target_value"
 
     IN_TREATS = "TreatmentsMatrix"
 
@@ -86,7 +86,8 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
                 QgsProcessingParameterRasterLayer(
                     name=raster,
                     description=self.tr(f"Raster layer for {raster}"),
-                    defaultValue=[QgsProcessing.TypeRaster],
+                    defaultValue=raster,
+                    # defaultValue=[QgsProcessing.TypeRaster],
                     # optional=True,
                 )
             )
@@ -141,14 +142,15 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         pyomo_init_algorithm(self, config)
 
     def processAlgorithm(self, parameters, context, feedback):
-        """ """
-        retdic = {}
+        """
+        TODO
+            nodata != -1
+            check px_area
+        """
+        instance = {}
+        instance["nodata"] = -1
         # report solver unavailability
         feedback.pushWarning(f"Solver unavailability:\n{self.solver_exception_msg}\n")
-        # invalid geometry skip
-        if self.parameterAsBool(parameters, self.GEOMETRY_CHECK_SKIP_INVALID, context):
-            context.setInvalidGeometryCheck(QgsFeatureRequest.GeometrySkipInvalid)
-            feedback.pushWarning("setInvalidGeometryCheck set to GeometrySkipInvalid")
         # read rasters
         rasters_dic = {}
         for raster in [self.IN_TRT, self.IN_VAL, self.IN_TRGTS]:
@@ -159,150 +161,30 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
                 "info": get_rlayer_info(layer),
             }
         # feedback.pushDebugInfo(f"{rasters_dic=}")
-        retdic.update(rasters_dic)
+        instance["current_treatment"] = rasters_dic[self.IN_TRT]["data"]
+        instance["current_value"] = rasters_dic[self.IN_VAL]["data"]
+        instance["target_value"] = rasters_dic[self.IN_TRGTS]["data"]
         # read conversion table
-        df = pd.read_csv(self.parameterAsFile(parameters, self.IN_TREATS, context))
+        df = pd.read_csv(self.parameterAsFile(parameters, self.IN_TREATS, context), index_col=0)
         if list(df.index) != list(df.columns):
             raise QgsProcessingException("Conversion table must be square with the same index and columns")
-        retdic["treat_mat"] = df
-        # feedback.pushDebugInfo(f"{df=}")
-        feedback.pushDebugInfo(f"{retdic=}")
-        return rasters_dic
-
-    def nope(self):
-        # get raster data
-        value_layer = self.parameterAsRasterLayer(parameters, self.IN_VALUE, context)
-        value_data = get_raster_data(value_layer)
-        value_nodata = get_raster_nodata(value_layer, feedback)
-        value_map_info = get_raster_info(value_layer)
-
-        dfa = pd.DataFrame.from_dict(
-            dict(
-                zip(
-                    attr_names,
-                    [
-                        fids,
-                        current_treatment,
-                        current_value,
-                        current_valuem2,
-                        [feat.geometry().area() for feat in features],
-                    ],
-                )
-            )
+        instance["treat_names"] = df.columns
+        instance["treat_cost"] = df.values
+        instance["px_area"] = (
+            rasters_dic[self.IN_TRT]["info"]["cellsize_x"] * rasters_dic[self.IN_TRT]["info"]["cellsize_y"]
         )
-        # feedback.pushDebugInfo(dfa)
-        retdic["dfa"] = dfa
-        # feedback.pushDebugInfo(dft)
-        retdic["dft"] = dft
+        # feedback.pushDebugInfo(f"{df=}")
 
-        budget = self.parameterAsDouble(parameters, self.IN_BUDGET, context)
-        area = self.parameterAsDouble(parameters, self.IN_AREA, context)
+        instance["area"] = self.parameterAsDouble(parameters, self.IN_AREA, context)
+        instance["budget"] = self.parameterAsDouble(parameters, self.IN_BUDGET, context)
 
-        treat_names = np.unique(dft["treatment"].to_list() + current_treatment).tolist()
-        # feedback.pushDebugInfo(f"{treat_names=}")
-        retdic["treat_names"] = treat_names
-
-        treat_table = np.zeros((len(dfa), len(treat_names)), dtype=bool)
-        for i, current in dfa.iterrows():
-            targets = dft[dft["fid"] == current["fid"]]
-            for j, target in targets.iterrows():
-                treat_table[i, treat_names.index(target["treatment"])] = True
-        # feedback.pushDebugInfo(f"{treat_table=}")
-        retdic["treat_table"] = treat_table
-
-        # feedback.pushDebugInfo(f"instance read: {retdic=}")
-        model = do_poly_treatment(treat_names, treat_table, dfa, dft, area, budget)
+        # feedback.pushDebugInfo(f"instance read: {instance=}")
+        model = do_raster_treatment(**instance)
         results = pyomo_run_model(self, parameters, context, feedback, model)
         retval, solver_dic = pyomo_parse_results(results, feedback)
-        retdic.update(solver_dic)
 
-        if retval >= 1:
-            return retdic
-
-        # feedback.pushDebugInfo(f"{treat_names=}")
-        treats_dic = {(i, k): pyo.value(model.X[i, k], exception=False) for i, k in model.FeasibleSet}
-        # feedback.pushDebugInfo(f"{treats_dic=}")
-        treats_arr = np.array([[treats_dic.get((i, k)) for k in model.T] for i in model.N], dtype=float)
-        treats_arr = np.where(np.isnan(treats_arr), -1, treats_arr)
-        summary = [np.max(row) for row in treats_arr]
-        # feedback.pushDebugInfo(f"{treats_dic=}")
-        # feedback.pushDebugInfo(f"{list(zip(treats_arr,summary))=}")
-
-        msg = "Solution histogram:\n"
-        hist = np.histogram(summary, bins=[-1] + list(range(len(treat_names))))[0]
-        for trt, count in zip(["undecided"] + treat_names, hist):
-            msg += f"{trt}: {count}\n"
-        feedback.pushInfo(msg)
-
-        fields = QgsFields()
-        fields.append(QgsField(name="fid", type=QVariant.Int))  # , len=10))
-        fields.append(QgsField(name="current", type=QVariant.String))  # , len=10))
-        fields.append(QgsField(name="treatment", type=QVariant.String))  # , len=10))
-        fields.append(QgsField(name="changed", type=QVariant.Bool))  # , len=10))
-
-        (sink, dest_id) = self.parameterAsSink(
-            parameters,
-            self.OUT_LAYER,
-            context,
-            fields,
-            layer.wkbType(),
-            layer.sourceCrs(),
-        )
-        feedback.pushDebugInfo(f"{sink=}, {dest_id=}")
-
-        total = 100.0 / len(features)
-        for current, feat in enumerate(features):
-            # Stop the algorithm if cancel button has been clicked
-            if feedback.isCanceled():
-                break
-            # Prepare feature
-            new_feat = QgsFeature(fields)
-            ifid = int(feat.id())
-            curr = feat[current_treatment_fieldname]
-
-            smry = summary[fids.index(ifid)]
-            if smry == -1:
-                trgt = "undecided"
-                chg = True
-            elif smry == 0:
-                trgt = ""
-                chg = False
-            elif smry == 1:
-                trgt = treat_names[np.argmax(treats_arr[fids.index(ifid)])]
-                chg = True
-            else:
-                feedback.reportError(f"Unexpected summary value: {smry}, for feature {ifid}")
-
-            new_feat.setId(ifid)
-            new_feat.setAttributes([ifid, curr, trgt, chg])
-            new_feat.setGeometry(feat.geometry())
-            # feedback.pushDebugInfo(
-            #     f"{current=}, {new_feat.id()=}, {[treats_dic.get((ifid, tn)) for tn in treat_names]}"
-            # )
-            # Add a feature in the sink
-            sink.addFeature(new_feat, QgsFeatureSink.FastInsert)
-            # Update the progress bar
-            feedback.setProgress(int(current * total))
-
-        # if showing
-        if context.willLoadLayerOnCompletion(dest_id):
-            layer_details = context.layerToLoadOnCompletionDetails(dest_id)
-            layer_details.groupName = "DecisionOptimizationGroup"
-            layer_details.name = "TreatmentPolygons"
-            layer_details.layerSortKey = 1
-            processing.run(
-                "native:setlayerstyle",
-                {
-                    "INPUT": dest_id,
-                    "STYLE": str(Path(__file__).parent / "decision_optimization" / "treatment_polygon.qml"),
-                },
-                context=context,
-                feedback=feedback,
-                is_child_algorithm=True,
-            )
-
-        write_log(feedback, name=self.name())
-        return retdic
+        # feedback.pushDebugInfo(f"{retdic=}")
+        return rasters_dic
 
     def name(self):
         """processing.run('provider:name',{..."""
@@ -319,6 +201,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         return self.tr(self.groupId())
 
     def groupId(self):
+        """return 'do'"""
         return "zexperimental"
 
     def tr(self, string):
@@ -429,6 +312,7 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
             defaultValue=2024.03,
             optional=False,
             minValue=0.01,
+            maxValue=999999999999,
         )
         qppn.setMetadata({"widget_wrapper": {"decimals": 2}})
         self.addParameter(qppn)
@@ -680,8 +564,10 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
             (iii) <b>Budget</b> (same units than costs)<br>
             (iv) <b>Area</b> (same units than the geometry of the polygons)<br>
             <br>
-            sample: """
+            Sample: """
             + (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri()
+            + """<br><br> Use polygons.gpkg, polygons_treatments.csv & polygons_params.txt to run a sample<br><br>
+            Or generate_polygon_treatment.py in QGIS's python console to generate a sensible instance in any polygon layer"""
         )
 
     def icon(self):
