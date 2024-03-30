@@ -1,0 +1,3 @@
+treat_names=['KDM', 'MLP', 'OFL', 'PKE', 'YEL']
+budget=5063.556419416086
+area=53485224340.891495
