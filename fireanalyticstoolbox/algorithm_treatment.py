@@ -199,14 +199,15 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         treats_dic = {(h, w, tr): pyo.value(model.X[h, w, tr], exception=False) for h, w, tr in model.FeasibleTRMap}
         # feedback.pushDebugInfo(f"{treats_dic=}")
         treats_arr = np.array(
-            [[treats_dic.get((h, w, tr), -2) for tr in model.TR] for h, w in np.ndindex(H, W)], dtype=float
+            [[treats_dic.get((h, w, tr), -3) for tr in model.TR] for h, w in np.ndindex(H, W)], dtype=float
         )
-        treats_arr = np.where(np.isnan(treats_arr), -1, treats_arr)
-        summary = np.array([np.argmax(row) for row in treats_arr])
+        treats_arr = np.where(np.isnan(treats_arr), -2, treats_arr)
+        summary = np.array([np.where(np.any(row > 0), np.argmax(row), -1) for row in treats_arr])
 
         msg = "Solution histogram:\n"
-        hist = np.histogram(summary, bins=[-2, -1] + list(range(TR + 1)))[0]
-        for trt, count in zip(["unable", "undecided"] + instance["treat_names"], hist):
+        hist = np.histogram(summary, bins=[-3, -2, -1] + list(range(TR + 1)))[0]
+        labels = ["unable", "undecided", "unchanged"] + instance["treat_names"]
+        for trt, count in zip(labels, hist):
             msg += f"{trt}: {count}\n"
         feedback.pushInfo(msg)
 
@@ -217,13 +218,12 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         gt = rasters["current_treatment"]["GT"]
         if abs(gt[-1]) > 0:
             gt = (gt[0], gt[1], gt[2], gt[3], gt[4], -abs(gt[5]))
+            feedback.pushWarning("Weird geotransform, Flipping Y axis...")
         feedback.pushDebugInfo(f"{gt=}")
         ds.SetGeoTransform(gt)  # specify coords
         band = ds.GetRasterBand(1)
         band.SetUnitType("treatment_index")
-        nd = instance["nodata"]
-        feedback.pushDebugInfo(f"{nd=}")
-        if 0 != band.SetNoDataValue(nd):
+        if 0 != band.SetNoDataValue(int(-3)):
             feedback.pushWarning(f"Set No Data failed for {self.name()}")
         if 0 != band.WriteArray(summary.reshape(H, W)):
             feedback.pushWarning(f"WriteArray failed for {self.name()}")
@@ -239,7 +239,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
             layer_details.name = "TreatmentRaster"
             layer_details.layerSortKey = 1
             context.layerToLoadOnCompletionDetails(out_raster_filename).setPostProcessor(
-                run_alg_style_raster_legend(["unable", "undecided"] + instance["treat_names"])
+                run_alg_style_raster_legend(labels, offset=-3)
             )
 
         write_log(feedback, name=self.name())
@@ -626,6 +626,8 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
             - current & target values[/m2] weight towards the objective when no change (keep current) or a target treatment is recommended<br>
             (iii) <b>Budget</b> (same units than costs)<br>
             (iv) <b>Area</b> (same units than the geometry of the polygons)<br>
+            <br>
+            <b>BETA: Currently only -1 is accepted as no data</b><br>
             <br>
             Sample: """
             + (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri()

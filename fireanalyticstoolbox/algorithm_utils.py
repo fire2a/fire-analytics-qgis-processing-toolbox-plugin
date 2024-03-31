@@ -214,6 +214,7 @@ class QgsProcessingParameterRasterDestinationGpkg(QgsProcessingParameterRasterDe
 
 def run_alg_style_raster_legend(
     labels,
+    offset=0,
 ):
     """Create a New Post Processor class and returns it
 
@@ -224,6 +225,7 @@ def run_alg_style_raster_legend(
     class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
         instance = None
         lbls = labels
+        ofst = offset
 
         def postProcessLayer(self, layer, context, feedback):
             if layer.isValid():
@@ -231,7 +233,9 @@ def run_alg_style_raster_legend(
 
                 lst = []
                 for i, lbl in enumerate(self.lbls):
-                    lst += [QgsColorRampShader.ColorRampItem(i - 2, QColor(*colors[i]), f"{i-2}: {lbl}")]
+                    lst += [
+                        QgsColorRampShader.ColorRampItem(i + self.ofst, QColor(*colors[i]), f"{i + self.ofst}: {lbl}")
+                    ]
                 class_data = QgsPalettedRasterRenderer.colorTableToClassData(lst)
 
                 qprr = QgsPalettedRasterRenderer(layer.dataProvider(), 1, class_data)
