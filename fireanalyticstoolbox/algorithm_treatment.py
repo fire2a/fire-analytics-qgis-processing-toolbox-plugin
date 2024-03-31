@@ -194,9 +194,8 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
             model.area_capacity.display()
             model.budget_capacity.display()
             model.objective.display()
-            model.sos_most.display()
 
-        treats_dic = {(h, w, tr): pyo.value(model.X[h, w, tr], exception=False) for h, w, tr in model.FeasibleTRMap}
+        treats_dic = {(h, w, tr): pyo.value(model.X[h, w, tr], exception=False) for h, w, tr in model.FeasibleMapTR}
         # feedback.pushDebugInfo(f"{treats_dic=}")
         treats_arr = np.array(
             [[treats_dic.get((h, w, tr), -3) for tr in model.TR] for h, w in np.ndindex(H, W)], dtype=float
@@ -661,10 +660,14 @@ def do_raster_treatment(
     m.TR = pyo.Set(initialize=treat_names)
 
     # list indices of H,W not in nodata_idx
-    m.FeasibleTRMap = pyo.Set(
-        initialize=[(h, w, tr) for h, w, tr in product(m.H, m.W, m.TR) if (h, w) not in nodata_idxs]
-    )
     m.FeasibleMap = pyo.Set(initialize=[(h, w) for h, w in product(m.H, m.W) if (h, w) not in nodata_idxs])
+    m.FeasibleMapTR = pyo.Set(
+        initialize=[
+            (h, w, tr)
+            for h, w, tr in product(m.H, m.W, m.TR)
+            if (h, w) not in nodata_idxs and treat_names[current_treatment[h, w]] != tr
+        ]
+    )
 
     # Params
     # 1d
@@ -675,7 +678,7 @@ def do_raster_treatment(
     m.current_value = pyo.Param(
         m.FeasibleMap,
         within=pyo.Reals,
-        initialize={idx: val for idx, val in np.ndenumerate(current_value) if idx not in nodata_idxs},
+        initialize={idx: current_value[*idx] for idx in m.FeasibleMap},
     )
     m.treat_cost = pyo.Param(
         m.TR,
@@ -687,48 +690,38 @@ def do_raster_treatment(
     )
     # 3d
     m.target_value = pyo.Param(
-        m.FeasibleTRMap,
+        m.FeasibleMapTR,
         within=pyo.Reals,
-        initialize={
-            (h, w, treat_names[tr]): val
-            for (tr, h, w), val in np.ndenumerate(target_value)
-            if (h, w) not in nodata_idxs
-        },
+        initialize={(h, w, tr): target_value[treat_names.index(tr), h, w] for h, w, tr in m.FeasibleMapTR},
     )
 
     # Variables
     m.X = pyo.Var(
-        m.FeasibleTRMap,
+        m.FeasibleMapTR,
         within=pyo.Binary,
     )
 
     # Constraints
-    m.at_most_one_treatment = pyo.Constraint(
-        m.FeasibleMap,
-        rule=lambda m, hh, ww: sum(m.X[h, w, tr] for h, w, tr in m.FeasibleTRMap if h == hh and w == ww) <= 1,
-    )
+    # m.at_most_one_treatment = pyo.Constraint(
+    #     m.FeasibleMap,
+    #     rule=lambda m, hh, ww: sum(m.X[h, w, tr] for h, w, tr in m.FeasibleMapTR if h == hh and w == ww) <= 1,
+    # )
 
-    m.sos_most = pyo.SOSConstraint(
-        m.FeasibleMap,
-        var=m.X,
-        sos=1,
-        index=pyo.Set(
-            m.FeasibleMap,
-            initialize=[
-                [(h, w, tr) for h, w, tr in m.FeasibleTRMap if h == hh and w == ww] for hh, ww in m.FeasibleMap
-            ],
-        ),
-    )
+    def sos_rule(m, hh, ww):
+        var_list = [m.X[h, w, tr] for h, w, tr in m.FeasibleMapTR if h == hh and w == ww]
+        weight_list = [1] * len(var_list)
+        return var_list, weight_list
+
+    m.sos_at_most_one_treatment = pyo.SOSConstraint(m.FeasibleMap, sos=1, rule=sos_rule)
 
     m.area_capacity = pyo.Constraint(
-        rule=lambda m: sum(m.X[h, w, tr] * m.px_area for h, w, tr in m.FeasibleTRMap) <= m.area
+        rule=lambda m: sum(m.X[h, w, tr] * m.px_area for h, w, tr in m.FeasibleMapTR) <= m.area
     )
 
     m.budget_capacity = pyo.Constraint(
         rule=lambda m: sum(
             m.X[h, w, tr] * m.treat_cost[treat_names[current_treatment[h, w]], tr] * m.px_area
-            for h, w, tr in m.FeasibleTRMap
-            if treat_names[current_treatment[h, w]] != tr
+            for h, w, tr in m.FeasibleMapTR
         )
         <= m.budget
     )
@@ -738,8 +731,7 @@ def do_raster_treatment(
         expr=sum(
             m.X[h, w, tr] * (m.target_value[h, w, tr] * m.px_area)
             + (1 - m.X[h, w, tr]) * (m.current_value[h, w] * m.px_area)
-            for h, w, tr in m.FeasibleTRMap
-            if treat_names[current_treatment[h, w]] != tr
+            for h, w, tr in m.FeasibleMapTR
         ),
         sense=pyo.maximize,
     )
