@@ -227,19 +227,15 @@ def run_alg_style_raster_legend(
 
         def postProcessLayer(self, layer, context, feedback):
             if layer.isValid():
-                qrs = QgsRasterShader()
-                qcrs = QgsColorRampShader()
-                qcrs.setColorRampType(QgsColorRampShader.INTERPOLATED)
+                colors = colormap_to_hex_list("gnuplot", len(self.lbls) + 4)[2:-2]
 
                 lst = []
-                colors = colormap_to_hex_list("gnuplot", len(self.lbls) + 4)[2:-2]
                 for i, lbl in enumerate(self.lbls):
                     lst += [QgsColorRampShader.ColorRampItem(i - 2, QColor(*colors[i]), f"{i-2}: {lbl}")]
+                class_data = QgsPalettedRasterRenderer.colorTableToClassData(lst)
 
-                qcrs.setColorRampItemList(lst)
-                qrs.setRasterShaderFunction(qcrs)
-                qsbpcr = QgsSingleBandPseudoColorRenderer(layer.dataProvider(), 1, qrs)
-                layer.setRenderer(qsbpcr)
+                qprr = QgsPalettedRasterRenderer(layer.dataProvider(), 1, class_data)
+                layer.setRenderer(qprr)
 
         # Hack to work around sip bug!
         @staticmethod
@@ -256,7 +252,7 @@ def colormap_to_hex_list(colormap: str = "gnuplot", num_colors: int = 10) -> lis
 
     cm = colormaps.get(colormap)
     if isinstance(cm, LinearSegmentedColormap):
-        return cm(np.linspace(0, 1, num_colors))
+        return (cm(np.linspace(0, 1, num_colors)) * 255).astype(int)
     elif isinstance(cm, ListedColormap):
-        return cm.resampled(num_colors).colors
+        return (cm.resampled(num_colors).colors * 255).astype(int)
     return []
