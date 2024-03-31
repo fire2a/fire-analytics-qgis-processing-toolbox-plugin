@@ -259,8 +259,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         return self.tr(self.groupId())
 
     def groupId(self):
-        """return 'do'"""
-        return "zexperimental"
+        return "do"
 
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)
@@ -504,7 +503,7 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
         # feedback.pushDebugInfo(f"{treats_dic=}")
         treats_arr = np.array([[treats_dic.get((i, k)) for k in model.T] for i in model.N], dtype=float)
         treats_arr = np.where(np.isnan(treats_arr), -1, treats_arr)
-        summary = [np.max(row) for row in treats_arr]
+        summary = np.array([np.max(row) for row in treats_arr])
         # feedback.pushDebugInfo(f"{treats_dic=}")
         # feedback.pushDebugInfo(f"{list(zip(treats_arr,summary))=}")
 
@@ -626,7 +625,6 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
             (iii) <b>Budget</b> (same units than costs)<br>
             (iv) <b>Area</b> (same units than the geometry of the polygons)<br>
             <br>
-            <b>BETA: Currently only -1 is accepted as no data</b><br>
             <br>
             Sample: """
             + (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri()
@@ -702,17 +700,11 @@ def do_raster_treatment(
     )
 
     # Constraints
-    # m.at_most_one_treatment = pyo.Constraint(
-    #     m.FeasibleMap,
-    #     rule=lambda m, hh, ww: sum(m.X[h, w, tr] for h, w, tr in m.FeasibleMapTR if h == hh and w == ww) <= 1,
-    # )
-
-    def sos_rule(m, hh, ww):
-        var_list = [m.X[h, w, tr] for h, w, tr in m.FeasibleMapTR if h == hh and w == ww]
-        weight_list = [1] * len(var_list)
-        return var_list, weight_list
-
-    m.sos_at_most_one_treatment = pyo.SOSConstraint(m.FeasibleMap, sos=1, rule=sos_rule)
+    m.sos_at_most_one_treatment = pyo.SOSConstraint(
+        m.FeasibleMap,
+        sos=1,
+        rule=lambda m, hh, ww: [m.X[h, w, tr] for h, w, tr in m.FeasibleMapTR if h == hh and w == ww],
+    )
 
     m.area_capacity = pyo.Constraint(
         rule=lambda m: sum(m.X[h, w, tr] * m.px_area for h, w, tr in m.FeasibleMapTR) <= m.area
@@ -740,7 +732,12 @@ def do_raster_treatment(
 
 
 def do_poly_treatment(treat_names, treat_table, dfa, dft, area, budget):
-    # Integer Programming
+    """Integer Programming
+    Hints:
+     initialize=df_stands[treatments].stack().to_dict(),
+    TODO
+     + dfa[dfa.fid == i].index[0] -> dfa.set_index("fid").loc[i] ?
+    """
     m = pyo.ConcreteModel(name="polygon_treatment")
 
     # Sets
@@ -751,11 +748,12 @@ def do_poly_treatment(treat_names, treat_table, dfa, dft, area, budget):
             (i, k) for i, k in product(m.N, m.T) if treat_table[dfa[dfa.fid == i].index[0], treat_names.index(k)]
         ]
     )
-    # TODO
-    # dfa[dfa.fid == i].index[0] -> dfa.set_index("fid").loc[i]
     dfa.set_index("fid", inplace=True)
 
     # Params
+    m.Area = pyo.Param(within=pyo.Reals, initialize=area)
+    m.Budget = pyo.Param(within=pyo.Reals, initialize=budget)
+    # 1d
     m.area = pyo.Param(m.N, within=pyo.Reals, initialize=dfa["area"].to_dict())
     m.current_value = pyo.Param(m.N, within=pyo.Reals, initialize=dfa["value"].to_dict())
     m.current_valuem2 = pyo.Param(m.N, within=pyo.Reals, initialize=dfa["value/m2"].to_dict())
@@ -770,22 +768,21 @@ def do_poly_treatment(treat_names, treat_table, dfa, dft, area, budget):
         m.N, m.T, within=pyo.Reals, initialize=dft.set_index(["fid", "treatment"])["cost/m2"].to_dict()
     )
 
-    # initialize=df_stands[treatments].stack().to_dict(),
-
     # Variables
     m.X = pyo.Var(
         m.FeasibleSet,
         within=pyo.Binary,
     )
     # Constraints
-    m.at_most_one_treatment = pyo.Constraint(
-        m.N, rule=lambda m, ii: sum(m.X[i, k] for i, k in m.FeasibleSet if i == ii) <= 1
+    m.sos_at_most_one_treatment = pyo.SOSConstraint(
+        m.N, sos=1, rule=lambda m, ii: [m.X[i, k] for i, k in m.FeasibleSet if i == ii]
     )
 
-    m.area_capacity = pyo.Constraint(rule=lambda m: sum(m.X[i, k] * m.area[i] for i, k in m.FeasibleSet) <= area)
+    m.area_capacity = pyo.Constraint(rule=lambda m: sum(m.X[i, k] * m.area[i] for i, k in m.FeasibleSet) <= m.Area)
 
     m.budget_capacity = pyo.Constraint(
-        rule=lambda m: sum(m.X[i, k] * (m.cost[i, k] + m.costm2[i, k] * m.area[i]) for i, k in m.FeasibleSet) <= budget
+        rule=lambda m: sum(m.X[i, k] * (m.cost[i, k] + m.costm2[i, k] * m.area[i]) for i, k in m.FeasibleSet)
+        <= m.Budget
     )
 
     # Objective
