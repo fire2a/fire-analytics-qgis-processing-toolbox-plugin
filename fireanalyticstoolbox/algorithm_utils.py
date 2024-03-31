@@ -7,7 +7,7 @@ import numpy as np
 from processing.algs.gdal.GdalUtils import GdalUtils
 from qgis.core import (Qgis, QgsColorRampShader, QgsMessageLog, QgsPalettedRasterRenderer, QgsProcessingFeedback,
                        QgsProcessingLayerPostProcessorInterface, QgsProcessingParameterRasterDestination,
-                       QgsRasterBlock, QgsRasterFileWriter)
+                       QgsRasterBlock, QgsRasterFileWriter, QgsRasterShader, QgsSingleBandPseudoColorRenderer)
 from qgis.PyQt.QtCore import QByteArray
 from qgis.PyQt.QtGui import QColor
 
@@ -210,3 +210,53 @@ class QgsProcessingParameterRasterDestinationGpkg(QgsProcessingParameterRasterDe
 
     def defaultFileExtension(self):
         return "gpkg"
+
+
+def run_alg_style_raster_legend(
+    labels,
+):
+    """Create a New Post Processor class and returns it
+
+    # Just simply creating a new instance of the class was not working
+    # for details see https://gis.stackexchange.com/questions/423650/qgsprocessinglayerpostprocessorinterface-only-processing-the-last-layer
+    """
+
+    class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
+        instance = None
+        lbls = labels
+
+        def postProcessLayer(self, layer, context, feedback):
+            if layer.isValid():
+                qrs = QgsRasterShader()
+                qcrs = QgsColorRampShader()
+                qcrs.setColorRampType(QgsColorRampShader.INTERPOLATED)
+
+                lst = []
+                colors = colormap_to_hex_list("gnuplot", len(self.lbls) + 4)[2:-2]
+                for i, lbl in enumerate(self.lbls):
+                    lst += [QgsColorRampShader.ColorRampItem(i - 2, QColor(*colors[i]), f"{i-2}: {lbl}")]
+
+                qcrs.setColorRampItemList(lst)
+                qrs.setRasterShaderFunction(qcrs)
+                qsbpcr = QgsSingleBandPseudoColorRenderer(layer.dataProvider(), 1, qrs)
+                layer.setRenderer(qsbpcr)
+
+        # Hack to work around sip bug!
+        @staticmethod
+        def create() -> "LayerPostProcessor":
+            LayerPostProcessor.instance = LayerPostProcessor()
+            return LayerPostProcessor.instance
+
+    return LayerPostProcessor.create()
+
+
+def colormap_to_hex_list(colormap: str = "gnuplot", num_colors: int = 10) -> list:
+    from matplotlib import colormaps
+    from matplotlib.colors import LinearSegmentedColormap, ListedColormap, to_hex
+
+    cm = colormaps.get(colormap)
+    if isinstance(cm, LinearSegmentedColormap):
+        return cm(np.linspace(0, 1, num_colors))
+    elif isinstance(cm, ListedColormap):
+        return cm.resampled(num_colors).colors
+    return []

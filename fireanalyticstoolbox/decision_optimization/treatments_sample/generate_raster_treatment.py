@@ -14,6 +14,8 @@ USAGE: RUN IN THE QGIS PYTHON CONSOLE
 - overwrites existing tif rasters and csv.files(check last line for the path)
 - then solve using the polygon treatment algorithm
 """
+from os import getcwd
+
 import string
 
 import numpy as np
@@ -129,3 +131,5 @@ for i in range(TR):
     band = None
 ds.FlushCache()  # write to disk
 ds = None
+
+print("files are @", getcwd())
