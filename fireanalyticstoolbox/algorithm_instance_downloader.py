@@ -26,8 +26,8 @@ from tempfile import NamedTemporaryFile
 from zipfile import ZipFile
 
 import processing
-from qgis.core import (QgsProcessingAlgorithm, QgsProcessingParameterEnum, QgsProcessingParameterFileDestination,
-                       QgsProject)
+from qgis.core import (QgsProcessingAlgorithm, QgsProcessingException, QgsProcessingParameterEnum,
+                       QgsProcessingParameterFileDestination, QgsProject)
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 
@@ -43,15 +43,18 @@ class InstanceDownloader(QgsProcessingAlgorithm):
 
     def initAlgorithm(self, config):
         with NamedTemporaryFile(delete=False) as tmpfile:
-            output = processing.run(
-                "native:filedownloader",
-                {
-                    "URL": self.url,
-                    "METHOD": "0",
-                    "OUTPUT": tmpfile.name,
-                },
-            )
-            self.yson = json_load(open(output["OUTPUT"], "r"))
+            try:
+                output = processing.run(
+                    "native:filedownloader",
+                    {
+                        "URL": self.url,
+                        "METHOD": "0",
+                        "OUTPUT": tmpfile.name,
+                    },
+                )
+                self.yson = json_load(open(output["OUTPUT"], "r"))
+            except QgsProcessingException as e:
+                self.yson = {"assets": [{"name": "No internet, try again later!"}]}
 
         self.addParameter(
             QgsProcessingParameterEnum(
@@ -96,14 +99,17 @@ class InstanceDownloader(QgsProcessingAlgorithm):
         feedback.pushInfo(
             f"Requesting {instance} from {dl_url}, check progress on Processing tab on Log Messages panel..."
         )
-        output = processing.run(
-            "native:filedownloader",
-            {
-                "URL": dl_url,
-                "METHOD": "0",
-                "OUTPUT": str(outfiledest),
-            },
-        )
+        try:
+            output = processing.run(
+                "native:filedownloader",
+                {
+                    "URL": dl_url,
+                    "METHOD": "0",
+                    "OUTPUT": str(outfiledest),
+                },
+            )
+        except QgsProcessingException as e:
+            return {"no internet": "try again later"}
         # feedback.pushInfo(f"{output}")
         feedback.pushInfo(f"Download complete to {outfiledest}, unzipping...")
         # unzip
