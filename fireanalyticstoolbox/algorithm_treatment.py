@@ -676,7 +676,7 @@ def do_raster_treatment(
     m.current_value = pyo.Param(
         m.FeasibleMap,
         within=pyo.Reals,
-        initialize={idx: current_value[*idx] for idx in m.FeasibleMap},
+        initialize={(h, w): current_value[h, w] for h, w in m.FeasibleMap},
     )
     m.treat_cost = pyo.Param(
         m.TR,

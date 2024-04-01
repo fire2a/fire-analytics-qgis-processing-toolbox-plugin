@@ -262,10 +262,11 @@ def pyomo_parse_results(results, feedback=None):
     retval = 0
     feed_print(feedback, msg, retval)
 
-    if (
-        status in [SolverStatus.error, SolverStatus.aborted, SolverStatus.unknown]
-        and termination_condition != TerminationCondition.intermediateNonInteger
-    ):
+    if status in [SolverStatus.error, SolverStatus.aborted, SolverStatus.unknown] and termination_condition not in [
+        TerminationCondition.intermediateNonInteger,
+        TerminationCondition.maxTimeLimit,
+        TerminationCondition.maxIterations,
+    ]:
         msg = "No solution found! Maybe solver or user error?\n"
         retval = 2
         feed_print(feedback, msg, retval)
@@ -286,7 +287,7 @@ def pyomo_parse_results(results, feedback=None):
         retval = 1
         feed_print(feedback, msg, retval)
         return retval, retdic
-    # TODO are there more cases?
+    feed_print(feedback, msg + "unplanned, hopefully good result status", retval)
     return retval, retdic
 
 
