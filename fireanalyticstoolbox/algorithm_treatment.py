@@ -253,7 +253,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         Returns the translated algorithm name, which should be used for any
         user-visible display of the algorithm name.
         """
-        return self.tr("AAA Raster Treatment")
+        return self.tr("Raster Treatment")
 
     def group(self):
         return self.tr(self.groupId())
@@ -648,9 +648,9 @@ def do_raster_treatment(
     current_value_nodata = list(zip(*np.where(current_value == nodata)))
     current_treatment_nodata = list(zip(*np.where(current_treatment == nodata)))
     target_value_nodata = [(h, w) for h, w in np.ndindex(H, W) if np.all(target_value[:, h, w] == nodata)]
-    print(f"{current_value_nodata=}, {current_treatment_nodata=}, {target_value_nodata=}")
+    # print(f"{current_value_nodata=}, {current_treatment_nodata=}, {target_value_nodata=}")
     nodata_idxs = set(current_value_nodata + current_treatment_nodata + target_value_nodata)
-    print(f"{nodata_idxs=}")
+    # print(f"{nodata_idxs=}")
 
     # Sets
     m.H = pyo.Set(initialize=range(H))
