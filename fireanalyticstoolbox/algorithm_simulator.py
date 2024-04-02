@@ -70,7 +70,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     output_dict = None
     results_dir = None
     plugin_dir = Path(__file__).parent
-    c2f_path = Path(plugin_dir, "simulator", "C2F", "Cell2FireC")
+    c2f_path = Path(plugin_dir, "simulator", "C2F", "Cell2Fire")
     # c2f_path = Path(plugin_dir, "simulator", "C2F")
     # c2f_path = Path("/home/fdo/source/C2F-W")
 
@@ -644,7 +644,8 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         args["output-folder"] = str(results_dir)
         feedback.pushDebugInfo(f"args: {args}\n")
         # cmd = "python main.py"
-        cmd = "python cell2fire.py"
+        # cmd = "python cell2fire.py"
+        cmd = f"./Cell2Fire{get_ext()}"
         for k, v in args.items():
             if v is False or v is None:
                 continue
@@ -667,7 +668,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             return self.output_dict
 
         # RUN
-        c2f = C2F(proc_dir=self.c2f_path, feedback=feedback)
+        c2f = C2F(proc_dir=self.c2f_path, feedback=feedback, log_file = results_dir / "LogFile.txt")
         c2f.start(cmd)
         pid = c2f.pid()
         while True:

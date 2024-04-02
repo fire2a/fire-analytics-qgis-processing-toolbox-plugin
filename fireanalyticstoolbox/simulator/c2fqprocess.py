@@ -30,7 +30,7 @@ def nlog(*args, **kwargs):
 class C2F(QProcess):
     """fire simulation qprocess calls the c2fsb repo main.py"""
 
-    def __init__(self, parent=None, proc_dir=None, on_finished=None, feedback=None):
+    def __init__(self, parent=None, proc_dir=None, on_finished=None, feedback=None, log_file=None):
         super().__init__(parent)
         self.setInputChannelMode(QProcess.ForwardedInputChannel)
         self.setProcessChannelMode(QProcess.SeparateChannels)
@@ -50,6 +50,7 @@ class C2F(QProcess):
         self.state_code = None
         self.error_code = None
         self.exit_code = None
+        self.log_file = open(log_file, "w") 
         self.log_stat("init")
 
     def log_stat(self, msg):
@@ -66,9 +67,11 @@ class C2F(QProcess):
             error=ProcessError.get(self.error_code, "!Unknown"),
             exit_code=ExitStatus.get(self.exit_code, "!Unknown"),
         )
+        self.log_file.write('log_stat: ' + msg + '\n')
 
     def append_message(self, msg):
         self.feedback.pushConsoleInfo(msg)
+        self.log_file.write('append_message: ' + msg + '\n')
 
     def start(self, cmd, proc_dir=None):
         self.log_stat("start INI")
@@ -134,6 +137,7 @@ class C2F(QProcess):
     def on_finished(self):
         self.ended = True
         self.log_stat("on_finished")
+        self.log_file.close()
         ok = False
         if self.exit_code == QProcess.NormalExit:
             level = Qgis.Success
@@ -160,11 +164,13 @@ class C2F(QProcess):
     def read_standard_output(self):
         data = self.readAllStandardOutput()
         stdout = bytes(data).decode("utf8")
+        self.log_file.write(stdout)
         self.append_message(stdout)
 
     def read_standard_error(self):
         data = self.readAllStandardError()
         stderr = bytes(data).decode("utf8")
+        self.log_file.write(stderr)
         self.append_message("===! standard error ouput !===\n" + stderr)
 
     def on_state_changed(self, state):
