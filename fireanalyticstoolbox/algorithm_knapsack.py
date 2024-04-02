@@ -173,7 +173,7 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
 
         def unsafe_cast(x):
             try:
-                return np.float64(x)
+                return np.float32(x)
             except (TypeError, ValueError):
                 return np.nan
 
@@ -460,7 +460,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo(f"capacity bound: {ratio=}, {weight_sum=}, {capacity=}\n")
 
         model = do_knapsack(value_data[mask], weight_data[mask], capacity)
-        results = pyomo_run_model(self, parameters, context, feedback, model)
+        results = pyomo_run_model(self, parameters, context, feedback, model, display_model=False)
         retval, solver_dic = pyomo_parse_results(results, feedback)
 
         if retval >= 1:

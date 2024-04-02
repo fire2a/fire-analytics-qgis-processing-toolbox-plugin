@@ -157,7 +157,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         instance["current_treatment"] = rasters[self.IN_TRT]["data"]
         instance["current_value"] = rasters[self.IN_VAL]["data"]
         instance["target_value"] = rasters[self.IN_TRGTS]["data"]
-        TR, H, W = instance["target_value"].shape # fmt: skip
+        TR, H, W = instance["target_value"].shape  # fmt: skip
         # read conversion table
         df = read_csv(self.parameterAsFile(parameters, self.IN_TREATS, context), index_col=0)
         instance["treat_names"] = df.columns.values.tolist()

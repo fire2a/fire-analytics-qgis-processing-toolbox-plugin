@@ -133,8 +133,10 @@ def pyomo_init_algorithm(self, config):
     SOLVER: solver name and options
     EXECUTABLE: path to the solver executable
     CUSTOM_OPTIONS_STRING: custom options to pass to the solver
+    DISPLAY_MODEL: display the model in the console
     """
-    from qgis.core import QgsProcessingParameterDefinition, QgsProcessingParameterFile, QgsProcessingParameterString
+    from qgis.core import (QgsProcessingParameterBoolean, QgsProcessingParameterDefinition, QgsProcessingParameterFile,
+                           QgsProcessingParameterString)
 
     # SOLVERS
     value_hints, self.solver_exception_msg = check_solver_availability(SOLVER)
@@ -172,9 +174,18 @@ def pyomo_init_algorithm(self, config):
     )
     qppf.setFlags(qppf.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
     self.addParameter(qppf)
+    # boolean parameter to display the model
+    qppb = QgsProcessingParameterBoolean(
+        name="DISPLAY_MODEL",
+        description="Display the pyomo model in the console (disabled for rasters)",
+        defaultValue="False",
+        optional=False,
+    )
+    qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+    self.addParameter(qppb)
 
 
-def pyomo_run_model(self, parameters, context, feedback, model, display_model=True):
+def pyomo_run_model(self, parameters, context, feedback, model, display_model=None):
     """runs a pyomo model reading parameters from a QgsProcessingAlgorithm form, returns the results object
     Reserves the following variables in the algorithm:
     SOLVER: solver name and options
@@ -205,6 +216,12 @@ def pyomo_run_model(self, parameters, context, feedback, model, display_model=Tr
         # opt.set_instance(model)
     else:
         opt = SolverFactory(solver)
+
+    if not display_model:
+        display_model = self.parameterAsBool(parameters, "DISPLAY_MODEL", context)
+        feedback.pushDebugInfo(f"================={display_model=}")
+    else:
+        feedback.pushDebugInfo(f"not None {display_model=}")
 
     feedback.setProgress(20)
     feedback.setProgressText("pyomo model built, solver object created 20%")
@@ -283,7 +300,10 @@ def pyomo_parse_results(results, feedback=None):
         return retval, retdic
 
     if not termination_condition == TerminationCondition.optimal:
-        msg = "Non-optimal solution found! Check the [mip|ratio|tolerance]gap that estimates how far the solution is from the optimal one!\nTweak solver options or simplify the instance to get better results!\n"
+        msg = (
+            "Non-optimal solution found! Check the [mip|ratio|tolerance]gap that estimates how far the solution is from"
+            " the optimal one!\nTweak solver options or simplify the instance to get better results!\n"
+        )
         retval = 1
         feed_print(feedback, msg, retval)
         return retval, retdic
