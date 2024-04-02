@@ -217,11 +217,8 @@ def pyomo_run_model(self, parameters, context, feedback, model, display_model=No
     else:
         opt = SolverFactory(solver)
 
-    if not display_model:
+    if display_model is None:
         display_model = self.parameterAsBool(parameters, "DISPLAY_MODEL", context)
-        feedback.pushDebugInfo(f"================={display_model=}")
-    else:
-        feedback.pushDebugInfo(f"not None {display_model=}")
 
     feedback.setProgress(20)
     feedback.setProgressText("pyomo model built, solver object created 20%")
