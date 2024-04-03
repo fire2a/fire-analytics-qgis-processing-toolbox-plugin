@@ -643,10 +643,13 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         args["input-instance-folder"] = str(instance_dir)
         args["output-folder"] = str(results_dir)
         feedback.pushDebugInfo(f"args: {args}\n")
-        if platform_system() == "Windows":
-            cmd = "cmd.exe /c Cell2Fire.exe"
-        else:
-            cmd = f"./Cell2Fire{get_ext()}"
+
+        cmd = f"./Cell2Fire{get_ext()}"
+        # cmd alternative (remove powershell below)
+        # if platform_system() == "Windows":
+        #     cmd.replace("./", "")
+        #     cmd = "cmd.exe /s /c " + cmd
+
         for k, v in args.items():
             if v is False or v is None:
                 continue
@@ -670,6 +673,8 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
 
         # RUN
         c2f = C2F(proc_dir=self.c2f_path, feedback=feedback, log_file = results_dir / "LogFile.txt")
+        if platform_system() == "Windows":
+            cmd = 'C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -Command "& {'+cmd+'}"'
         c2f.start(cmd)
         pid = c2f.pid()
         while True:
