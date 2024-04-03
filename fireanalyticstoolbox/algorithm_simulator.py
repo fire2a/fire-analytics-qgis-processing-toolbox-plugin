@@ -643,9 +643,10 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         args["input-instance-folder"] = str(instance_dir)
         args["output-folder"] = str(results_dir)
         feedback.pushDebugInfo(f"args: {args}\n")
-        # cmd = "python main.py"
-        # cmd = "python cell2fire.py"
-        cmd = f"./Cell2Fire{get_ext()}"
+        if platform_system() == "Windows":
+            cmd = "cmd.exe /c Cell2Fire.exe"
+        else:
+            cmd = f"./Cell2Fire{get_ext()}"
         for k, v in args.items():
             if v is False or v is None:
                 continue
