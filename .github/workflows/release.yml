@@ -39,12 +39,12 @@ jobs:
           #     repository: "fire2a/C2F-W" 
           #     path: "fireanalyticstoolbox/simulator/C2F"
           #     sparse-checkout: |
-          #       Cell2FireC/Cell2Fire.exe
-          #       Cell2FireC/Cell2Fire.Linux.x86_64
-          #       Cell2FireC/Cell2Fire.Darwin.x86_64
-          #       Cell2FireC/Cell2Fire.Darwin.arm64
-          #       Cell2FireC/cell2fire.py
-          #       Cell2FireC/DataGeneratorC.py
+          #       Cell2Fire/Cell2Fire.exe
+          #       Cell2Fire/Cell2Fire.Linux.x86_64
+          #       Cell2Fire/Cell2Fire.Darwin.x86_64
+          #       Cell2Fire/Cell2Fire.Darwin.arm64
+          #       Cell2Fire/cell2fire.py
+          #       Cell2Fire/DataGeneratorC.py
           #     sparse-checkout-cone-mode: false
 
     - name: CheckoutFire2a-lib
@@ -74,13 +74,13 @@ jobs:
          rm fireanalyticstoolbox/cbc/*w64-msvc17*.zip
 
          mkdir  fireanalyticstoolbox/simulator/C2F
-         mv fireanalyticstoolbox/simulator/tmp/C2F/Cell2FireC fireanalyticstoolbox/simulator/tmp/C2F/LICENSE fireanalyticstoolbox/simulator/tmp/C2F/README.md fireanalyticstoolbox/simulator/C2F
+         mv fireanalyticstoolbox/simulator/tmp/C2F/Cell2Fire fireanalyticstoolbox/simulator/tmp/C2F/LICENSE fireanalyticstoolbox/simulator/tmp/C2F/README.md fireanalyticstoolbox/simulator/C2F
          rm -rf fireanalyticstoolbox/simulator/tmp
-         rm -f fireanalyticstoolbox/simulator/C2F/Cell2FireC/makefile*
-         rm -f fireanalyticstoolbox/simulator/C2F/Cell2FireC/*cpp
-         rm -f fireanalyticstoolbox/simulator/C2F/Cell2FireC/*h
-         rm -f fireanalyticstoolbox/simulator/C2F/Cell2FireC/*sln
-         rm -f fireanalyticstoolbox/simulator/C2F/Cell2FireC/*vcxproj*
+         rm -f fireanalyticstoolbox/simulator/C2F/Cell2Fire/makefile*
+         rm -f fireanalyticstoolbox/simulator/C2F/Cell2Fire/*cpp
+         rm -f fireanalyticstoolbox/simulator/C2F/Cell2Fire/*h
+         rm -f fireanalyticstoolbox/simulator/C2F/Cell2Fire/*sln
+         rm -f fireanalyticstoolbox/simulator/C2F/Cell2Fire/*vcxproj*
 
          mv fireanalyticstoolbox/fire2a/src/fire2a/* fireanalyticstoolbox/fire2a
          rm -rf fireanalyticstoolbox/fire2a/.git* fireanalyticstoolbox/fire2a/src
