@@ -24,14 +24,13 @@ from fire2a.raster import get_rlayer_data, get_rlayer_info
 from qgis.core import (QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterMultipleLayers,
                        QgsProcessingParameterRasterDestination, QgsProcessingParameterFile, QgsProject, QgsRasterLayer, QgsProcessingException)
 from qgis.PyQt.QtCore import QCoreApplication
-
 import torch
 from .firescarmapping.model_u_net import model, device
 from .firescarmapping.as_dataset import create_datasetAS
 import numpy as np
 from torch.utils.data import DataLoader
-import rasterio
-from rasterio.transform import from_origin
+
+from osgeo import gdal, osr 
 
 
 class FireScarMapper(QgsProcessingAlgorithm):
@@ -96,7 +95,6 @@ class FireScarMapper(QgsProcessingAlgorithm):
             }
             adict.update(get_rlayer_info(layer))
             rasters += [adict]
-        #feedback.pushDebugInfo(f"{rasters=}, {len(rasters)=} {[r['data'].shape for r in rasters]}")
 
         before_files = []
         after_files = []
@@ -136,18 +134,17 @@ class FireScarMapper(QgsProcessingAlgorithm):
             generated_matrix = pred[0][0]
             
             if output_path:
-                # Ajustar el nombre del archivo de salida para que sea único para cada cicatriz
+                # Adjust the name of the output path to be unique for each firescar
                 output_path_with_index = output_path[:-4] + f"_{i+1}.tif"
-
                 self.writeRaster(generated_matrix, output_path_with_index, context)
-                #it's (-1*i)-1 because it starts from the last
-                self.addRasterLayer(output_path_with_index, before_files[(-1*i)-1]['name'], context)
+                self.addRasterLayer(output_path_with_index, f"Firescar {i+1}", context)
 
         return {}
 
+
     def writeRaster(self, matrix, file_path, context):
         """
-        Guarda una matriz como un archivo raster en formato TIF utilizando rasterio.
+        Guarda una matriz como un archivo raster en formato TIF utilizando GDAL.
 
         :param matrix: Matriz de datos a guardar.
         :param file_path: Ruta del archivo TIF de salida.
@@ -155,31 +152,32 @@ class FireScarMapper(QgsProcessingAlgorithm):
         """
         height, width = matrix.shape
 
-        # Definir la transformación (resolución y origen)
-        transform = from_origin(0, 0, 1, 1)  # Usar una resolución de 1x1 y el origen en (0, 0)
+        driver = gdal.GetDriverByName('GTiff')
+        raster = driver.Create(file_path, width, height, 1, gdal.GDT_Int16)
 
-        # Definir los metadatos del archivo raster
-        meta = {
-            'driver': 'GTiff',
-            'height': height,
-            'width': width,
-            'count': 1,  # Solo hay una banda en la matriz
-            'dtype': matrix.dtype,
-            'crs': 'EPSG:4326',  # Definir el sistema de referencia espacial (CRS)
-            'transform': transform
-        }
+        originX = 0
+        originY = 0
+        pixelWidth = 1
+        pixelHeight = 1
 
-        # Guardar la matriz como un archivo TIF utilizando rasterio
-        with rasterio.open(file_path, 'w', **meta) as dst:
-            dst.write(matrix, 1)  # Escribir la matriz en la primera banda del archivo TIF
+        raster.SetGeoTransform((originX, pixelWidth, 0, originY, 0, -pixelHeight))
 
+        spatialReference = osr.SpatialReference()
+        spatialReference.ImportFromEPSG(4326)
+        raster.SetProjection(spatialReference.ExportToWkt())
+
+        band = raster.GetRasterBand(1)
+        band.WriteArray(matrix)
+
+        band.FlushCache()
+        raster.FlushCache()
+        raster = None
 
     def addRasterLayer(self, file_path, layer_name, context):
         """
         :param file_path: Ruta del archivo raster.
         :param context: Contexto de procesamiento.
         """
-        # Cargar el archivo TIF como una capa raster en QGIS
         layer = QgsRasterLayer(file_path, layer_name, "gdal")
         if not layer.isValid():
             raise QgsProcessingException(f"Failed to load raster layer from {file_path}")
