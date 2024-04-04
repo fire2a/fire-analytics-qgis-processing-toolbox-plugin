@@ -90,10 +90,11 @@ def do_2d_knapsack_nb(nb=1, wx=1, wy=1, wnb=1):
     m.Va = pyo.Param(m.Map, within=pyo.Reals, initialize=dict(np.ndenumerate(value_data2d)))
     m.X = pyo.Var(m.Map, within=pyo.Binary)
     m.Y = pyo.Var(m.Map, within=pyo.Binary)
-    m.NB = pyo.Var(m.Map, within=pyo.Reals, bounds=(0.0, None))
+    m.NB = pyo.Var(m.Map, within=pyo.Reals, bounds=(0.0, 10.0))
 
     m.objective = pyo.Objective(
-        sense=pyo.maximize, expr=lambda m: sum((wx * m.X[i] + wy * m.Y[i] - wnb * m.NB[i]) * m.Va[i] for i in m.Map)
+        sense=pyo.maximize,
+        expr=lambda m: sum((wx * m.X[i] + wy * m.Y[i] - wnb * m.NB[i] / max(1,m.num_nb)) * m.Va[i] for i in m.Map),
     )
 
     m.sos_at_most_one = pyo.SOSConstraint(m.Map, sos=1, rule=lambda m, h, w: [m.X[h, w], m.Y[h, w]])
@@ -110,10 +111,10 @@ def do_2d_knapsack_nb(nb=1, wx=1, wy=1, wnb=1):
     )
 
     # fmt: off
-    m.neighborS = pyo.Constraint(m.W - {0, W-1}, rule=lambda m, w: (0, m.X[0  , w  ] * m.num_nb - sum(m.Y[1  , w+i] for i in range(-1, 2)) - m.NB[0  , w  ], 0))
-    m.neighborN = pyo.Constraint(m.W - {0, W-1}, rule=lambda m, w: (0, m.X[H-1, w  ] * m.num_nb - sum(m.Y[H-2, w+i] for i in range(-1, 2)) - m.NB[H-1, w  ], 0))
-    m.neighborW = pyo.Constraint(m.H - {0, H-1}, rule=lambda m, h: (0, m.X[h  , 0  ] * m.num_nb - sum(m.Y[h+i, 1  ] for i in range(-1, 2)) - m.NB[h  , 0  ], 0))
-    m.neighborE = pyo.Constraint(m.H - {0, H-1}, rule=lambda m, h: (0, m.X[h  , W-1] * m.num_nb - sum(m.Y[h+i, W-2] for i in range(-1, 2)) - m.NB[h  , W-1], 0))
+    m.neighborS = pyo.Constraint(m.W - {0, W-1}, rule=lambda m, w: (0, m.X[0  , w  ] * min(3,m.num_nb) - sum(m.Y[1  , w+i] for i in range(-1, 2)) - m.NB[0  , w  ], 0))
+    m.neighborN = pyo.Constraint(m.W - {0, W-1}, rule=lambda m, w: (0, m.X[H-1, w  ] * min(3,m.num_nb) - sum(m.Y[H-2, w+i] for i in range(-1, 2)) - m.NB[H-1, w  ], 0))
+    m.neighborW = pyo.Constraint(m.H - {0, H-1}, rule=lambda m, h: (0, m.X[h  , 0  ] * min(3,m.num_nb) - sum(m.Y[h+i, 1  ] for i in range(-1, 2)) - m.NB[h  , 0  ], 0))
+    m.neighborE = pyo.Constraint(m.H - {0, H-1}, rule=lambda m, h: (0, m.X[h  , W-1] * min(3,m.num_nb) - sum(m.Y[h+i, W-2] for i in range(-1, 2)) - m.NB[h  , W-1], 0))
 
     m.neighborNW = pyo.Constraint(rule=(0, m.X[0  , 0  ] * min(3,m.num_nb) - m.Y[0  , 1  ] - m.Y[1  , 0  ] - m.Y[1  , 1  ] - m.NB[0  , 1  ], 0))
     m.neighborNE = pyo.Constraint(rule=(0, m.X[0  , W-1] * min(3,m.num_nb) - m.Y[0  , W-2] - m.Y[1  , W-1] - m.Y[1  , W-2] - m.NB[0  , W-2], 0))
@@ -167,7 +168,11 @@ def graph_results2d(m, wx, wy, wnb):
     xx = np.array([pyo.value(m.X[i], exception=False) for i in m.Map]).reshape(H, W)
     yy = np.array([pyo.value(m.Y[i], exception=False) for i in m.Map]).reshape(H, W)
     zz = np.where(xx == 1, 1, np.where(yy == 1, 2, 0))
-    data = np.stack((xx, yy, zz), axis=1).T
+
+    xsum = xx.sum()
+    ysum = yy.sum()
+    both = xsum + ysum
+    zsum = zz.sum()
 
     # neighbors constraint body
     # center
@@ -182,18 +187,24 @@ def graph_results2d(m, wx, wy, wnb):
     nb = np.hstack((nbw, nbc, nbe))
     # stack north, center & south
     nb = np.vstack((nbs, nb, nbn))
+    nbsum = nb.sum()
+
+    print(f"sums x:{xsum:.1f}, y:{ysum:.1f}, both:{both:.1f}, z:{zsum:.1f}, nb:{nbsum:.1f}")
 
     # two axes plot
     fig, ax = plt.subplots(2, 3)
-    title = f"knapsack2d obj:{pyo.value(m.objective):.3f}, cap{100*m.capacity.body()/m.capacity.upper():.3f} nb:{m.num_nb.value}, wx:{wx}, wy:{wy}, wnb:{wnb}"
+    cap = 100 * m.capacity.body() / m.capacity.upper()
+    title = (
+        f"knapsack2d obj:{pyo.value(m.objective):.3f}, cap{cap:.3f} nb:{m.num_nb.value}, wx:{wx}, wy:{wy}, wnb:{wnb}"
+    )
     fig.suptitle(title)
 
     ax[0, 0].set_title("value")
     ax[1, 0].set_title("weight")
-    ax[0, 1].set_title("neighbors {nb.sum()}")
-    ax[1, 1].set_title(f"X {xx.sum()}")
-    ax[0, 2].set_title(f"Y {yy.sum()}")
-    ax[1, 2].set_title("both {xx.sum()+yy.sum()}")
+    ax[0, 1].set_title("neighbors {nbsum:.1f}")
+    ax[1, 1].set_title(f"X {xsum:.1f}")
+    ax[0, 2].set_title(f"Y {ysum:.1f}")
+    ax[1, 2].set_title(f"both {both:.1f}")
 
     ax[0, 0].matshow(value_data2d)
     ax[1, 0].matshow(weight_data2d)
@@ -240,7 +251,13 @@ m = do_2d_knapsack_nb(nb=0, wx=1, wy=1, wnb=1)
 m = simplest_pyomo_solve(m, print_model=False, tee=False)
 graph_results2d(m, 1, 1, 1)
 # nb [1, 8]
-for nb, wx, wy, wnb in product(range(1, 9), [0.01, 1, 100], [0.01, 1, 100], [0.01, 1, 100]):
+for nb, wx, wy, wnb in product(range(1, 9), [1, 10, 100], [1, 10, 100], [0.01, 1, 100]):
+    if wx == wy == wnb == 1:
+        print('skip 1,1,1')
+        continue
+    if wx == wy == wnb == 100:
+        print('skip 100,100,100')
+        continue
     m = do_2d_knapsack_nb(nb, wx, wy, wnb)
     m = simplest_pyomo_solve(m, print_model=False, tee=False)
     graph_results2d(m, wx, wy, wnb)
