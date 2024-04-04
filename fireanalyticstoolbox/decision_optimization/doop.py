@@ -30,6 +30,27 @@ SOLVER = {
 }
 
 
+def init_ndarray(data, model, *args):
+    """Function to initialize a pyomo element with a numpy ndarray with the same shape as data
+    Args:
+        data: numpy ndarray
+        model: pyomo model
+        args: pyomo indices
+    Returns:
+        callable pyomo initializer
+
+    sample usage:
+        from functools import partial
+        arr = np.random.rand(3, 4)
+        model = ConcreteModel()
+        model.A = Set(initialize=range(3))
+        model.B = Set(initialize=range(4))
+        model.Pa = Param(model.A, model.B, initialize=partial(init_ndarray, data))
+    """
+    # print(f"{data.shape=}, {args=}")
+    return data[args]
+
+
 def check_solver_availability(SOLVER):
     # check availability
     solver_exception_msg = ""

@@ -27,6 +27,7 @@ __version__ = "$Format:%H$"
 
 
 from contextlib import redirect_stderr, redirect_stdout
+from functools import partial
 from io import StringIO
 from itertools import compress, product
 from multiprocessing import cpu_count
@@ -59,8 +60,8 @@ from .algorithm_utils import (QgsProcessingParameterRasterDestinationGpkg, array
                               get_raster_data, get_raster_info, get_raster_nodata, run_alg_style_raster_legend,
                               run_alg_styler_bin, write_log)
 from .config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
-from .decision_optimization.doop import (FileLikeFeedback, add_cbc_to_path, pyomo_init_algorithm, pyomo_parse_results,
-                                         pyomo_run_model)
+from .decision_optimization.doop import (FileLikeFeedback, add_cbc_to_path, init_ndarray, pyomo_init_algorithm,
+                                         pyomo_parse_results, pyomo_run_model)
 
 
 class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
@@ -158,6 +159,8 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         instance["current_value"] = rasters[self.IN_VAL]["data"]
         instance["target_value"] = rasters[self.IN_TRGTS]["data"]
         TR, H, W = instance["target_value"].shape  # fmt: skip
+        feedback.pushDebugInfo(f"{TR=}, {H=}, {W=}")
+        print(f"{TR=}, {H=}, {W=}")
         # read conversion table
         df = read_csv(self.parameterAsFile(parameters, self.IN_TREATS, context), index_col=0)
         instance["treat_names"] = df.columns.values.tolist()
@@ -195,13 +198,23 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
             model.budget_capacity.display()
             model.objective.display()
 
-        treats_dic = {(h, w, tr): pyo.value(model.X[h, w, tr], exception=False) for h, w, tr in model.FeasibleMapTR}
-        # feedback.pushDebugInfo(f"{treats_dic=}")
+        # treats_dic = {(h, w, tr): pyo.value(model.X[h, w, tr], exception=False) for h, w, tr in model.FeasibleMapTR}
+        treats_dic = model.X.get_values()
+        # feedback.pushDebugInfo(f"{treats_dic=}, {len(treats_dic)=}")
+        feedback.pushDebugInfo(f"{len(treats_dic)=}")
+
+        # TODO better with
+        # treats_arr = np.array([ treats_dic.get((h, w, tr), -3) for h, w, tr in np.ndindex(H, W, TR)], dtype=float).reshape ?
         treats_arr = np.array(
             [[treats_dic.get((h, w, tr), -3) for tr in model.TR] for h, w in np.ndindex(H, W)], dtype=float
         )
+        # feedback.pushDebugInfo(f"{treats_arr=}, {treats_arr.shape=}")
+        feedback.pushDebugInfo(f"{treats_arr.shape=}")
+
         treats_arr = np.where(np.isnan(treats_arr), -2, treats_arr)
-        summary = np.array([np.where(np.any(row > 0), np.argmax(row), -1) for row in treats_arr])
+        summary = np.array(
+            [np.where(np.any(row > 0), np.argmax(row), -1) for row in treats_arr]  # .transpose(2, 0, 1).reshape(TR, -1)
+        )
 
         msg = "Solution histogram:\n"
         hist = np.histogram(summary, bins=[-3, -2, -1] + list(range(TR + 1)))[0]
@@ -217,7 +230,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         gt = rasters["current_treatment"]["GT"]
         if abs(gt[-1]) > 0:
             gt = (gt[0], gt[1], gt[2], gt[3], gt[4], -abs(gt[5]))
-            feedback.pushWarning("Weird geotransform, Flipping Y axis...")
+            feedback.pushWarning("Geotransform: Flipping Y axis...")
         feedback.pushDebugInfo(f"{gt=}")
         ds.SetGeoTransform(gt)  # specify coords
         band = ds.GetRasterBand(1)
@@ -644,6 +657,7 @@ def do_raster_treatment(
     m = pyo.ConcreteModel(name="raster_treatment")
 
     H, W = current_value.shape
+    TR = len(treat_names)
     assert len(treat_names) == target_value.shape[0]
 
     current_value_nodata = list(zip(*np.where(current_value == nodata)))
@@ -656,7 +670,8 @@ def do_raster_treatment(
     # Sets
     m.H = pyo.Set(initialize=range(H))
     m.W = pyo.Set(initialize=range(W))
-    m.TR = pyo.Set(initialize=treat_names)
+    # m.TR = pyo.Set(initialize=treat_names)
+    m.TR = pyo.Set(initialize=range(TR))
 
     # list indices of H,W not in nodata_idx
     m.FeasibleMap = pyo.Set(initialize=[(h, w) for h, w in product(m.H, m.W) if (h, w) not in nodata_idxs])
@@ -664,7 +679,8 @@ def do_raster_treatment(
         initialize=[
             (h, w, tr)
             for h, w, tr in product(m.H, m.W, m.TR)
-            if (h, w) not in nodata_idxs and treat_names[current_treatment[h, w]] != tr
+            if (h, w) not in nodata_idxs and current_treatment[h, w] != tr
+            # if (h, w) not in nodata_idxs and treat_names[current_treatment[h, w]] != tr
         ]
     )
 
@@ -674,24 +690,28 @@ def do_raster_treatment(
     m.area = pyo.Param(within=pyo.Reals, initialize=area)
     m.budget = pyo.Param(within=pyo.Reals, initialize=budget)
     # 2d
+
     m.current_value = pyo.Param(
         m.FeasibleMap,
         within=pyo.Reals,
-        initialize={(h, w): current_value[h, w] for h, w in m.FeasibleMap},
+        # initialize={(h, w): current_value[h, w] for h, w in m.FeasibleMap},
+        initialize=partial(init_ndarray, current_value),
     )
     m.treat_cost = pyo.Param(
         m.TR,
         m.TR,
         within=pyo.Reals,
-        initialize={
-            (treat_names[tr1], treat_names[tr2]): val for (tr1, tr2), val in np.ndenumerate(treat_cost) if tr1 != tr2
-        },
+        # initialize={
+        #     (treat_names[tr1], treat_names[tr2]): val for (tr1, tr2), val in np.ndenumerate(treat_cost) if tr1 != tr2
+        # },
+        initialize=partial(init_ndarray, treat_cost),
     )
     # 3d
     m.target_value = pyo.Param(
         m.FeasibleMapTR,
         within=pyo.Reals,
-        initialize={(h, w, tr): target_value[treat_names.index(tr), h, w] for h, w, tr in m.FeasibleMapTR},
+        # initialize={(h, w, tr): target_value[treat_names.index(tr), h, w] for h, w, tr in m.FeasibleMapTR},
+        initialize=partial(init_ndarray, target_value.transpose(1, 2, 0)),
     )
 
     # Variables
@@ -713,7 +733,8 @@ def do_raster_treatment(
 
     m.budget_capacity = pyo.Constraint(
         rule=lambda m: sum(
-            m.X[h, w, tr] * m.treat_cost[treat_names[current_treatment[h, w]], tr] * m.px_area
+            # m.X[h, w, tr] * m.treat_cost[treat_names[current_treatment[h, w]], tr] * m.px_area
+            m.X[h, w, tr] * m.treat_cost[current_treatment[h, w], tr] * m.px_area
             for h, w, tr in m.FeasibleMapTR
         )
         <= m.budget
@@ -730,6 +751,8 @@ def do_raster_treatment(
     )
 
     return m
+
+    # initialize={(h, w): current_value[h, w] for h, w in m.FeasibleMap},
 
 
 def do_poly_treatment(treat_names, treat_table, dfa, dft, area, budget):
