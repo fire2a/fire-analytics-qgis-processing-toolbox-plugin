@@ -385,6 +385,7 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
             defaultValue=1312.01,
             optional=False,
             minValue=0.01,
+            maxValue=999999999999,
         )
         qppn.setMetadata({"widget_wrapper": {"decimals": 2}})
         self.addParameter(qppn)
