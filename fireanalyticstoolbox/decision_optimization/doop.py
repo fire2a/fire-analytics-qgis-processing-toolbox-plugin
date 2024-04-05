@@ -14,7 +14,7 @@ from shutil import which
 import pyomo.environ
 from pyomo.common.errors import ApplicationError
 from pyomo.opt import SolverFactory, SolverStatus, TerminationCondition
-from qgis.core import QgsMessageLog
+from qgis.core import QgsMessageLog, QgsProcessingException
 
 from ..config import TAG
 
@@ -214,7 +214,7 @@ def pyomo_run_model(self, parameters, context, feedback, model, display_model=No
     CUSTOM_OPTIONS_STRING: custom options to pass to the solver
     """
     executable = self.parameterAsString(parameters, "EXECUTABLE", context)
-    feedback.pushDebugInfo(f"exesolver_string:{executable}")
+    # feedback.pushDebugInfo(f"exesolver_string:{executable}")
 
     solver_string = self.parameterAsString(parameters, "SOLVER", context)
     # feedback.pushDebugInfo(f"solver_string:{solver_string}")
@@ -241,8 +241,8 @@ def pyomo_run_model(self, parameters, context, feedback, model, display_model=No
     if display_model is None:
         display_model = self.parameterAsBool(parameters, "DISPLAY_MODEL", context)
 
-    feedback.setProgress(20)
-    feedback.setProgressText("pyomo model built, solver object created 20%")
+    feedback.setProgress(33)
+    feedback.setProgressText("Solver object created 33%")
 
     pyomo_std_feedback = FileLikeFeedback(feedback, True)
     pyomo_err_feedback = FileLikeFeedback(feedback, False)
@@ -257,17 +257,29 @@ def pyomo_run_model(self, parameters, context, feedback, model, display_model=No
         # print("DISPLAY")
         if display_model:
             model.display()
+    feedback.setProgress(90)
+    feedback.setProgressText("Solver finished!")
     return results
 
 
-def feed_print(feedback, msg, level=0):
+def printf(msg, feedback=None, level=-1):
+    """Utility to print messages in a QgsProcessingAlgorithm. If feedback is None, print to console.
+    Args:
+        msg string: message to print
+        feedback: QgsProcessingFeedback object
+        level int:  -1 debug, 0 info, 1 warning, 2 error
+    """
     if feedback:
-        if level == 0:
+        if level == -1:
+            feedback.pushDebugInfo(msg)
+        elif level == 0:
             feedback.pushConsoleInfo(msg)
         elif level == 1:
             feedback.pushWarning(msg)
         elif level >= 2:
             feedback.reportError(msg)
+        if feedback.isCanceled():
+            raise QgsProcessingException("Algorithm cancelled by user")
     else:
         print(msg)
 
@@ -295,16 +307,15 @@ def pyomo_parse_results(results, feedback=None):
     retdic = {"SOLVER_STATUS": status, "SOLVER_TERMINATION_CONDITION": termination_condition}
     msg = f"Solver {status=} and {termination_condition=}\n"
     retval = 0
-    feed_print(feedback, msg, retval)
 
     if status in [SolverStatus.error, SolverStatus.aborted, SolverStatus.unknown] and termination_condition not in [
         TerminationCondition.intermediateNonInteger,
         TerminationCondition.maxTimeLimit,
         TerminationCondition.maxIterations,
     ]:
-        msg = "No solution found! Maybe solver or user error?\n"
+        msg += "No solution found! Maybe solver or user error?\n"
         retval = 2
-        feed_print(feedback, msg, retval)
+        printf(msg, feedback, level=retval)
         return retval, retdic
 
     if termination_condition in [
@@ -312,20 +323,20 @@ def pyomo_parse_results(results, feedback=None):
         TerminationCondition.infeasible,
         TerminationCondition.unbounded,
     ]:
-        msg = f"Optimization is {termination_condition}. No solution found! Check instance data coherence!\n"
+        msg += f"Optimization is {termination_condition}. No solution found! Check instance data coherence!\n"
         retval = 3
-        feed_print(feedback, msg, retval)
+        printf(msg, feedback, level=retval)
         return retval, retdic
 
     if not termination_condition == TerminationCondition.optimal:
-        msg = (
+        msg += (
             "Non-optimal solution found! Check the [mip|ratio|tolerance]gap that estimates how far the solution is from"
             " the optimal one!\nTweak solver options or simplify the instance to get better results!\n"
         )
         retval = 1
-        feed_print(feedback, msg, retval)
+        printf(msg, feedback, retval)
         return retval, retdic
-    feed_print(feedback, msg + "unplanned, hopefully good result status", retval)
+    printf(msg + "good enough", feedback, level=retval)
     return retval, retdic
 
 

@@ -25,10 +25,10 @@ np.set_printoptions(precision=2)  # , formatter={'float_kind': '{: 0.2f}'.format
 # config = {
 values = [1000, 2000]
 costs = [100, 200]
-px_area = 10
-W = 4
-H = 6
-TR = 7
+px_area = 1
+W = 200
+H = 200
+TR = 5
 nodata = -1
 # }
 
