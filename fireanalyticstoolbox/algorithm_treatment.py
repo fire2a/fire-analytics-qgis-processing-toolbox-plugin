@@ -27,6 +27,7 @@ __version__ = "$Format:%H$"
 
 
 from contextlib import redirect_stderr, redirect_stdout
+from functools import partial
 from io import StringIO
 from itertools import compress, product
 from multiprocessing import cpu_count
@@ -34,7 +35,7 @@ from os import environ, pathsep
 from pathlib import Path
 from platform import system as platform_system
 from shutil import which
-from time import sleep
+from time import sleep, time
 
 import numpy as np
 import processing
@@ -59,8 +60,8 @@ from .algorithm_utils import (QgsProcessingParameterRasterDestinationGpkg, array
                               get_raster_data, get_raster_info, get_raster_nodata, run_alg_style_raster_legend,
                               run_alg_styler_bin, write_log)
 from .config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
-from .decision_optimization.doop import (FileLikeFeedback, add_cbc_to_path, pyomo_init_algorithm, pyomo_parse_results,
-                                         pyomo_run_model)
+from .decision_optimization.doop import (FileLikeFeedback, add_cbc_to_path, init_ndarray, printf, pyomo_init_algorithm,
+                                         pyomo_parse_results, pyomo_run_model)
 
 
 class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
@@ -139,27 +140,35 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         """
         instance = {}
         instance["nodata"] = -1
+
         # report solver unavailability
         feedback.pushWarning(f"Solver unavailability:\n{self.solver_exception_msg}\n")
+
         # read rasters
         rasters = {}
         for raster in [self.IN_TRT, self.IN_VAL, self.IN_TRGTS]:
             layer = self.parameterAsRasterLayer(parameters, raster, context)
-            feedback.pushDebugInfo(f"{raster=}, {layer.publicSource()=}")
+            if layer.publicSource() == "":
+                raise QgsProcessingException(f"Can't find file! for {layer=} (Is saved to disk?)")
             rasters[raster] = {
                 "layer": layer,
                 "data": get_rlayer_data(layer),
                 "info": get_rlayer_info(layer),
                 "GT": get_geotransform(layer.publicSource()),
             }
-            feedback.pushDebugInfo(f"{raster=}, {rasters[raster]['info']=}, {rasters[raster]['GT']=}")
-        # feedback.pushDebugInfo(f"{rasters=}")
+            feedback.pushDebugInfo(
+                f"{raster=}, file={layer.publicSource()}, data.shape={rasters[raster]['data'].shape}, info={rasters[raster]['info']}, geotr={rasters[raster]['GT']=}\n\n"
+            )
+
         instance["current_treatment"] = rasters[self.IN_TRT]["data"]
         instance["current_value"] = rasters[self.IN_VAL]["data"]
         instance["target_value"] = rasters[self.IN_TRGTS]["data"]
         TR, H, W = instance["target_value"].shape  # fmt: skip
+        feedback.pushDebugInfo(f"{TR=}, {H=}, {W=}")
+
         # read conversion table
         df = read_csv(self.parameterAsFile(parameters, self.IN_TREATS, context), index_col=0)
+        # feedback.pushDebugInfo(f"{df=}")
         instance["treat_names"] = df.columns.values.tolist()
         if instance["treat_names"] != df.index.values.tolist():
             raise QgsProcessingException("Conversion table must be square with the same index and columns")
@@ -170,14 +179,21 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo(f"{instance['treat_names']=}")
         instance["treat_cost"] = df.values
         instance["px_area"] = rasters[self.IN_TRT]["info"]["cellsize_x"] * rasters[self.IN_TRT]["info"]["cellsize_y"]
-        # feedback.pushDebugInfo(f"{df=}")
+        feedback.pushDebugInfo(f"{instance['px_area']=}")
 
         instance["area"] = self.parameterAsDouble(parameters, self.IN_AREA, context)
         instance["budget"] = self.parameterAsDouble(parameters, self.IN_BUDGET, context)
 
         # feedback.pushDebugInfo(f"instance read: {instance=}")
-        model = do_raster_treatment(**instance)
+
+        # solve using pyomo
+        feedback.pushDebugInfo("instance read, bulding model...")
+        start = time()
+        model = do_raster_treatment(**instance, feedback=feedback)
+        feedback.pushDebugInfo(f"model built in '{time()-start:.2f}'s, solving model...")
+        start = time()
         results = pyomo_run_model(self, parameters, context, feedback, model, display_model=False)
+        feedback.pushDebugInfo(f"model solved in '{time()-start:.2f}'s")
         retval, solver_dic = pyomo_parse_results(results, feedback)
 
         retdic = {}
@@ -195,13 +211,23 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
             model.budget_capacity.display()
             model.objective.display()
 
-        treats_dic = {(h, w, tr): pyo.value(model.X[h, w, tr], exception=False) for h, w, tr in model.FeasibleMapTR}
-        # feedback.pushDebugInfo(f"{treats_dic=}")
+        # treats_dic = {(h, w, tr): pyo.value(model.X[h, w, tr], exception=False) for h, w, tr in model.FeasibleMapTR}
+        treats_dic = model.X.get_values()  # what about exceptions?
+        # feedback.pushDebugInfo(f"{treats_dic=}, {len(treats_dic)=}")
+        feedback.pushDebugInfo(f"{len(treats_dic)=}")
+
+        # TODO better with
+        # treats_arr = np.array([ treats_dic.get((h, w, tr), -3) for h, w, tr in np.ndindex(H, W, TR)], dtype=float).reshape ?
         treats_arr = np.array(
             [[treats_dic.get((h, w, tr), -3) for tr in model.TR] for h, w in np.ndindex(H, W)], dtype=float
         )
+        # feedback.pushDebugInfo(f"{treats_arr=}, {treats_arr.shape=}")
+        feedback.pushDebugInfo(f"{treats_arr.shape=}")
+
         treats_arr = np.where(np.isnan(treats_arr), -2, treats_arr)
-        summary = np.array([np.where(np.any(row > 0), np.argmax(row), -1) for row in treats_arr])
+        summary = np.array(
+            [np.where(np.any(row > 0), np.argmax(row), -1) for row in treats_arr]  # .transpose(2, 0, 1).reshape(TR, -1)
+        )
 
         msg = "Solution histogram:\n"
         hist = np.histogram(summary, bins=[-3, -2, -1] + list(range(TR + 1)))[0]
@@ -210,6 +236,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
             msg += f"{trt}: {count}\n"
         feedback.pushInfo(msg)
 
+        # write output raster
         out_raster_filename = self.parameterAsOutputLayer(parameters, self.OUT_LAYER, context)
         out_raster_format = get_output_raster_format(out_raster_filename, feedback)
         ds = GetDriverByName(out_raster_format).Create(out_raster_filename, W, H, 1, GDT_Int16)
@@ -217,7 +244,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         gt = rasters["current_treatment"]["GT"]
         if abs(gt[-1]) > 0:
             gt = (gt[0], gt[1], gt[2], gt[3], gt[4], -abs(gt[5]))
-            feedback.pushWarning("Weird geotransform, Flipping Y axis...")
+            feedback.pushWarning("Geotransform: Flipping Y axis...")
         feedback.pushDebugInfo(f"{gt=}")
         ds.SetGeoTransform(gt)  # specify coords
         band = ds.GetRasterBand(1)
@@ -229,9 +256,8 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         band = None
         ds.FlushCache()  # write to disk
         ds = None
-
         retdic[self.OUT_LAYER] = out_raster_filename
-
+        # show
         if context.willLoadLayerOnCompletion(out_raster_filename):
             layer_details = context.layerToLoadOnCompletionDetails(out_raster_filename)
             layer_details.groupName = "DecisionOptimizationGroup"
@@ -282,16 +308,20 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
             (ii) A raster layer with <b>current treatments</b> index values (encoded: 0..number of treatments-1)<br>
             (iii) A raster layer with <b>current values</b><br>
             (iv) A multiband raster layer with <b>target values</b> (number of treatments == number of bands)<br>
-            (v) A optional <b>boolean multiband raster</b> defining the allowed target treatments (1s is allowed)<br>
             (vi) <b>Budget</b> (same units than costs)<br>
             (vii) <b>Area</b> (same units than pixel size of the raster)<br>
             <br>
-            - rasters "must be saved to disk" [gdal.Open(layer.publicSource(), gdal.GA_ReadOnly).GetGeoTransform() is used]<br>
             - consistency between rasters is up to the user<br>
+            - rasters "must be saved to disk (for layers to have a publicSource != "")"<br>
+            - raster no data == -1 <br>
             <br>
             sample: """
             + (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri()
-            + """<br><br> Use generate_polygon_treatment.py in QGIS's python console to generate a random instance (rasters & treatmets_costs.csv)"""
+            + """<br><br> Use generate_polygon_treatment.py in QGIS's python console to generate a random instance (rasters & treatmets_costs.csv)<br><br>
+
+            (v) Possible feature? An optional <b>boolean multiband raster</b> defining the allowed target treatments (1s is allowed)<br>
+            (viii) Possible feature? Pass SOS constraint weights to the solver, or simpler: a base exponent to build treatment index-order exponential weights, e.g., 2->[8,4,2,1] for 4 treatments in a pixel <br>
+            """
         )
 
     def icon(self):
@@ -638,12 +668,41 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
 
 
 def do_raster_treatment(
-    nodata, treat_names, treat_cost, current_treatment, current_value, target_value, px_area, area, budget
+    nodata,
+    treat_names,
+    treat_cost,
+    current_treatment,
+    current_value,
+    target_value,
+    px_area,
+    area,
+    budget,
+    feedback=None,
 ):
-    # Integer Programming
+    """Builds the raster treatment optimization problem as a pyomo integer programming model.
+    Can be used as a standalone function apart from QGIS, but requires pyomo and a solver installed.
+
+    Args:
+        nodata (int): Nodata value for the data arrays.
+        treat_names (list): List of treatment names.
+        treat_cost (np.ndarray): 2D array of treatment costs (TR,TR).
+        current_treatment (np.ndarray): 2D array of current treatments (H,W).
+        current_value (np.ndarray): 2D array of current values (H,W).
+        target_value (np.ndarray): 3D array of target values (TR,H,W).
+        px_area (float): Area of a pixel.
+        area (float): Total area upper bound.
+        budget (float): Total budget upper bound.
+        feedback (None|QgsProcessingFeedback): Algorithm logging and user-cancelling, see doop.py:printf that behaves like print when None (default).
+
+    Returns:
+        The pyomo model object.
+    """
+    printf(f"Building pyomo model", feedback)
+    start = time()
     m = pyo.ConcreteModel(name="raster_treatment")
 
     H, W = current_value.shape
+    TR = len(treat_names)
     assert len(treat_names) == target_value.shape[0]
 
     current_value_nodata = list(zip(*np.where(current_value == nodata)))
@@ -656,68 +715,96 @@ def do_raster_treatment(
     # Sets
     m.H = pyo.Set(initialize=range(H))
     m.W = pyo.Set(initialize=range(W))
-    m.TR = pyo.Set(initialize=treat_names)
+    m.TR = pyo.Set(initialize=range(TR))
 
-    # list indices of H,W not in nodata_idx
+    # Feasible map list indices of H,W not in nodata_idx
     m.FeasibleMap = pyo.Set(initialize=[(h, w) for h, w in product(m.H, m.W) if (h, w) not in nodata_idxs])
+
+    # TODO test if it is faster or just use the array directly
+    # aux parameter
+    m.current_treatment = pyo.Param(
+        m.FeasibleMap,
+        within=m.TR,
+        initialize=partial(init_ndarray, current_treatment),
+    )
+
+    # Feasible map treatment list indices of H,W,TR not in nodata_idx
     m.FeasibleMapTR = pyo.Set(
         initialize=[
             (h, w, tr)
             for h, w, tr in product(m.H, m.W, m.TR)
-            if (h, w) not in nodata_idxs and treat_names[current_treatment[h, w]] != tr
+            if (h, w) not in nodata_idxs and m.current_treatment[h, w] != tr
         ]
     )
+    printf(f"Built sets in {time()-start:.2f}s...", feedback)
+    start = time()
 
     # Params
     # 1d
     m.px_area = pyo.Param(within=pyo.Reals, initialize=px_area)
     m.area = pyo.Param(within=pyo.Reals, initialize=area)
     m.budget = pyo.Param(within=pyo.Reals, initialize=budget)
+    printf(f"Built scalar params in {time()-start:.2f}s...", feedback)
+    start = time()
     # 2d
+
     m.current_value = pyo.Param(
         m.FeasibleMap,
         within=pyo.Reals,
-        initialize={(h, w): current_value[h, w] for h, w in m.FeasibleMap},
+        initialize=partial(init_ndarray, current_value),
     )
+
     m.treat_cost = pyo.Param(
         m.TR,
         m.TR,
         within=pyo.Reals,
-        initialize={
-            (treat_names[tr1], treat_names[tr2]): val for (tr1, tr2), val in np.ndenumerate(treat_cost) if tr1 != tr2
-        },
+        initialize=partial(init_ndarray, treat_cost),
     )
+    printf(f"Built 2D params in {time()-start:.2f}s...", feedback)
+    start = time()
+
     # 3d
     m.target_value = pyo.Param(
         m.FeasibleMapTR,
         within=pyo.Reals,
-        initialize={(h, w, tr): target_value[treat_names.index(tr), h, w] for h, w, tr in m.FeasibleMapTR},
+        initialize=partial(init_ndarray, target_value.transpose(1, 2, 0)),
     )
+    printf(f"Built 3D params in {time()-start:.2f}s...", feedback)
+    start = time()
 
     # Variables
     m.X = pyo.Var(
         m.FeasibleMapTR,
         within=pyo.Binary,
     )
+    printf(f"Built variables in {time()-start:.2f}s...", feedback)
+    start = time()
 
     # Constraints
+    # at most one treatment
     m.sos_at_most_one_treatment = pyo.SOSConstraint(
         m.FeasibleMap,
         sos=1,
-        rule=lambda m, hh, ww: [m.X[h, w, tr] for h, w, tr in m.FeasibleMapTR if h == hh and w == ww],
+        rule=lambda m, h, w: [m.X[h, w, tr] for tr in m.TR if (h, w, tr) in m.FeasibleMapTR],
     )
+    # TODO rule=lambda m, h, w: ([m.X[h, w, tr] for tr in m.TR if (h, w, tr) in m.FeasibleMapTR], [ base ** i for in range(TR,-1,-1) ])
+    printf(f"Built sos constraint in {time()-start:.2f}s...", feedback)
+    start = time()
 
     m.area_capacity = pyo.Constraint(
         rule=lambda m: sum(m.X[h, w, tr] * m.px_area for h, w, tr in m.FeasibleMapTR) <= m.area
     )
+    printf(f"Built area constraint in {time()-start:.2f}s...", feedback)
+    start = time()
 
     m.budget_capacity = pyo.Constraint(
         rule=lambda m: sum(
-            m.X[h, w, tr] * m.treat_cost[treat_names[current_treatment[h, w]], tr] * m.px_area
-            for h, w, tr in m.FeasibleMapTR
+            m.X[h, w, tr] * m.treat_cost[m.current_treatment[h, w], tr] * m.px_area for h, w, tr in m.FeasibleMapTR
         )
         <= m.budget
     )
+    printf(f"Built budget constraint in {time()-start:.2f}s...", feedback)
+    start = time()
 
     # Objective
     m.objective = pyo.Objective(
@@ -728,7 +815,7 @@ def do_raster_treatment(
         ),
         sense=pyo.maximize,
     )
-
+    printf(f"Built objective in {time()-start:.2f}s...", feedback)
     return m
 
 

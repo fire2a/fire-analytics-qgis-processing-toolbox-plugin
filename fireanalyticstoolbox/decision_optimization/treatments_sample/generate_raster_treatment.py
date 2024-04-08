@@ -25,10 +25,10 @@ np.set_printoptions(precision=2)  # , formatter={'float_kind': '{: 0.2f}'.format
 # config = {
 values = [1000, 2000]
 costs = [100, 200]
-px_area = 10
-W = 90
-H = 60
-TR = 7
+px_area = 1
+W = 200
+H = 200
+TR = 5
 nodata = -1
 # }
 
@@ -44,12 +44,22 @@ nodata_idx = []
 current_treatment = np.random.choice(range(TR), (H, W))
 current_value = np.random.uniform(*values, size=(H, W))
 
+# print how many nodata before
+print(f"{len(np.where(current_treatment == nodata)[0])=}, {len(np.where(current_value == nodata)[0])=}")
 
-# put in a random index a nodata value
-current_value[rnd_idx()] = nodata
-nodata_idx += list(zip(*np.where(current_value == nodata)))
-current_treatment[rnd_idx()] = nodata
-nodata_idx += list(zip(*np.where(current_treatment == nodata)))
+# 1 nodata
+for arr in [current_treatment, current_value]:
+    arr[rnd_idx()] = nodata
+    nodata_idx += list(zip(*np.where(arr == nodata))) 
+
+# many nodata
+for arr in [current_treatment, current_value]:
+    for idx in rnd_idxs(2):
+        arr[idx] = nodata
+        nodata_idx += list(zip(*np.where(arr == nodata))) 
+
+# print how many nodata after
+print(f"{len(np.where(current_treatment == nodata)[0])=}, {len(np.where(current_value == nodata)[0])=}")
 
 # treatment costs
 treat_cost = np.random.uniform(*costs, size=(TR, TR))
@@ -57,9 +67,19 @@ treat_cost[np.eye(TR, dtype=bool)] = 0
 
 # treatment value
 target_value = np.random.uniform(*values, size=(TR, H, W))
+
+print(f"{len(np.where(target_value == nodata)[0])=}")
 # put nodata wherever current_treatment
 target_value[current_treatment == np.arange(TR)[:, None, None]] = nodata
 target_value
+
+# some more nodata
+for t in range(TR):
+    if np.random.rand() < 0.5:
+        for idx in rnd_idxs(2):
+            target_value[t, idx] = nodata
+print(f"{len(np.where(target_value == nodata)[0])=}")
+
 
 # view
 print(f"{W=}, {H=}, {TR=}")
@@ -74,9 +94,17 @@ assert np.all(np.any(target_value[:, w, h] != nodata) for w in range(W) for h in
 
 # for each pixel (h, w), get the indexes of valid treatments
 tr, hh, ww = np.where(target_value != nodata)
-feasible_set = {(h, w, t) for t, h, w in zip(tr, hh, ww)}
+feasible_set = set(zip(tr, hh, ww))
+feasible_set2d = set(zip(hh, ww))
+print(f"{len(feasible_set)=}, {len(feasible_set2d)=}")
+
 feasible_ratio = len(feasible_set) / (W * H * TR)
 print(f"{feasible_ratio=: 0.2f}")
+
+feasible_ratio2d = len(feasible_set2d) / (W * H)
+print(f"{feasible_ratio2d=: 0.2f}")
+
+nodata_idx += list(zip(*np.where(current_treatment == nodata)))
 
 area = feasible_ratio * 0.618 * (W * H * TR) * px_area
 print(f"{area=: 0.2f}")
