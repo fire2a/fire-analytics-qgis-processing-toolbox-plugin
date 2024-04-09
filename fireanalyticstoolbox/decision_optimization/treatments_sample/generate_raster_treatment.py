@@ -14,9 +14,8 @@ USAGE: RUN IN THE QGIS PYTHON CONSOLE
 - overwrites existing tif rasters and csv.files(check last line for the path)
 - then solve using the polygon treatment algorithm
 """
-from os import getcwd
-
 import string
+from os import getcwd
 
 import numpy as np
 
@@ -29,11 +28,13 @@ px_area = 1
 W = 200
 H = 200
 TR = 5
+TM = 3
 nodata = -1
 # }
 
 # treatments are random three letter words
 treat_names = ["".join(np.random.choice(list(string.ascii_lowercase), 3)) for _ in range(TR)]
+team_names = ["".join(np.random.choice(list(string.ascii_uppercase), 2)) for _ in range(TR)]
 
 # helper for putting random no data values
 rnd_idx = lambda: (np.random.choice(range(H)), np.random.choice(range(W)))
@@ -50,13 +51,13 @@ print(f"{len(np.where(current_treatment == nodata)[0])=}, {len(np.where(current_
 # 1 nodata
 for arr in [current_treatment, current_value]:
     arr[rnd_idx()] = nodata
-    nodata_idx += list(zip(*np.where(arr == nodata))) 
+    nodata_idx += list(zip(*np.where(arr == nodata)))
 
 # many nodata
 for arr in [current_treatment, current_value]:
     for idx in rnd_idxs(2):
         arr[idx] = nodata
-        nodata_idx += list(zip(*np.where(arr == nodata))) 
+        nodata_idx += list(zip(*np.where(arr == nodata)))
 
 # print how many nodata after
 print(f"{len(np.where(current_treatment == nodata)[0])=}, {len(np.where(current_value == nodata)[0])=}")
@@ -68,22 +69,28 @@ treat_cost[np.eye(TR, dtype=bool)] = 0
 # treatment value
 target_value = np.random.uniform(*values, size=(TR, H, W))
 
-print(f"{len(np.where(target_value == nodata)[0])=}")
+num_values = np.array(target_value.shape).prod()
+print(f"{num_values=}")
+
 # put nodata wherever current_treatment
 target_value[current_treatment == np.arange(TR)[:, None, None]] = nodata
 target_value
 
 # some more nodata
 for t in range(TR):
-    if np.random.rand() < 0.5:
+    if np.random.rand() < 0.2:
         for idx in rnd_idxs(2):
             target_value[t, idx] = nodata
-print(f"{len(np.where(target_value == nodata)[0])=}")
+
+num_nodata_values = len(np.where(target_value == nodata)[0])
+percent_nodata_values = num_nodata_values / num_values
+print(f"{num_nodata_values=}, {percent_nodata_values=:.2f} ")
 
 
 # view
-print(f"{W=}, {H=}, {TR=}")
+print(f"{W=}, {H=}, {TR=}, {TM=}")
 print(f"{treat_names=}")
+print(f"{team_names=}")
 print(f"{current_treatment=}, {current_treatment.shape=}")
 print("current_treatment\n", np.vectorize(lambda tr: treat_names[tr])(current_treatment))
 print(f"{current_value=}, {current_value.shape=}")
@@ -111,6 +118,15 @@ print(f"{area=: 0.2f}")
 
 budget = treat_cost[treat_cost != 0].mean() * area
 print(f"{budget=: 0.2f}")
+
+# teams
+team_cost = np.random.uniform(*costs, size=TM)
+
+team_area = np.array([(0.5 + np.random.rand()) * area / TM for _ in range(TM)])
+team_budget = np.array([(0.5 + np.random.rand()) * budget / TM for _ in range(TM)])
+
+team_treat_area = np.array([[(0.5 + np.random.rand()) * area / TR / TM for _ in range(TR)] for _ in range(TM)])
+team_treat_budget = np.array([[(0.5 + np.random.rand()) * budget / TR / TM for _ in range(TR)] for _ in range(TM)])
 
 #
 # write files

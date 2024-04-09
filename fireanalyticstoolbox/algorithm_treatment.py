@@ -157,7 +157,8 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
                 "GT": get_geotransform(layer.publicSource()),
             }
             feedback.pushDebugInfo(
-                f"{raster=}, file={layer.publicSource()}, data.shape={rasters[raster]['data'].shape}, info={rasters[raster]['info']}, geotr={rasters[raster]['GT']=}\n\n"
+                f"{raster=}, file={layer.publicSource()}, data.shape={rasters[raster]['data'].shape},"
+                f" info={rasters[raster]['info']}, geotr={rasters[raster]['GT']=}\n\n"
             )
 
         instance["current_treatment"] = rasters[self.IN_TRT]["data"]
@@ -692,6 +693,13 @@ def do_raster_treatment(
         px_area (float): Area of a pixel.
         area (float): Total area upper bound.
         budget (float): Total budget upper bound.
+
+        team_cost (np.ndarray): 1D array of teams costs when active (contract payment)
+        team_area (np.ndarray): 1D array of team total area when active
+        team_budget (np.ndarray): 1D array of team total budget when active
+        teams_treat_budget (np.ndarray): 2D array of budget for each team x treatment
+        teams_treat_area (np.ndarray): 2D array of area for each team x treatment
+
         feedback (None|QgsProcessingFeedback): Algorithm logging and user-cancelling, see doop.py:printf that behaves like print when None (default).
 
     Returns:
