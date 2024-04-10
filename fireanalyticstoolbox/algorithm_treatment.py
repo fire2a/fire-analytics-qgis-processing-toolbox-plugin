@@ -71,10 +71,13 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
     IN_VAL = "current_value"
     IN_TRGTS = "target_value"
 
-    IN_TREATS = "treatments_costs"
+    IN_TREATS_C = "treatments_costs_csv"
 
     IN_AREA = "Area"
     IN_BUDGET = "Budget"
+
+    IN_TREATS_AB = "treatments_areas_budgets_csv"
+    IN_TEAM = "teams_csv"
 
     OUT_LAYER = "OUT_LAYER"
 
@@ -98,8 +101,8 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         # treatments
         self.addParameter(
             QgsProcessingParameterFile(
-                name=self.IN_TREATS,
-                description=self.tr("Treatments Matrix (csv)"),
+                name=self.IN_TREATS_C,
+                description=self.tr("Treatments transformation costs (csv)"),
                 behavior=QgsProcessingParameterFile.File,
                 extension="csv",
             )
@@ -126,6 +129,28 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         )
         qppn.setMetadata({"widget_wrapper": {"decimals": 2}})
         self.addParameter(qppn)
+
+        # treatment areas & budget
+        self.addParameter(
+            QgsProcessingParameterFile(
+                name=self.IN_TREATS_AB,
+                description=self.tr("Treatment areas & budget (csv)"),
+                behavior=QgsProcessingParameterFile.File,
+                extension="csv",
+                optional=True,
+            )
+        )
+
+        # team on cost, areas, budget ability
+        self.addParameter(
+            QgsProcessingParameterFile(
+                name=self.IN_TEAM,
+                description=self.tr("Teams on_cost, area, budget and abilities (csv)"),
+                behavior=QgsProcessingParameterFile.File,
+                extension="csv",
+                optional=True,
+            )
+        )
 
         # raster output
         self.addParameter(QgsProcessingParameterRasterDestinationGpkg(self.OUT_LAYER, self.tr("Raster Treatment")))
@@ -161,36 +186,69 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
                 f" info={rasters[raster]['info']}, geotr={rasters[raster]['GT']=}\n\n"
             )
 
+        """
+        instance["current_treatment"] = current_treatment
+        instance["current_value"] = current_value
+        instance["target_value"] = target_value
+        R, H, W = instance["target_value"].shape  # fmt: skip
+        """
         instance["current_treatment"] = rasters[self.IN_TRT]["data"]
         instance["current_value"] = rasters[self.IN_VAL]["data"]
         instance["target_value"] = rasters[self.IN_TRGTS]["data"]
-        TR, H, W = instance["target_value"].shape  # fmt: skip
-        feedback.pushDebugInfo(f"{TR=}, {H=}, {W=}")
+        R, H, W = instance["target_value"].shape  # fmt: skip
+        feedback.pushDebugInfo(f"{R=}, {H=}, {W=}")
 
         # read conversion table
-        df = read_csv(self.parameterAsFile(parameters, self.IN_TREATS, context), index_col=0)
-        # feedback.pushDebugInfo(f"{df=}")
-        instance["treat_names"] = df.columns.values.tolist()
-        if instance["treat_names"] != df.index.values.tolist():
+        # df_tc = read_csv("raster_treatment_costs.csv", index_col=0)
+        df_tc = read_csv(self.parameterAsFile(parameters, self.IN_TREATS_C, context), index_col=0)
+        # feedback.pushDebugInfo(f"{df_tc=}")
+        instance["treat_names"] = df_tc.columns.values.tolist()
+        if instance["treat_names"] != df_tc.index.values.tolist():
             raise QgsProcessingException("Conversion table must be square with the same index and columns")
-        if TR != len(instance["treat_names"]):
+        if R != len(instance["treat_names"]):
             raise QgsProcessingException(
                 "Conversion table must have the same number of index an columns than target bands"
             )
         feedback.pushInfo(f"{instance['treat_names']=}")
-        instance["treat_cost"] = df.values
+        # np.all(np.isclose( treat_cost, instance['treat_cost']))
+        instance["treat_cost"] = df_tc.values
+        # instance["px_area"] = px_area
         instance["px_area"] = rasters[self.IN_TRT]["info"]["cellsize_x"] * rasters[self.IN_TRT]["info"]["cellsize_y"]
         feedback.pushDebugInfo(f"{instance['px_area']=}")
 
+        # instance['area'] = area
+        # instance['budget'] = budget
         instance["area"] = self.parameterAsDouble(parameters, self.IN_AREA, context)
         instance["budget"] = self.parameterAsDouble(parameters, self.IN_BUDGET, context)
+
+        # read treatments areas & budgets table
+        # df_ab = read_csv('raster_treatment_params.csv', index_col=0)
+        df_ab = read_csv(self.parameterAsFile(parameters, self.IN_TREATS_AB, context), index_col=0)
+        feedback.pushDebugInfo(f"{df_ab=}")
+        # instance['treat_areas'] = treat_areas
+        # instance['treat_budgets'] = treat_budgets
+        instance["treat_areas"] = df_ab["area"].values
+        instance["treat_budgets"] = df_ab["budget"].values
+        # np.all(np.isclose(treat_areas, instance['treat_areas']))
+
+        # read teams costs, areas, budgets and abilities table
+        # df_tm = read_csv('raster_team_params.csv', index_col=0)
+        df_tm = read_csv(self.parameterAsFile(parameters, self.IN_TEAM, context), index_col=0)
+
+        instance["team_names"] = df_tm.index.values
+        # instance['team_on_cost'] = team_on_cost
+        # instance['team_area'] = team_area
+        # instance['team_budget'] = team_budget
+        for name in ["on_cost", "area", "budget"]:
+            instance[f"team_{name}"] = df_tm[name].values
+        instance["team_ability"] = df_tm[instance["treat_names"]].values
 
         # feedback.pushDebugInfo(f"instance read: {instance=}")
 
         # solve using pyomo
         feedback.pushDebugInfo("instance read, bulding model...")
         start = time()
-        model = do_raster_treatment(**instance, feedback=feedback)
+        model = do_raster_treatment_teams(**instance, feedback=feedback)
         feedback.pushDebugInfo(f"model built in '{time()-start:.2f}'s, solving model...")
         start = time()
         results = pyomo_run_model(self, parameters, context, feedback, model, display_model=False)
@@ -212,26 +270,26 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
             model.budget_capacity.display()
             model.objective.display()
 
-        # treats_dic = {(h, w, tr): pyo.value(model.X[h, w, tr], exception=False) for h, w, tr in model.FeasibleMapTR}
+        # treats_dic = {(h, w, tr): pyo.value(model.X[h, w, tr], exception=False) for h, w, tr in model.FeasibleMapR}
         treats_dic = model.X.get_values()  # what about exceptions?
         # feedback.pushDebugInfo(f"{treats_dic=}, {len(treats_dic)=}")
         feedback.pushDebugInfo(f"{len(treats_dic)=}")
 
         # TODO better with
-        # treats_arr = np.array([ treats_dic.get((h, w, tr), -3) for h, w, tr in np.ndindex(H, W, TR)], dtype=float).reshape ?
+        # treats_arr = np.array([ treats_dic.get((h, w, tr), -3) for h, w, tr in np.ndindex(H, W, R)], dtype=float).reshape ?
         treats_arr = np.array(
-            [[treats_dic.get((h, w, tr), -3) for tr in model.TR] for h, w in np.ndindex(H, W)], dtype=float
+            [[treats_dic.get((h, w, tr), -3) for tr in model.R] for h, w in np.ndindex(H, W)], dtype=float
         )
         # feedback.pushDebugInfo(f"{treats_arr=}, {treats_arr.shape=}")
         feedback.pushDebugInfo(f"{treats_arr.shape=}")
 
         treats_arr = np.where(np.isnan(treats_arr), -2, treats_arr)
         summary = np.array(
-            [np.where(np.any(row > 0), np.argmax(row), -1) for row in treats_arr]  # .transpose(2, 0, 1).reshape(TR, -1)
+            [np.where(np.any(row > 0), np.argmax(row), -1) for row in treats_arr]  # .transpose(2, 0, 1).reshape(R, -1)
         )
 
         msg = "Solution histogram:\n"
-        hist = np.histogram(summary, bins=[-3, -2, -1] + list(range(TR + 1)))[0]
+        hist = np.histogram(summary, bins=[-3, -2, -1] + list(range(R + 1)))[0]
         labels = ["unable", "undecided", "unchanged"] + instance["treat_names"]
         for trt, count in zip(labels, hist):
             msg += f"{trt}: {count}\n"
@@ -710,7 +768,7 @@ def do_raster_treatment(
     m = pyo.ConcreteModel(name="raster_treatment")
 
     H, W = current_value.shape
-    TR = len(treat_names)
+    R = len(treat_names)
     assert len(treat_names) == target_value.shape[0]
 
     current_value_nodata = list(zip(*np.where(current_value == nodata)))
@@ -723,7 +781,7 @@ def do_raster_treatment(
     # Sets
     m.H = pyo.Set(initialize=range(H))
     m.W = pyo.Set(initialize=range(W))
-    m.TR = pyo.Set(initialize=range(TR))
+    m.R = pyo.Set(initialize=range(R))
 
     # Feasible map list indices of H,W not in nodata_idx
     m.FeasibleMap = pyo.Set(initialize=[(h, w) for h, w in product(m.H, m.W) if (h, w) not in nodata_idxs])
@@ -732,15 +790,15 @@ def do_raster_treatment(
     # aux parameter
     m.current_treatment = pyo.Param(
         m.FeasibleMap,
-        within=m.TR,
+        within=m.R,
         initialize=partial(init_ndarray, current_treatment),
     )
 
-    # Feasible map treatment list indices of H,W,TR not in nodata_idx
-    m.FeasibleMapTR = pyo.Set(
+    # Feasible map treatment list indices of H,W,R not in nodata_idx
+    m.FeasibleMapR = pyo.Set(
         initialize=[
             (h, w, tr)
-            for h, w, tr in product(m.H, m.W, m.TR)
+            for h, w, tr in product(m.H, m.W, m.R)
             if (h, w) not in nodata_idxs and m.current_treatment[h, w] != tr
         ]
     )
@@ -763,8 +821,8 @@ def do_raster_treatment(
     )
 
     m.treat_cost = pyo.Param(
-        m.TR,
-        m.TR,
+        m.R,
+        m.R,
         within=pyo.Reals,
         initialize=partial(init_ndarray, treat_cost),
     )
@@ -773,7 +831,7 @@ def do_raster_treatment(
 
     # 3d
     m.target_value = pyo.Param(
-        m.FeasibleMapTR,
+        m.FeasibleMapR,
         within=pyo.Reals,
         initialize=partial(init_ndarray, target_value.transpose(1, 2, 0)),
     )
@@ -782,7 +840,7 @@ def do_raster_treatment(
 
     # Variables
     m.X = pyo.Var(
-        m.FeasibleMapTR,
+        m.FeasibleMapR,
         within=pyo.Binary,
     )
     printf(f"Built variables in {time()-start:.2f}s...", feedback)
@@ -793,21 +851,21 @@ def do_raster_treatment(
     m.sos_at_most_one_treatment = pyo.SOSConstraint(
         m.FeasibleMap,
         sos=1,
-        rule=lambda m, h, w: [m.X[h, w, tr] for tr in m.TR if (h, w, tr) in m.FeasibleMapTR],
+        rule=lambda m, h, w: [m.X[h, w, tr] for tr in m.R if (h, w, tr) in m.FeasibleMapR],
     )
-    # TODO rule=lambda m, h, w: ([m.X[h, w, tr] for tr in m.TR if (h, w, tr) in m.FeasibleMapTR], [ base ** i for in range(TR,-1,-1) ])
+    # TODO rule=lambda m, h, w: ([m.X[h, w, tr] for tr in m.R if (h, w, tr) in m.FeasibleMapR], [ base ** i for in range(R,-1,-1) ])
     printf(f"Built sos constraint in {time()-start:.2f}s...", feedback)
     start = time()
 
     m.area_capacity = pyo.Constraint(
-        rule=lambda m: sum(m.X[h, w, tr] * m.px_area for h, w, tr in m.FeasibleMapTR) <= m.area
+        rule=lambda m: sum(m.X[h, w, tr] * m.px_area for h, w, tr in m.FeasibleMapR) <= m.area
     )
     printf(f"Built area constraint in {time()-start:.2f}s...", feedback)
     start = time()
 
     m.budget_capacity = pyo.Constraint(
         rule=lambda m: sum(
-            m.X[h, w, tr] * m.treat_cost[m.current_treatment[h, w], tr] * m.px_area for h, w, tr in m.FeasibleMapTR
+            m.X[h, w, tr] * m.treat_cost[m.current_treatment[h, w], tr] * m.px_area for h, w, tr in m.FeasibleMapR
         )
         <= m.budget
     )
@@ -819,7 +877,7 @@ def do_raster_treatment(
         expr=sum(
             m.X[h, w, tr] * (m.target_value[h, w, tr] * m.px_area)
             + (1 - m.X[h, w, tr]) * (m.current_value[h, w] * m.px_area)
-            for h, w, tr in m.FeasibleMapTR
+            for h, w, tr in m.FeasibleMapR
         ),
         sense=pyo.maximize,
     )
@@ -828,21 +886,22 @@ def do_raster_treatment(
 
 
 def do_raster_treatment_teams(
-    nodata,
-    treat_names,
-    treat_cost,
+    area,
+    budget,
     current_treatment,
     current_value,
-    target_value,
+    nodata,
     px_area,
-    area,
-    area_x_treat,
-    budget,
-    budget_x_treat,
-    team_names,
-    team_on_cost,
+    target_value,
+    team_ability,
     team_area,
     team_budget,
+    team_names,
+    team_on_cost,
+    treat_areas,
+    treat_budgets,
+    treat_cost,
+    treat_names,
     feedback=None,
 ):
     """Builds the raster treatment optimization problem as a pyomo integer programming model.
@@ -896,6 +955,7 @@ def do_raster_treatment_teams(
     m.E = pyo.Set(initialize=range(E))
 
     # Feasible map list indices of H,W not in nodata_idx
+    # TODO better map is considering R & E constraints before hand
     m.FeasibleMap = pyo.Set(initialize=[(h, w) for h, w in product(m.H, m.W) if (h, w) not in nodata_idxs])
 
     # TODO test if it is faster or just use the array directly
@@ -911,7 +971,14 @@ def do_raster_treatment_teams(
         within=pyo.Binary,
         initialize=partial(init_ndarray, team_ability),
     )
-
+    #
+    m.FeasibleMapRE = pyo.Set(
+        initialize=[
+            (h, w, r, e)
+            for h, w, r, e in product(m.H, m.W, m.R, m.E)
+            if (h, w) not in nodata_idxs and m.current_treatment[h, w] != r and m.team_ability[e, r] == 1
+        ]
+    )
     # Feasible map treatment list indices of H,W,R not in nodata_idx
     m.FeasibleMapR = pyo.Set(
         initialize=[
@@ -922,14 +989,9 @@ def do_raster_treatment_teams(
     )
     m.FeasibleMapE = pyo.Set(
         initialize=[
-            (h, w, e) for h, w, e in product(m.H, m.W, m.E) if (h, w) in m.FeasibleMap and m.team_ability[e, r] == 1
-        ]
-    )
-    m.FeasibleMapRE = pyo.Set(
-        initialize=[
-            (h, w, r, e)
-            for h, w, r, e in product(m.H, m.W, m.R, m.E)
-            if (h, w, r) in m.FeasibleMapR and (h, w, e) in m.FeasibleMapE
+            (h, w, e)
+            for h, w, e in product(m.H, m.W, m.E)
+            if (h, w) in m.FeasibleMap and np.any(m.team_ability[e, r] == 1 for r in m.R)
         ]
     )
     printf(f"Built sets in {time()-start:.2f}s...", feedback)
@@ -937,15 +999,15 @@ def do_raster_treatment_teams(
 
     # Params
     # scalars
-    m.px_area = pyo.Param(within=pyo.Reals, initialize=px_area)
     m.area = pyo.Param(within=pyo.Reals, initialize=area)
     m.budget = pyo.Param(within=pyo.Reals, initialize=budget)
+    m.px_area = pyo.Param(within=pyo.Reals, initialize=px_area)
     printf(f"Built scalar params in {time()-start:.2f}s...", feedback)
     start = time()
 
     # 1d
-    m.area_x_treat = pyo.Param(m.R, within=pyo.Reals, initialize=area_x_treat)
-    m.budget_x_treat = pyo.Param(m.R, within=pyo.Reals, initialize=budget_x_treat)
+    m.treat_areas = pyo.Param(m.R, within=pyo.Reals, initialize=treat_areas)
+    m.treat_budgets = pyo.Param(m.R, within=pyo.Reals, initialize=treat_budgets)
     m.team_on_cost = pyo.Param(m.E, within=pyo.Reals, initialize=team_on_cost)
     m.team_area = pyo.Param(m.E, within=pyo.Reals, initialize=team_area)
     m.team_budget = pyo.Param(m.E, within=pyo.Reals, initialize=team_budget)
@@ -995,12 +1057,14 @@ def do_raster_treatment_teams(
         sos=1,
         rule=lambda m, h, w: [m.X[h, w, r, e] for r, e in product(m.R, m.E) if (h, w, r, e) in m.FeasibleMapRE],
     )
+    printf(f"Built unique treatment sos {time()-start:.2f}s...", feedback)
+    start = time()
     m.activate_team = pyo.Constraint(
         m.E,
         rule=lambda m, e: sum(m.X[h, w, r, e] for h, w, r in m.FeasibleMapR if (h, w, r, e) in m.FeasibleMapRE)
         <= H * W * m.Y[e],
     )
-    printf(f"Built sos & linkage constraint in {time()-start:.2f}s...", feedback)
+    printf(f"Built team on link constraint in {time()-start:.2f}s...", feedback)
     start = time()
 
     m.area_capacity = pyo.Constraint(
@@ -1011,7 +1075,7 @@ def do_raster_treatment_teams(
         rule=lambda m, r: sum(
             m.X[h, w, r, e] * m.px_area for h, w, e in m.FeasibleMapE if (h, w, r, e) in m.FeasibleMapRE
         )
-        <= m.area_x_treat[r],
+        <= m.treat_areas[r],
     )
     printf(f"Built area constraints in {time()-start:.2f}s...", feedback)
     start = time()
@@ -1030,7 +1094,7 @@ def do_raster_treatment_teams(
             for h, w, e in m.FeasibleMapE
             if (h, w, r, e) in m.FeasibleMapRE
         )
-        <= m.budget_x_treat[r],
+        <= m.treat_budgets[r],
     )
     printf(f"Built budget constraints in {time()-start:.2f}s...", feedback)
     start = time()
