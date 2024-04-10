@@ -827,6 +827,227 @@ def do_raster_treatment(
     return m
 
 
+def do_raster_treatment_teams(
+    nodata,
+    treat_names,
+    treat_cost,
+    current_treatment,
+    current_value,
+    target_value,
+    px_area,
+    area,
+    area_x_treat,
+    budget,
+    budget_x_treat,
+    team_names,
+    team_on_cost,
+    team_area,
+    team_budget,
+    feedback=None,
+):
+    """Builds the raster treatment optimization problem as a pyomo integer programming model.
+    Can be used as a standalone function apart from QGIS, but requires pyomo and a solver installed.
+
+    Args:
+        nodata (int): Nodata value for the data arrays.
+        treat_names (list): List of treatment names.
+        treat_cost (np.ndarray): 2D array of treatment costs (R,R).
+        current_treatment (np.ndarray): 2D array of current treatments (H,W).
+        current_value (np.ndarray): 2D array of current values (H,W).
+        target_value (np.ndarray): 3D array of target values (R,H,W).
+        px_area (float): Area of a pixel.
+        area (float): Total area upper bound.
+        budget (float): Total budget upper bound.
+
+        team_cost (np.ndarray): 1D array of teams costs when active (contract payment)
+        team_area (np.ndarray): 1D array of team total area when active
+        team_budget (np.ndarray): 1D array of team total budget when active
+        teams_treat_budget (np.ndarray): 2D array of budget for each team x treatment
+        teams_treat_area (np.ndarray): 2D array of area for each team x treatment
+
+        feedback (None|QgsProcessingFeedback): Algorithm logging and user-cancelling, see doop.py:printf that behaves like print when None (default).
+
+    Returns:
+        The pyomo model object.
+    """
+    printf(f"Building pyomo model", feedback)
+    start = time()
+    m = pyo.ConcreteModel(name="raster_treatment_team")
+
+    assert current_value.shape == current_treatment.shape == target_value.shape[1:]
+    H, W = current_value.shape
+    assert len(treat_names) == target_value.shape[0]
+    R = len(treat_names)
+
+    assert len(team_names) == len(team_on_cost) == len(team_area) == len(team_budget)
+    E = len(team_names)
+
+    current_value_nodata = list(zip(*np.where(current_value == nodata)))
+    current_treatment_nodata = list(zip(*np.where(current_treatment == nodata)))
+    target_value_nodata = [(h, w) for h, w in np.ndindex(H, W) if np.all(target_value[:, h, w] == nodata)]
+    # print(f"{current_value_nodata=}, {current_treatment_nodata=}, {target_value_nodata=}")
+    nodata_idxs = set(current_value_nodata + current_treatment_nodata + target_value_nodata)
+    # print(f"{nodata_idxs=}")
+
+    # Sets
+    m.H = pyo.Set(initialize=range(H))
+    m.W = pyo.Set(initialize=range(W))
+    m.R = pyo.Set(initialize=range(R))
+    m.E = pyo.Set(initialize=range(E))
+
+    # Feasible map list indices of H,W not in nodata_idx
+    m.FeasibleMap = pyo.Set(initialize=[(h, w) for h, w in product(m.H, m.W) if (h, w) not in nodata_idxs])
+
+    # TODO test if it is faster or just use the array directly
+    # aux parameter
+    m.current_treatment = pyo.Param(
+        m.FeasibleMap,
+        within=m.R,
+        initialize=partial(init_ndarray, current_treatment),
+    )
+    m.team_ability = pyo.Param(
+        m.E,
+        m.R,
+        within=pyo.Binary,
+        initialize=partial(init_ndarray, team_ability),
+    )
+
+    # Feasible map treatment list indices of H,W,R not in nodata_idx
+    m.FeasibleMapR = pyo.Set(
+        initialize=[
+            (h, w, r)
+            for h, w, r in product(m.H, m.W, m.R)
+            if (h, w) in m.FeasibleMap and m.current_treatment[h, w] != r
+        ]
+    )
+    m.FeasibleMapE = pyo.Set(
+        initialize=[
+            (h, w, e) for h, w, e in product(m.H, m.W, m.E) if (h, w) in m.FeasibleMap and m.team_ability[e, r] == 1
+        ]
+    )
+    m.FeasibleMapRE = pyo.Set(
+        initialize=[
+            (h, w, r, e)
+            for h, w, r, e in product(m.H, m.W, m.R, m.E)
+            if (h, w, r) in m.FeasibleMapR and (h, w, e) in m.FeasibleMapE
+        ]
+    )
+    printf(f"Built sets in {time()-start:.2f}s...", feedback)
+    start = time()
+
+    # Params
+    # scalars
+    m.px_area = pyo.Param(within=pyo.Reals, initialize=px_area)
+    m.area = pyo.Param(within=pyo.Reals, initialize=area)
+    m.budget = pyo.Param(within=pyo.Reals, initialize=budget)
+    printf(f"Built scalar params in {time()-start:.2f}s...", feedback)
+    start = time()
+
+    # 1d
+    m.area_x_treat = pyo.Param(m.R, within=pyo.Reals, initialize=area_x_treat)
+    m.budget_x_treat = pyo.Param(m.R, within=pyo.Reals, initialize=budget_x_treat)
+    m.team_on_cost = pyo.Param(m.E, within=pyo.Reals, initialize=team_on_cost)
+    m.team_area = pyo.Param(m.E, within=pyo.Reals, initialize=team_area)
+    m.team_budget = pyo.Param(m.E, within=pyo.Reals, initialize=team_budget)
+    printf(f"Built list params in {time()-start:.2f}s...", feedback)
+    start = time()
+
+    # 2d
+    m.current_value = pyo.Param(
+        m.FeasibleMap,
+        within=pyo.Reals,
+        initialize=partial(init_ndarray, current_value),
+    )
+    m.treat_cost = pyo.Param(
+        m.R,
+        m.R,
+        within=pyo.Reals,
+        initialize=partial(init_ndarray, treat_cost),
+    )
+    printf(f"Built 2D params in {time()-start:.2f}s...", feedback)
+    start = time()
+
+    # 3d
+    m.target_value = pyo.Param(
+        m.FeasibleMapR,
+        within=pyo.Reals,
+        initialize=partial(init_ndarray, target_value.transpose(1, 2, 0)),
+    )
+    printf(f"Built 3D params in {time()-start:.2f}s...", feedback)
+    start = time()
+
+    # Variables
+    m.X = pyo.Var(
+        m.FeasibleMapRE,
+        within=pyo.Binary,
+    )
+    m.Y = pyo.Var(
+        m.E,
+        within=pyo.Binary,
+    )
+    printf(f"Built variables in {time()-start:.2f}s...", feedback)
+    start = time()
+
+    # Constraints
+    # at most one treatment
+    m.sos_at_most_one_treatment_per_team = pyo.SOSConstraint(
+        m.FeasibleMap,
+        sos=1,
+        rule=lambda m, h, w: [m.X[h, w, r, e] for r, e in product(m.R, m.E) if (h, w, r, e) in m.FeasibleMapRE],
+    )
+    m.activate_team = pyo.Constraint(
+        m.E,
+        rule=lambda m, e: sum(m.X[h, w, r, e] for h, w, r in m.FeasibleMapR if (h, w, r, e) in m.FeasibleMapRE)
+        <= H * W * m.Y[e],
+    )
+    printf(f"Built sos & linkage constraint in {time()-start:.2f}s...", feedback)
+    start = time()
+
+    m.area_capacity = pyo.Constraint(
+        rule=lambda m: sum(m.X[h, w, r, e] * m.px_area for h, w, r, e in m.FeasibleMapRE) <= m.area
+    )
+    m.area_x_treat_capacity = pyo.Constraint(
+        m.R,
+        rule=lambda m, r: sum(
+            m.X[h, w, r, e] * m.px_area for h, w, e in m.FeasibleMapE if (h, w, r, e) in m.FeasibleMapRE
+        )
+        <= m.area_x_treat[r],
+    )
+    printf(f"Built area constraints in {time()-start:.2f}s...", feedback)
+    start = time()
+
+    m.budget_capacity = pyo.Constraint(
+        rule=lambda m: sum(
+            m.X[h, w, r, e] * m.treat_cost[m.current_treatment[h, w], r] * m.px_area + m.Y[e] * m.team_on_cost[e]
+            for h, w, r, e in m.FeasibleMapRE
+        )
+        <= m.budget
+    )
+    m.budget_x_treat_capacity = pyo.Constraint(
+        m.R,
+        rule=lambda m, r: sum(
+            m.X[h, w, r, e] * m.treat_cost[m.current_treatment[h, w], r] * m.px_area
+            for h, w, e in m.FeasibleMapE
+            if (h, w, r, e) in m.FeasibleMapRE
+        )
+        <= m.budget_x_treat[r],
+    )
+    printf(f"Built budget constraints in {time()-start:.2f}s...", feedback)
+    start = time()
+
+    # Objective
+    m.objective = pyo.Objective(
+        expr=sum(
+            m.X[h, w, r, e] * (m.target_value[h, w, r] * m.px_area)
+            + (1 - m.X[h, w, r, e]) * (m.current_value[h, w] * m.px_area)
+            for h, w, r, e in m.FeasibleMapRE
+        ),
+        sense=pyo.maximize,
+    )
+    printf(f"Built objective in {time()-start:.2f}s...", feedback)
+    return m
+
+
 def do_poly_treatment(treat_names, treat_table, dfa, dft, area, budget):
     """Integer Programming
     Hints:
