@@ -8,7 +8,8 @@ from multiprocessing import cpu_count
 from os import environ, pathsep
 from pathlib import Path
 from platform import system as platform_system
-from re import compile, sub
+from re import compile as re_compile
+from re import sub as re_sub
 from shutil import which
 
 import pyomo.environ
@@ -18,7 +19,7 @@ from qgis.core import QgsMessageLog, QgsProcessingException
 
 from ..config import TAG
 
-one_or_more_newlines = compile(r"\n+")
+one_or_more_newlines = re_compile(r"\n+")
 
 SOLVER = {
     "cbc": f"ratioGap=0.005 seconds=300 threads={cpu_count() - 1}",
@@ -130,7 +131,7 @@ class FileLikeFeedback(StringIO):
     def flush(self):
         # msg = self.getvalue()
         # QgsMessageLog().logMessage(f"{type(msg)=}", TAG)
-        self.print(sub(one_or_more_newlines, "\n", super().getvalue()))
+        self.print(re_sub(one_or_more_newlines, "\n", super().getvalue()))
         # self.print(msg)
         # self.print(super().getvalue())
         super().__init__()
@@ -341,11 +342,14 @@ def pyomo_parse_results(results, feedback=None):
 
 
 def simplest_pyomo_solve(model):
+    """
+    model=m
+    """
     print("PPRINT")
     print(model.pprint())
 
     # Solve
-    solver = "cbc"
+    solver = "gurobi"  # cbc
     executable = None
     if executable:
         opt = SolverFactory(solver, executable=executable)
@@ -357,6 +361,12 @@ def simplest_pyomo_solve(model):
         results = opt.solve(model, tee=True, options_string=options_string)
     else:
         results = opt.solve(model, tee=True)
+
+    """
+    from pickle import dump, load
+    dump(results, open('results.pickle','wb'))
+    results = load(open('results.pickle','rb'))
+    """
 
     print("DISPLAY")
     print(model.display())

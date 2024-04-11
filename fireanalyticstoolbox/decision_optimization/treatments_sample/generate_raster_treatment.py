@@ -127,12 +127,12 @@ print(f"{feasible_ratio2d=: 0.2f}")
 nodata_idx += list(zip(*np.where(current_treatment == nodata)))
 
 area = feasible_ratio * 0.618 * (W * H * R) * px_area
-area_x_treat = np.array([(0.5 + np.random.rand()) * area / R for _ in range(R)])
-print(f"{area=: 0.2f}, {area_x_treat=}, {area_x_treat.sum()/area=: 0.3f}")
+treat_areas = np.array([(0.5 + np.random.rand()) * area / R for _ in range(R)])
+print(f"{area=: 0.2f}, {treat_areas=}, {treat_areas.sum()/area=: 0.3f}")
 
 budget = treat_cost[treat_cost != 0].mean() * area
-budget_x_treat = np.array([(0.5 + np.random.rand()) * budget / R for _ in range(R)])
-print(f"{budget=: 0.2f}, {budget_x_treat=}, {budget_x_treat.sum()/budget=: 0.3f}")
+treat_budgets = np.array([(0.5 + np.random.rand()) * budget / R for _ in range(R)])
+print(f"{budget=: 0.2f}, {treat_budgets=}, {treat_budgets.sum()/budget=: 0.3f}")
 
 # teams
 team_on_cost = np.random.uniform(*costs, size=E)
@@ -166,7 +166,7 @@ with open("raster_params.txt", "w") as params_file:
 DataFrame(treat_cost, index=treat_names, columns=treat_names).to_csv("raster_treatment_costs.csv", float_format="%.4f")
 
 # treat area budget
-DataFrame({"area": area_x_treat, "budget": budget_x_treat, "treatment": treat_names}).set_index("treatment").to_csv(
+DataFrame({"area": treat_areas, "budget": treat_budgets, "treatment": treat_names}).set_index("treatment").to_csv(
     "raster_treatment_params.csv", float_format="%.4f"
 )
 

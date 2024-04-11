@@ -42,7 +42,7 @@ import processing
 from fire2a.raster import get_geotransform, get_rlayer_data, get_rlayer_info
 from osgeo.gdal import GDT_Int16, GetDriverByName
 from pandas import DataFrame, read_csv
-from processing.tools.system import getTempFilename
+# from processing.tools.system import getTempFilename
 from pyomo import environ as pyo
 from pyomo.common.errors import ApplicationError
 from pyomo.opt import SolverFactory, SolverStatus, TerminationCondition
@@ -79,7 +79,8 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
     IN_TREATS_AB = "treatments_areas_budgets_csv"
     IN_TEAM = "teams_csv"
 
-    OUT_LAYER = "OUT_LAYER"
+    OUT_TREAT_LAYER = "OUT_TREAT_LAYER"
+    OUT_TEAM_LAYER = "OUT_TEAM_LAYER"
 
     solver_exception_msg = ""
 
@@ -199,7 +200,9 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         feedback.pushDebugInfo(f"{R=}, {H=}, {W=}")
 
         # read conversion table
-        # df_tc = read_csv("raster_treatment_costs.csv", index_col=0)
+        """
+        df_tc = read_csv("raster_treatment_costs.csv", index_col=0)
+        """
         df_tc = read_csv(self.parameterAsFile(parameters, self.IN_TREATS_C, context), index_col=0)
         # feedback.pushDebugInfo(f"{df_tc=}")
         instance["treat_names"] = df_tc.columns.values.tolist()
@@ -212,33 +215,36 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo(f"{instance['treat_names']=}")
         # np.all(np.isclose( treat_cost, instance['treat_cost']))
         instance["treat_cost"] = df_tc.values
-        # instance["px_area"] = px_area
+        """
+        instance["px_area"] = px_area
+        """
         instance["px_area"] = rasters[self.IN_TRT]["info"]["cellsize_x"] * rasters[self.IN_TRT]["info"]["cellsize_y"]
         feedback.pushDebugInfo(f"{instance['px_area']=}")
 
-        # instance['area'] = area
-        # instance['budget'] = budget
+        """
+        instance['area'] = area
+        instance['budget'] = budget
+        """
         instance["area"] = self.parameterAsDouble(parameters, self.IN_AREA, context)
         instance["budget"] = self.parameterAsDouble(parameters, self.IN_BUDGET, context)
 
         # read treatments areas & budgets table
-        # df_ab = read_csv('raster_treatment_params.csv', index_col=0)
+        """
+        df_ab = read_csv('raster_treatment_params.csv', index_col=0)
+        """
         df_ab = read_csv(self.parameterAsFile(parameters, self.IN_TREATS_AB, context), index_col=0)
         feedback.pushDebugInfo(f"{df_ab=}")
-        # instance['treat_areas'] = treat_areas
-        # instance['treat_budgets'] = treat_budgets
         instance["treat_areas"] = df_ab["area"].values
         instance["treat_budgets"] = df_ab["budget"].values
         # np.all(np.isclose(treat_areas, instance['treat_areas']))
 
         # read teams costs, areas, budgets and abilities table
-        # df_tm = read_csv('raster_team_params.csv', index_col=0)
+        """
+        df_tm = read_csv('raster_team_params.csv', index_col=0)
+        """
         df_tm = read_csv(self.parameterAsFile(parameters, self.IN_TEAM, context), index_col=0)
 
-        instance["team_names"] = df_tm.index.values
-        # instance['team_on_cost'] = team_on_cost
-        # instance['team_area'] = team_area
-        # instance['team_budget'] = team_budget
+        instance["team_names"] = df_tm.index.values.tolist()
         for name in ["on_cost", "area", "budget"]:
             instance[f"team_{name}"] = df_tm[name].values
         instance["team_ability"] = df_tm[instance["treat_names"]].values
@@ -253,6 +259,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         start = time()
         results = pyomo_run_model(self, parameters, context, feedback, model, display_model=False)
         feedback.pushDebugInfo(f"model solved in '{time()-start:.2f}'s")
+        # retval, solver_dic = pyomo_parse_results(results)
         retval, solver_dic = pyomo_parse_results(results, feedback)
 
         retdic = {}
@@ -267,36 +274,68 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         pyomo_err_feedback = FileLikeFeedback(feedback, False)
         with redirect_stdout(pyomo_std_feedback), redirect_stderr(pyomo_err_feedback):
             model.area_capacity.display()
+            model.area_x_treat_capacity.display()
             model.budget_capacity.display()
+            model.budget_x_treat_capacity.display()
+            model.activate_team.display()
             model.objective.display()
 
-        # treats_dic = {(h, w, tr): pyo.value(model.X[h, w, tr], exception=False) for h, w, tr in model.FeasibleMapR}
-        treats_dic = model.X.get_values()  # what about exceptions?
-        # feedback.pushDebugInfo(f"{treats_dic=}, {len(treats_dic)=}")
-        feedback.pushDebugInfo(f"{len(treats_dic)=}")
+        teams_dic = model.Y.get_values()
+        # feedback.pushDebugInfo(f"{teams_dic=}, {len(teams_dic)=}")
+        teams_on = dict(zip(instance["team_names"], teams_dic.values()))
+        printf(f"{teams_on=}", feedback)
 
-        # TODO better with
-        # treats_arr = np.array([ treats_dic.get((h, w, tr), -3) for h, w, tr in np.ndindex(H, W, R)], dtype=float).reshape ?
-        treats_arr = np.array(
-            [[treats_dic.get((h, w, tr), -3) for tr in model.R] for h, w in np.ndindex(H, W)], dtype=float
-        )
-        # feedback.pushDebugInfo(f"{treats_arr=}, {treats_arr.shape=}")
-        feedback.pushDebugInfo(f"{treats_arr.shape=}")
+        solution_dic = model.X.get_values()  # what about exceptions?
+        # feedback.pushDebugInfo(f"{solution_dic=}, {len(solution_dic)=}")
+        # feedback.pushDebugInfo(f"{len(solution_dic)=}")
+        printf(f"{len(solution_dic)=}", feedback)
 
-        treats_arr = np.where(np.isnan(treats_arr), -2, treats_arr)
-        summary = np.array(
-            [np.where(np.any(row > 0), np.argmax(row), -1) for row in treats_arr]  # .transpose(2, 0, 1).reshape(R, -1)
-        )
+        sol_arr = np.array([solution_dic.get((idx), -3) for idx in np.ndindex(H, W, R, E)])
+        sol_arr = np.where(np.isnan(sol_arr), -2, sol_arr)
 
-        msg = "Solution histogram:\n"
-        hist = np.histogram(summary, bins=[-3, -2, -1] + list(range(R + 1)))[0]
-        labels = ["unable", "undecided", "unchanged"] + instance["treat_names"]
-        for trt, count in zip(labels, hist):
-            msg += f"{trt}: {count}\n"
-        feedback.pushInfo(msg)
+        printf(f"{np.unique(sol_arr)=}", feedback)
+
+        # GLOBAL
+        freqs, bins = np.histogram(sol_arr, bins=range(-3, 3))
+        named_bins = ["unable", "undecided", "_", "unselected", "selected"]
+        printf(f"Global {W*H*R*E=} histogram (bins:freqs):\n{dict(zip(named_bins,freqs))}", feedback)
+        freq_ratio = freqs / (W * H * R * E)
+        printf(f"Global ratio histogram (bins:freqs/(WHRE)):\n{dict(zip(named_bins,freq_ratio))}", feedback)
+
+        sol_arr = sol_arr.reshape(H, W, R, E)
+
+        treats, teams = np.array(
+            [np.unravel_index(sol_arr[h, w].argmax(), sol_arr[h, w].shape) for h, w in np.ndindex(H, W)]
+        ).T
+        treats = treats.reshape(H, W)
+        teams = teams.reshape(H, W)
+
+        map_maxs = np.array([sol_arr[h, w].max() for h, w in np.ndindex(H, W)]).reshape(H, W)
+        freqs, bins = np.histogram(map_maxs, bins=range(-3, 3))
+        named_bins = ["unable", "undecided", "_", "unchanged", "changed"]
+        printf(f"Map (H*W) histogram (bins:freqs):\n{dict(zip(named_bins,freqs))}", feedback)
+
+        for h, w in np.ndindex(H, W):
+            if map_maxs[h, w] > 0:
+                treats[h, w] += 1
+                teams[h, w] += 1
+            elif map_maxs[h, w] == 0:
+                treats[h, w] = -1
+                teams[h, w] = -1
+            else:
+                treats[h, w] = map_maxs[h, w]
+                teams[h, w] = map_maxs[h, w]
+
+        treat_labels = ["unable", "undecided", "unchanged"] + instance["treat_names"]
+        freqs, bins = np.histogram(treats, bins=range(-3, -3 + len(treat_labels) + 1))
+        printf(f"Map (H*W) TREATMENT histogram (bins:freqs):\n{dict(zip(treat_labels,freqs))}", feedback)
+
+        team_labels = ["unable", "undecided", "unchanged"] + instance["team_names"]
+        freqs, bins = np.histogram(teams, bins=range(-3, -3 + len(team_labels) + 1))
+        printf(f"Map (H*W) TEAM histogram (bins:freqs):\n{dict(zip(team_labels,freqs))}", feedback)
 
         # write output raster
-        out_raster_filename = self.parameterAsOutputLayer(parameters, self.OUT_LAYER, context)
+        out_raster_filename = self.parameterAsOutputLayer(parameters, self.OUT_TEAM_LAYER, context)
         out_raster_format = get_output_raster_format(out_raster_filename, feedback)
         ds = GetDriverByName(out_raster_format).Create(out_raster_filename, W, H, 1, GDT_Int16)
         ds.SetProjection(rasters["current_treatment"]["info"]["crs"].authid())  # export coords to file
@@ -315,7 +354,38 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         band = None
         ds.FlushCache()  # write to disk
         ds = None
-        retdic[self.OUT_LAYER] = out_raster_filename
+        retdic[self.OUT_TEAM_LAYER] = out_raster_filename
+        # show
+        if context.willLoadLayerOnCompletion(out_raster_filename):
+            layer_details = context.layerToLoadOnCompletionDetails(out_raster_filename)
+            layer_details.groupName = "DecisionOptimizationGroup"
+            layer_details.name = "TeamRaster"
+            layer_details.layerSortKey = 2
+            context.layerToLoadOnCompletionDetails(out_raster_filename).setPostProcessor(
+                run_alg_style_raster_legend(team_labels, offset=-3)
+            )
+
+        # write output raster
+        out_raster_filename = self.parameterAsOutputLayer(parameters, self.OUT_TREAT_LAYER, context)
+        out_raster_format = get_output_raster_format(out_raster_filename, feedback)
+        ds = GetDriverByName(out_raster_format).Create(out_raster_filename, W, H, 1, GDT_Int16)
+        ds.SetProjection(rasters["current_treatment"]["info"]["crs"].authid())  # export coords to file
+        gt = rasters["current_treatment"]["GT"]
+        if abs(gt[-1]) > 0:
+            gt = (gt[0], gt[1], gt[2], gt[3], gt[4], -abs(gt[5]))
+            feedback.pushWarning("Geotransform: Flipping Y axis...")
+        feedback.pushDebugInfo(f"{gt=}")
+        ds.SetGeoTransform(gt)  # specify coords
+        band = ds.GetRasterBand(1)
+        band.SetUnitType("treatment_index")
+        if 0 != band.SetNoDataValue(int(-3)):
+            feedback.pushWarning(f"Set No Data failed for {self.name()}")
+        if 0 != band.WriteArray(summary.reshape(H, W)):
+            feedback.pushWarning(f"WriteArray failed for {self.name()}")
+        band = None
+        ds.FlushCache()  # write to disk
+        ds = None
+        retdic[self.OUT_TREAT_LAYER] = out_raster_filename
         # show
         if context.willLoadLayerOnCompletion(out_raster_filename):
             layer_details = context.layerToLoadOnCompletionDetails(out_raster_filename)
@@ -323,7 +393,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
             layer_details.name = "TreatmentRaster"
             layer_details.layerSortKey = 1
             context.layerToLoadOnCompletionDetails(out_raster_filename).setPostProcessor(
-                run_alg_style_raster_legend(labels, offset=-3)
+                run_alg_style_raster_legend(treat_labels, offset=-3)
             )
 
         write_log(feedback, name=self.name())
@@ -908,15 +978,17 @@ def do_raster_treatment_teams(
     Can be used as a standalone function apart from QGIS, but requires pyomo and a solver installed.
 
     Args:
-        nodata (int): Nodata value for the data arrays.
-        treat_names (list): List of treatment names.
-        treat_cost (np.ndarray): 2D array of treatment costs (R,R).
-        current_treatment (np.ndarray): 2D array of current treatments (H,W).
-        current_value (np.ndarray): 2D array of current values (H,W).
-        target_value (np.ndarray): 3D array of target values (R,H,W).
-        px_area (float): Area of a pixel.
         area (float): Total area upper bound.
         budget (float): Total budget upper bound.
+        current_treatment (np.ndarray): 2D array of current treatments (H,W).
+        current_value (np.ndarray): 2D array of current values (H,W).
+        nodata (int): Nodata value for the data arrays.
+        px_area (float): Area of a pixel.
+        target_value (np.ndarray): float 3D array of target values (R,H,W).
+        team_ability (np.ndarray): binary 2D array of team ability to perform treatment (E,R).
+
+        treat_names (list): List of treatment names.
+        treat_cost (np.ndarray): 2D array of treatment costs (R,R).
 
         team_cost (np.ndarray): 1D array of teams costs when active (contract payment)
         team_area (np.ndarray): 1D array of team total area when active
