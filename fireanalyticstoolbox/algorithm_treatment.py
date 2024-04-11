@@ -153,8 +153,11 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
-        # raster output
-        self.addParameter(QgsProcessingParameterRasterDestinationGpkg(self.OUT_LAYER, self.tr("Raster Treatment")))
+        # treatment raster output
+        self.addParameter(QgsProcessingParameterRasterDestination(self.OUT_TREAT_LAYER, self.tr("Raster tReatment")))
+
+        # team raster output
+        self.addParameter(QgsProcessingParameterRasterDestination(self.OUT_TEAM_LAYER, self.tr("Raster tEam")))
 
         pyomo_init_algorithm(self, config)
 
@@ -245,6 +248,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         df_tm = read_csv(self.parameterAsFile(parameters, self.IN_TEAM, context), index_col=0)
 
         instance["team_names"] = df_tm.index.values.tolist()
+        E = len(instance["team_names"])
         for name in ["on_cost", "area", "budget"]:
             instance[f"team_{name}"] = df_tm[name].values
         instance["team_ability"] = df_tm[instance["treat_names"]].values
@@ -265,7 +269,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         retdic = {}
         retdic.update(solver_dic)
 
-        if retval >= 1:
+        if retval > 1:
             retdic.update(instance)
             feedback.reportError(f"Solver failed with {retval=}")
             return retdic
@@ -275,8 +279,10 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         with redirect_stdout(pyomo_std_feedback), redirect_stderr(pyomo_err_feedback):
             model.area_capacity.display()
             model.area_x_treat_capacity.display()
+            model.area_x_team_capacity
             model.budget_capacity.display()
             model.budget_x_treat_capacity.display()
+            model.budget_x_team_capacity
             model.activate_team.display()
             model.objective.display()
 
@@ -335,9 +341,9 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         printf(f"Map (H*W) TEAM histogram (bins:freqs):\n{dict(zip(team_labels,freqs))}", feedback)
 
         # write output raster
-        out_raster_filename = self.parameterAsOutputLayer(parameters, self.OUT_TEAM_LAYER, context)
-        out_raster_format = get_output_raster_format(out_raster_filename, feedback)
-        ds = GetDriverByName(out_raster_format).Create(out_raster_filename, W, H, 1, GDT_Int16)
+        out_team_raster_filename = self.parameterAsOutputLayer(parameters, self.OUT_TEAM_LAYER, context)
+        out_team_raster_format = get_output_raster_format(out_team_raster_filename, feedback)
+        ds = GetDriverByName(out_team_raster_format).Create(out_team_raster_filename, W, H, 1, GDT_Int16)
         ds.SetProjection(rasters["current_treatment"]["info"]["crs"].authid())  # export coords to file
         gt = rasters["current_treatment"]["GT"]
         if abs(gt[-1]) > 0:
@@ -346,29 +352,29 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         feedback.pushDebugInfo(f"{gt=}")
         ds.SetGeoTransform(gt)  # specify coords
         band = ds.GetRasterBand(1)
-        band.SetUnitType("treatment_index")
+        band.SetUnitType("team_index")
         if 0 != band.SetNoDataValue(int(-3)):
             feedback.pushWarning(f"Set No Data failed for {self.name()}")
-        if 0 != band.WriteArray(summary.reshape(H, W)):
+        if 0 != band.WriteArray(teams):
             feedback.pushWarning(f"WriteArray failed for {self.name()}")
         band = None
         ds.FlushCache()  # write to disk
         ds = None
-        retdic[self.OUT_TEAM_LAYER] = out_raster_filename
+        retdic[self.OUT_TEAM_LAYER] = out_team_raster_filename
         # show
-        if context.willLoadLayerOnCompletion(out_raster_filename):
-            layer_details = context.layerToLoadOnCompletionDetails(out_raster_filename)
+        if context.willLoadLayerOnCompletion(out_team_raster_filename):
+            layer_details = context.layerToLoadOnCompletionDetails(out_team_raster_filename)
             layer_details.groupName = "DecisionOptimizationGroup"
             layer_details.name = "TeamRaster"
             layer_details.layerSortKey = 2
-            context.layerToLoadOnCompletionDetails(out_raster_filename).setPostProcessor(
+            context.layerToLoadOnCompletionDetails(out_team_raster_filename).setPostProcessor(
                 run_alg_style_raster_legend(team_labels, offset=-3)
             )
 
         # write output raster
-        out_raster_filename = self.parameterAsOutputLayer(parameters, self.OUT_TREAT_LAYER, context)
-        out_raster_format = get_output_raster_format(out_raster_filename, feedback)
-        ds = GetDriverByName(out_raster_format).Create(out_raster_filename, W, H, 1, GDT_Int16)
+        out_treat_raster_filename = self.parameterAsOutputLayer(parameters, self.OUT_TREAT_LAYER, context)
+        out_treat_raster_format = get_output_raster_format(out_treat_raster_filename, feedback)
+        ds = GetDriverByName(out_treat_raster_format).Create(out_treat_raster_filename, W, H, 1, GDT_Int16)
         ds.SetProjection(rasters["current_treatment"]["info"]["crs"].authid())  # export coords to file
         gt = rasters["current_treatment"]["GT"]
         if abs(gt[-1]) > 0:
@@ -377,22 +383,22 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         feedback.pushDebugInfo(f"{gt=}")
         ds.SetGeoTransform(gt)  # specify coords
         band = ds.GetRasterBand(1)
-        band.SetUnitType("treatment_index")
+        band.SetUnitType("treat_index")
         if 0 != band.SetNoDataValue(int(-3)):
             feedback.pushWarning(f"Set No Data failed for {self.name()}")
-        if 0 != band.WriteArray(summary.reshape(H, W)):
+        if 0 != band.WriteArray(treats):
             feedback.pushWarning(f"WriteArray failed for {self.name()}")
         band = None
         ds.FlushCache()  # write to disk
         ds = None
-        retdic[self.OUT_TREAT_LAYER] = out_raster_filename
+        retdic[self.OUT_TREAT_LAYER] = out_treat_raster_filename
         # show
-        if context.willLoadLayerOnCompletion(out_raster_filename):
-            layer_details = context.layerToLoadOnCompletionDetails(out_raster_filename)
+        if context.willLoadLayerOnCompletion(out_treat_raster_filename):
+            layer_details = context.layerToLoadOnCompletionDetails(out_treat_raster_filename)
             layer_details.groupName = "DecisionOptimizationGroup"
             layer_details.name = "TreatmentRaster"
             layer_details.layerSortKey = 1
-            context.layerToLoadOnCompletionDetails(out_raster_filename).setPostProcessor(
+            context.layerToLoadOnCompletionDetails(out_treat_raster_filename).setPostProcessor(
                 run_alg_style_raster_legend(treat_labels, offset=-3)
             )
 
@@ -428,17 +434,25 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
     def shortDescription(self):
         return self.tr(
             """<b>Objetive:</b> Maximize the changed value of the treated raster<br> 
-            <b>Decisions:</b> Which treatment to apply to each pixel (or no change)<br>
+            <b>Decisions:</b> Which treatment to apply by which team to each pixel (or no change)<br>
             <b>Contraints:</b><br>
-            (a) treat cost * pixel area less than budget<br>
-            (b) treated area less than total area<br> 
+            (a) all treat cost * pixel area(pxa) + team on_cost is less than <b>Budget</b><br>
+            (b) treat cost * pxa is less than <b>budget per treatment</b><br>
+            (c) treat cost * pxa is less than <b>budget per team</b><br>
+            (d) all treated area less than total <b>Area</b><br> 
+            (e) treated area less than <b>area per treatment</b><br> 
+            (f) treated area less than <b>area per team</b><br> 
+            (g) at most one treatment by one team per pixel<br>
+            (h) linkage between treating (h,w,r,e) and active teams (e) variables<br>
             <b>Inputs:</b><br>
             (i) A .csv squared-table of <b>treatment transformation costs(/m2)</b> (defines index encoding)<br>
-            (ii) A raster layer with <b>current treatments</b> index values (encoded: 0..number of treatments-1)<br>
+            (ii) A raster layer with <b>current treatments</b> indexed values (encoded: 0..number of treatments-1)<br>
             (iii) A raster layer with <b>current values</b><br>
             (iv) A multiband raster layer with <b>target values</b> (number of treatments == number of bands)<br>
             (vi) <b>Budget</b> (same units than costs)<br>
             (vii) <b>Area</b> (same units than pixel size of the raster)<br>
+            (viii) A .csv table for each <b>treatment area and budget</b> capacities<br>
+            (viii) A .csv table for each <b>team on_cost, area, budget and abilities</b> (1s is able)<br>
             <br>
             - consistency between rasters is up to the user<br>
             - rasters "must be saved to disk (for layers to have a publicSource != "")"<br>
@@ -446,10 +460,12 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
             <br>
             sample: """
             + (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri()
-            + """<br><br> Use generate_polygon_treatment.py in QGIS's python console to generate a random instance (rasters & treatmets_costs.csv)<br><br>
+            + """<br><br> Use generate_polygon_treatment.py in QGIS's python console to generate a complete random instance (rasters, 3.csv's and sensible params.txt)<br><br>
 
-            (v) Possible feature? An optional <b>boolean multiband raster</b> defining the allowed target treatments (1s is allowed)<br>
-            (viii) Possible feature? Pass SOS constraint weights to the solver, or simpler: a base exponent to build treatment index-order exponential weights, e.g., 2->[8,4,2,1] for 4 treatments in a pixel <br>
+            <b>Possible Future Features</b><br>
+            (i) An optional <b>boolean multiband raster</b> defining the allowed target treatments (where 1s is allowed)<br>
+            (ii) Pass <b>SOS constraint weights</b> to the solver; or simpler: a base exponent to build treatment index-order exponential weights, e.g., 2->[8,4,2,1] for 4 treatments in a pixel. This could impact very big instances to guide branching decisions, e.g., branch on earlier teams first <br>
+            (iii) Generalize the team abilities table to a teams x treatment capacity table (<b>area (or budget) per team per treatment</b>)<br>
             """
         )
 
@@ -1149,6 +1165,13 @@ def do_raster_treatment_teams(
         )
         <= m.treat_areas[r],
     )
+    m.area_x_team_capacity = pyo.Constraint(
+        m.E,
+        rule=lambda m, e: sum(
+            m.X[h, w, r, e] * m.px_area for h, w, r in m.FeasibleMapR if (h, w, r, e) in m.FeasibleMapRE
+        )
+        <= m.team_area[e],
+    )
     printf(f"Built area constraints in {time()-start:.2f}s...", feedback)
     start = time()
 
@@ -1167,6 +1190,15 @@ def do_raster_treatment_teams(
             if (h, w, r, e) in m.FeasibleMapRE
         )
         <= m.treat_budgets[r],
+    )
+    m.budget_x_team_capacity = pyo.Constraint(
+        m.E,
+        rule=lambda m, e: sum(
+            m.X[h, w, r, e] * m.treat_cost[m.current_treatment[h, w], r] * m.px_area
+            for h, w, r in m.FeasibleMapR
+            if (h, w, r, e) in m.FeasibleMapRE
+        )
+        <= m.team_budget[e],
     )
     printf(f"Built budget constraints in {time()-start:.2f}s...", feedback)
     start = time()
