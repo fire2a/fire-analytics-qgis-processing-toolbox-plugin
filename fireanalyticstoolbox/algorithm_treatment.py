@@ -64,7 +64,7 @@ from .decision_optimization.doop import (FileLikeFeedback, add_cbc_to_path, init
                                          pyomo_parse_results, pyomo_run_model)
 
 
-class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
+class RasterTreatmentTeamAlgorithm(QgsProcessingAlgorithm):
     """Algorithm that selects the most valuable polygons restriced to a total weight using a MIP solver"""
 
     IN_TRT = "current_treatment"
@@ -407,14 +407,14 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
 
     def name(self):
         """processing.run('provider:name',{..."""
-        return "rastertreatment"
+        return "rastertreatmentteam"
 
     def displayName(self):
         """
         Returns the translated algorithm name, which should be used for any
         user-visible display of the algorithm name.
         """
-        return self.tr("Raster Treatment")
+        return self.tr("Raster Treatment Team")
 
     def group(self):
         return self.tr(self.groupId())
@@ -426,7 +426,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         return QCoreApplication.translate("Processing", string)
 
     def createInstance(self):
-        return RasterTreatmentAlgorithm()
+        return RasterTreatmentTeamAlgorithm()
 
     def helpUrl(self):
         return "https://www.github.com/fdobad/qgis-processingplugin-template/issues"
@@ -466,6 +466,271 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
             (i) An optional <b>boolean multiband raster</b> defining the allowed target treatments (where 1s is allowed)<br>
             (ii) Pass <b>SOS constraint weights</b> to the solver; or simpler: a base exponent to build treatment index-order exponential weights, e.g., 2->[8,4,2,1] for 4 treatments in a pixel. This could impact very big instances to guide branching decisions, e.g., branch on earlier teams first <br>
             (iii) Generalize the team abilities table to a teams x treatment capacity table (<b>area (or budget) per team per treatment</b>)<br>
+            """
+        )
+
+    def icon(self):
+        return QIcon(":/plugins/fireanalyticstoolbox/assets/firebreakmap.svg")
+
+
+class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
+    """Algorithm that selects the most valuable polygons restriced to a total weight using a MIP solver"""
+
+    IN_TRT = "current_treatment"
+    IN_VAL = "current_value"
+    IN_TRGTS = "target_value"
+
+    IN_TREATS = "treatments_costs"
+
+    IN_AREA = "Area"
+    IN_BUDGET = "Budget"
+
+    OUT_LAYER = "OUT_LAYER"
+
+    solver_exception_msg = ""
+
+    if platform_system() == "Windows":
+        add_cbc_to_path(QgsMessageLog)
+
+    def initAlgorithm(self, config):
+        """The form reads a vector layer and two fields, one for the value and one for the weight; also configures the weight ratio and the solver"""
+        for raster in [self.IN_TRT, self.IN_VAL, self.IN_TRGTS]:
+            self.addParameter(
+                QgsProcessingParameterRasterLayer(
+                    name=raster,
+                    description=self.tr(f"Raster layer for {raster}"),
+                    defaultValue=raster,
+                    # defaultValue=[QgsProcessing.TypeRaster],
+                    # optional=True,
+                )
+            )
+        # treatments
+        self.addParameter(
+            QgsProcessingParameterFile(
+                name=self.IN_TREATS,
+                description=self.tr("Treatments Matrix (csv)"),
+                behavior=QgsProcessingParameterFile.File,
+                extension="csv",
+            )
+        )
+        # AREA double
+        qppn = QgsProcessingParameterNumber(
+            name=self.IN_AREA,
+            description=self.tr("Total Area"),
+            type=QgsProcessingParameterNumber.Double,
+            defaultValue=2024.03,
+            optional=False,
+            minValue=0.01,
+        )
+        qppn.setMetadata({"widget_wrapper": {"decimals": 2}})
+        self.addParameter(qppn)
+        # BUDGET double
+        qppn = QgsProcessingParameterNumber(
+            name=self.IN_BUDGET,
+            description=self.tr("Total Budget"),
+            type=QgsProcessingParameterNumber.Double,
+            defaultValue=1312.01,
+            optional=False,
+            minValue=0.01,
+        )
+        qppn.setMetadata({"widget_wrapper": {"decimals": 2}})
+        self.addParameter(qppn)
+
+        # raster output
+        self.addParameter(QgsProcessingParameterRasterDestinationGpkg(self.OUT_LAYER, self.tr("Raster Treatment")))
+
+        pyomo_init_algorithm(self, config)
+
+    def processAlgorithm(self, parameters, context, feedback):
+        """
+        TODO
+            nodata != -1 -32768
+            check px_area
+        """
+        instance = {}
+        instance["nodata"] = -1
+
+        # report solver unavailability
+        feedback.pushWarning(f"Solver unavailability:\n{self.solver_exception_msg}\n")
+
+        # read rasters
+        rasters = {}
+        for raster in [self.IN_TRT, self.IN_VAL, self.IN_TRGTS]:
+            layer = self.parameterAsRasterLayer(parameters, raster, context)
+            if layer.publicSource() == "":
+                raise QgsProcessingException(f"Can't find file! for {layer=} (Is saved to disk?)")
+            rasters[raster] = {
+                "layer": layer,
+                "data": get_rlayer_data(layer),
+                "info": get_rlayer_info(layer),
+                "GT": get_geotransform(layer.publicSource()),
+            }
+            feedback.pushDebugInfo(
+                f"{raster=}, file={layer.publicSource()}, data.shape={rasters[raster]['data'].shape},"
+                f" info={rasters[raster]['info']}, geotr={rasters[raster]['GT']=}\n\n"
+            )
+
+        instance["current_treatment"] = rasters[self.IN_TRT]["data"]
+        instance["current_value"] = rasters[self.IN_VAL]["data"]
+        instance["target_value"] = rasters[self.IN_TRGTS]["data"]
+        TR, H, W = instance["target_value"].shape  # fmt: skip
+        feedback.pushDebugInfo(f"{TR=}, {H=}, {W=}")
+
+        # read conversion table
+        df = read_csv(self.parameterAsFile(parameters, self.IN_TREATS, context), index_col=0)
+        # feedback.pushDebugInfo(f"{df=}")
+        instance["treat_names"] = df.columns.values.tolist()
+        if instance["treat_names"] != df.index.values.tolist():
+            raise QgsProcessingException("Conversion table must be square with the same index and columns")
+        if TR != len(instance["treat_names"]):
+            raise QgsProcessingException(
+                "Conversion table must have the same number of index an columns than target bands"
+            )
+        feedback.pushInfo(f"{instance['treat_names']=}")
+        instance["treat_cost"] = df.values
+        instance["px_area"] = rasters[self.IN_TRT]["info"]["cellsize_x"] * rasters[self.IN_TRT]["info"]["cellsize_y"]
+        feedback.pushDebugInfo(f"{instance['px_area']=}")
+
+        instance["area"] = self.parameterAsDouble(parameters, self.IN_AREA, context)
+        instance["budget"] = self.parameterAsDouble(parameters, self.IN_BUDGET, context)
+
+        # feedback.pushDebugInfo(f"instance read: {instance=}")
+
+        # solve using pyomo
+        feedback.pushDebugInfo("instance read, bulding model...")
+        start = time()
+        model = do_raster_treatment(**instance, feedback=feedback)
+        feedback.pushDebugInfo(f"model built in '{time()-start:.2f}'s, solving model...")
+        start = time()
+        results = pyomo_run_model(self, parameters, context, feedback, model, display_model=False)
+        feedback.pushDebugInfo(f"model solved in '{time()-start:.2f}'s")
+        retval, solver_dic = pyomo_parse_results(results, feedback)
+
+        retdic = {}
+        retdic.update(solver_dic)
+
+        if retval >= 1:
+            retdic.update(instance)
+            feedback.reportError(f"Solver failed with {retval=}")
+            return retdic
+
+        pyomo_std_feedback = FileLikeFeedback(feedback, True)
+        pyomo_err_feedback = FileLikeFeedback(feedback, False)
+        with redirect_stdout(pyomo_std_feedback), redirect_stderr(pyomo_err_feedback):
+            model.area_capacity.display()
+            model.budget_capacity.display()
+            model.objective.display()
+
+        # treats_dic = {(h, w, tr): pyo.value(model.X[h, w, tr], exception=False) for h, w, tr in model.FeasibleMapTR}
+        treats_dic = model.X.get_values()  # what about exceptions?
+        # feedback.pushDebugInfo(f"{treats_dic=}, {len(treats_dic)=}")
+        feedback.pushDebugInfo(f"{len(treats_dic)=}")
+
+        # TODO better with
+        # treats_arr = np.array([ treats_dic.get((h, w, tr), -3) for h, w, tr in np.ndindex(H, W, TR)], dtype=float).reshape ?
+        treats_arr = np.array(
+            [[treats_dic.get((h, w, tr), -3) for tr in model.TR] for h, w in np.ndindex(H, W)], dtype=float
+        )
+        # feedback.pushDebugInfo(f"{treats_arr=}, {treats_arr.shape=}")
+        feedback.pushDebugInfo(f"{treats_arr.shape=}")
+
+        treats_arr = np.where(np.isnan(treats_arr), -2, treats_arr)
+        summary = np.array(
+            [np.where(np.any(row > 0), np.argmax(row), -1) for row in treats_arr]  # .transpose(2, 0, 1).reshape(TR, -1)
+        )
+
+        msg = "Solution histogram:\n"
+        hist = np.histogram(summary, bins=[-3, -2, -1] + list(range(TR + 1)))[0]
+        labels = ["unable", "undecided", "unchanged"] + instance["treat_names"]
+        for trt, count in zip(labels, hist):
+            msg += f"{trt}: {count}\n"
+        feedback.pushInfo(msg)
+
+        # write output raster
+        out_raster_filename = self.parameterAsOutputLayer(parameters, self.OUT_LAYER, context)
+        out_raster_format = get_output_raster_format(out_raster_filename, feedback)
+        ds = GetDriverByName(out_raster_format).Create(out_raster_filename, W, H, 1, GDT_Int16)
+        ds.SetProjection(rasters["current_treatment"]["info"]["crs"].authid())  # export coords to file
+        gt = rasters["current_treatment"]["GT"]
+        if abs(gt[-1]) > 0:
+            gt = (gt[0], gt[1], gt[2], gt[3], gt[4], -abs(gt[5]))
+            feedback.pushWarning("Geotransform: Flipping Y axis...")
+        feedback.pushDebugInfo(f"{gt=}")
+        ds.SetGeoTransform(gt)  # specify coords
+        band = ds.GetRasterBand(1)
+        band.SetUnitType("treatment_index")
+        if 0 != band.SetNoDataValue(int(-3)):
+            feedback.pushWarning(f"Set No Data failed for {self.name()}")
+        if 0 != band.WriteArray(summary.reshape(H, W)):
+            feedback.pushWarning(f"WriteArray failed for {self.name()}")
+        band = None
+        ds.FlushCache()  # write to disk
+        ds = None
+        retdic[self.OUT_LAYER] = out_raster_filename
+        # show
+        if context.willLoadLayerOnCompletion(out_raster_filename):
+            layer_details = context.layerToLoadOnCompletionDetails(out_raster_filename)
+            layer_details.groupName = "DecisionOptimizationGroup"
+            layer_details.name = "TreatmentRaster"
+            layer_details.layerSortKey = 1
+            context.layerToLoadOnCompletionDetails(out_raster_filename).setPostProcessor(
+                run_alg_style_raster_legend(labels, offset=-3)
+            )
+
+        write_log(feedback, name=self.name())
+        return retdic
+
+    def name(self):
+        """processing.run('provider:name',{..."""
+        return "rastertreatment"
+
+    def displayName(self):
+        """
+        Returns the translated algorithm name, which should be used for any
+        user-visible display of the algorithm name.
+        """
+        return self.tr("Raster Treatment")
+
+    def group(self):
+        return self.tr(self.groupId())
+
+    def groupId(self):
+        return "do"
+
+    def tr(self, string):
+        return QCoreApplication.translate("Processing", string)
+
+    def createInstance(self):
+        return RasterTreatmentAlgorithm()
+
+    def helpUrl(self):
+        return "https://www.github.com/fdobad/qgis-processingplugin-template/issues"
+
+    def shortDescription(self):
+        return self.tr(
+            """<b>Objetive:</b> Maximize the changed value of the treated raster<br> 
+            <b>Decisions:</b> Which treatment to apply to each pixel (or no change)<br>
+            <b>Contraints:</b><br>
+            (a) treat cost * pixel area less than budget<br>
+            (b) treated area less than total area<br> 
+            <b>Inputs:</b><br>
+            (i) A .csv squared-table of <b>treatment transformation costs(/m2)</b> (defines index encoding)<br>
+            (ii) A raster layer with <b>current treatments</b> index values (encoded: 0..number of treatments-1)<br>
+            (iii) A raster layer with <b>current values</b><br>
+            (iv) A multiband raster layer with <b>target values</b> (number of treatments == number of bands)<br>
+            (vi) <b>Budget</b> (same units than costs)<br>
+            (vii) <b>Area</b> (same units than pixel size of the raster)<br>
+            <br>
+            - consistency between rasters is up to the user<br>
+            - rasters "must be saved to disk (for layers to have a publicSource != "")"<br>
+            - raster no data == -1 <br>
+            <br>
+            sample: """
+            + (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri()
+            + """<br><br> Use generate_polygon_treatment.py in QGIS's python console to generate a random instance (rasters & treatmets_costs.csv)<br><br>
+
+            (v) Possible feature? An optional <b>boolean multiband raster</b> defining the allowed target treatments (1s is allowed)<br>
+            (viii) Possible feature? Pass SOS constraint weights to the solver, or simpler: a base exponent to build treatment index-order exponential weights, e.g., 2->[8,4,2,1] for 4 treatments in a pixel <br>
             """
         )
 
