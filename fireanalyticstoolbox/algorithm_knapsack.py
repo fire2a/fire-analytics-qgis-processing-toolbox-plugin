@@ -207,7 +207,7 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
         results = pyomo_run_model(self, parameters, context, feedback, model)
         retval, solver_dic = pyomo_parse_results(results, feedback)
 
-        if retval >= 1:
+        if retval > 1:
             solver_dic.update({self.OUT_LAYER: None})
             return solver_dic
 
@@ -463,7 +463,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         results = pyomo_run_model(self, parameters, context, feedback, model, display_model=False)
         retval, solver_dic = pyomo_parse_results(results, feedback)
 
-        if retval >= 1:
+        if retval > 1:
             solver_dic.update({self.OUT_LAYER: None})
             return solver_dic
 

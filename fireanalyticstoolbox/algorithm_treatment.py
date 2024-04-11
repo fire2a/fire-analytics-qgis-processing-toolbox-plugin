@@ -609,7 +609,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         retdic = {}
         retdic.update(solver_dic)
 
-        if retval >= 1:
+        if retval > 1:
             retdic.update(instance)
             feedback.reportError(f"Solver failed with {retval=}")
             return retdic
