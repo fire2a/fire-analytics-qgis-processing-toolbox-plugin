@@ -40,6 +40,7 @@ __copyright__ = "(C) 2023 by Fernando Badilla Veliz - Fire2a.com"
 
 __revision__ = "$Format:%H$"
 
+from datetime import datetime
 from functools import partial
 from multiprocessing import Pool, cpu_count
 from os import sep
@@ -1187,7 +1188,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         #
         # vector
         output_vector_file = self.parameterAsOutputLayer(parameters, self.OUT_POLY, context)
-        feedback.pushDebugInfo(f"output_vector_file: {output_vector_file}")
+        # feedback.pushDebugInfo(f"output_vector_file: {output_vector_file}")
         if output_vector_file != "":
             feedback.pushInfo(f"Propagation polygons (output_vector_file): {output_vector_file}")
             # raster for each grid
@@ -1200,7 +1201,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
             sp_ref = osr.SpatialReference()
             sp_ref.SetFromUserInput(base_raster.crs().authid())
             # otro
-            otrods = ogr.GetDriverByName("GPKG").CreateDataSource(output_vector_file)
+            otrods = ogr.GetDriverByName("Memory").CreateDataSource(output_vector_file)
             otrolyr = otrods.CreateLayer("", srs=sp_ref, geom_type=ogr.wkbPolygon)
             otrolyr.CreateField(ogr.FieldDefn("simulation", ogr.OFTInteger))
             otrolyr.CreateField(ogr.FieldDefn("time", ogr.OFTInteger))
@@ -1246,6 +1247,14 @@ class ScarSIMPP(QgsProcessingAlgorithm):
                     feature.SetField("perimeter", int(geom.Boundary().Length()))
                     otrolyr.CreateFeature(feature)
 
+            otrolyr.SyncToDisk()
+
+            otrods.FlushCache()  # write to disk
+            otro_ds = None
+
+            src_ds.FlushCache()  # write to disk
+            src_ds = None
+
             if context.willLoadLayerOnCompletion(output_vector_file):
                 layer_details = context.LayerDetails(
                     "Propagation Scars",
@@ -1287,6 +1296,14 @@ class ScarSIMPP(QgsProcessingAlgorithm):
 
     def icon(self):
         return QIcon(":/plugins/fireanalyticstoolbox/assets/bodyscar.svg")
+
+    def helpString(self):
+        return self.shortHelpString()
+
+    def shortHelpString(self):
+        return self.tr(
+            "Warning: Propagation Scars Polygons is loaded in memory, it must be manually saved or deleted (not just renamed as layer) before attempting to run the algorithm again. <b>Silently won't be replaced if already exists.</b>"
+        )
 
 
 def run_alg_styler_propagation():
