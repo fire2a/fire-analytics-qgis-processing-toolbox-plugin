@@ -40,7 +40,6 @@ __copyright__ = "(C) 2023 by Fernando Badilla Veliz - Fire2a.com"
 
 __revision__ = "$Format:%H$"
 
-from datetime import datetime
 from functools import partial
 from multiprocessing import Pool, cpu_count
 from os import sep
