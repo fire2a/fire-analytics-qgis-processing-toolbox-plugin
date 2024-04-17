@@ -34,10 +34,10 @@ import processing
 from fire2a.raster import get_geotransform
 from qgis.core import (QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterFileDestination,
                        QgsProcessingParameterRasterDestination, QgsProcessingParameterRasterLayer,
-                       QgsProcessingParameterString)
+                       QgsProcessingParameterString, QgsProcessingUtils)
 from qgis.PyQt.QtCore import QCoreApplication
 
-from .algorithm_utils import QgsProcessingParameterRasterDestinationAIIGrid
+from .algorithm_utils import QgsProcessingParameterRasterDestinationAIIGrid, write_log
 
 
 class MatchAIIGrid(QgsProcessingAlgorithm):
@@ -101,6 +101,7 @@ class MatchAIIGrid(QgsProcessingAlgorithm):
         GT(5) n-s pixel resolution / pixel height (negative value for a north-up image).
         """
         cli_args = self.parameterAsString(parameters, self.IN_CLI_ARGS, context)
+        feedback.pushInfo(f"{cli_args=}\n")
 
         modify = self.parameterAsRasterLayer(parameters, self.IN_MODIFY, context)
         feedback.pushInfo(f"{modify.publicSource()=}\n")
@@ -125,8 +126,7 @@ class MatchAIIGrid(QgsProcessingAlgorithm):
             "gdal:translate",
             {
                 "DATA_TYPE": 0,
-                # fix cli_args -r bilinear -of AAIGrid ...
-                "EXTRA": "-of AAIGrid",
+                "EXTRA": cli_args,
                 "INPUT": modify.publicSource(),
                 "NODATA": None,
                 "OPTIONS": "",
@@ -142,12 +142,16 @@ class MatchAIIGrid(QgsProcessingAlgorithm):
         if clipped is None:
             raise QgsProcessingException("Failed to clip raster")
 
+        if cli_args:
+            cli_args += " "
+        cli_args += f"-a_gt {match_gt[0]} {match_gt[1]} {match_gt[2]} {match_gt[3]} {match_gt[4]} {match_gt[5]} -outsize {match.width()} {match.height()}"
+
         transformed = processing.run(
             "gdal:translate",
             {
                 "COPY_SUBDATASETS": False,
                 "DATA_TYPE": 0,
-                "EXTRA": f"-of AAIGrid -a_gt {match_gt[0]} {match_gt[1]} {match_gt[2]} {match_gt[3]} {match_gt[4]} {match_gt[5]} -outsize {match.width()} {match.height()}",
+                "EXTRA": cli_args,
                 "INPUT": clipped,
                 "NODATA": None,
                 "OPTIONS": "",
@@ -164,6 +168,16 @@ class MatchAIIGrid(QgsProcessingAlgorithm):
 
         feedback.pushInfo(f"{transformed=}\n")
 
+        layer = QgsProcessingUtils.mapLayerFromString(transformed, context)
+        layer_details = context.LayerDetails(
+            "Matched",
+            context.project(),
+            transformed,
+            QgsProcessingUtils.LayerHint.Raster,
+        )
+        context.addLayerToLoadOnCompletion(transformed, layer_details)
+
+        write_log(feedback, name=self.name())
         return {self.OUT_MATCHED: transformed}
 
     def name(self):
@@ -175,13 +189,13 @@ class MatchAIIGrid(QgsProcessingAlgorithm):
         Returns the translated algorithm name, which should be used for any
         user-visible display of the algorithm name.
         """
-        return self.tr("Match AII Grid")
+        return self.tr("Match AII Grids")
 
     def group(self):
         return self.tr(self.groupId())
 
     def groupId(self):
-        return "zaux"
+        return "zauxiliary"
 
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)
@@ -194,5 +208,8 @@ class MatchAIIGrid(QgsProcessingAlgorithm):
 
     def shortDescription(self):
         return self.tr(
-            """Simplifies using gdal translate to <b>clip, resize and match</b> an ascii raster into another  """
+            """Simplifies using gdal translate to <b>clip extent, then resize and replace geotransform</b> to match an ascii raster into another<br><br>
+            useful cli_args: -r {nearest,bilinear,cubic,cubicspline,lanczos,average,mode} (default nearest)<br><br>
+            not implemented: dealing with CRSs or nodatas.
+            """
         )
