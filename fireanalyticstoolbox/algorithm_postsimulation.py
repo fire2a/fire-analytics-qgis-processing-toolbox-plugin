@@ -253,10 +253,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterBoolean(
                 name=self.MSGS,
-                description=(
-                    "Enable propagation directed graph (ui gets slowish, use propagation fire scars for large"
-                    " simulations)"
-                ),
+                description=("Enable propagation directed graph"),
                 defaultValue=False,
                 optional=True,
             )
@@ -513,6 +510,18 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
 
     def createInstance(self):
         return PostSimulationAlgorithm()
+
+    def helpString(self):
+        return self.shortHelpString()
+
+    def shortHelpString(self):
+        return self.tr(
+            """Warning: <b>Propagation Scars Polygons</b> is loaded in memory, it must be manually saved or deleted (not just renamed as layer) before attempting to run the algorithm again. <b>Silently won't be replaced if already exists.</b><br><br>
+            Enabling <b>Propagation Directed Graph can hang-up your system</b>, around 300.000 arrows is manageable (can be counted in Messages folder, using bash $wc -l Messages*csv)
+            To process them anyway, use its Propagation DiGraph algorithm unchecking 'Open output file after running algorithm'
+            <i>The alternative visualization is using <b>Propagation Fire Scars</b> for very large simulations</i><br><br>
+            """
+        )
 
 
 class MessagesSIMPP(QgsProcessingAlgorithm):
