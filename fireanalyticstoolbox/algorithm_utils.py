@@ -195,6 +195,23 @@ def write_log(feedback, name="", file_name=None):
     QgsMessageLog.logMessage(name + " " + file_name.as_uri(), tag=TAG, level=Qgis.Info)
 
 
+class QgsProcessingParameterRasterDestinationAIIGrid(QgsProcessingParameterRasterDestination):
+    """overrides the defaultFileExtension method to gpkg
+    ALTERNATIVE:
+    from types import MethodType
+    QPPRD = QgsProcessingParameterRasterDestination(self.OUTPUT_layer, self.tr("Output layer"))
+    def _defaultFileExtension(self):
+        return "asc"
+    QPPRD.defaultFileExtension = MethodType(_defaultFileExtension, QPPRD)
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def defaultFileExtension(self):
+        return "asc"
+
+
 class QgsProcessingParameterRasterDestinationGpkg(QgsProcessingParameterRasterDestination):
     """overrides the defaultFileExtension method to gpkg
     ALTERNATIVE:

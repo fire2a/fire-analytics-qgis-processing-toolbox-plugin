@@ -36,6 +36,7 @@ from qgis.PyQt.QtGui import QIcon
 from .algorithm_clusterize import ClusterizeAlgorithm
 from .algorithm_instance_downloader import InstanceDownloader
 from .algorithm_knapsack import PolygonKnapsackAlgorithm, RasterKnapsackAlgorithm
+from .algorithm_match_aiigrids import MatchAIIGrid
 from .algorithm_postsimulation import (BetweennessCentralityMetric, DownStreamProtectionValueMetric,
                                        IgnitionPointsSIMPP, MessagesSIMPP, PostSimulationAlgorithm, ScarSIMPP,
                                        StatisticSIMPP)
@@ -83,6 +84,7 @@ class FireToolboxProvider(QgsProcessingProvider):
         self.addAlgorithm(PolyTreatmentAlgorithm())
         self.addAlgorithm(RasterTreatmentAlgorithm())
         self.addAlgorithm(RasterTreatmentTeamAlgorithm())
+        self.addAlgorithm(MatchAIIGrid())
 
     def id(self):
         """

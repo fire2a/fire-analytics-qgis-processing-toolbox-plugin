@@ -253,10 +253,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterBoolean(
                 name=self.MSGS,
-                description=(
-                    "Enable propagation directed graph (ui gets slowish, use propagation fire scars for large"
-                    " simulations)"
-                ),
+                description=("Enable propagation directed graph"),
                 defaultValue=False,
                 optional=True,
             )
@@ -513,6 +510,18 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
 
     def createInstance(self):
         return PostSimulationAlgorithm()
+
+    def helpString(self):
+        return self.shortHelpString()
+
+    def shortHelpString(self):
+        return self.tr(
+            """Warning: <b>Propagation Scars Polygons</b> is loaded in memory, it must be manually saved or deleted (not just renamed as layer) before attempting to run the algorithm again. <b>Silently won't be replaced if already exists.</b><br><br>
+            Enabling <b>Propagation Directed Graph can hang-up your system</b>, around 300.000 arrows is manageable (can be counted in Messages folder, using bash $wc -l Messages*csv)
+            To process them anyway, use its Propagation DiGraph algorithm unchecking 'Open output file after running algorithm'
+            <i>The alternative visualization is using <b>Propagation Fire Scars</b> for very large simulations</i><br><br>
+            """
+        )
 
 
 class MessagesSIMPP(QgsProcessingAlgorithm):
@@ -1187,7 +1196,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         #
         # vector
         output_vector_file = self.parameterAsOutputLayer(parameters, self.OUT_POLY, context)
-        feedback.pushDebugInfo(f"output_vector_file: {output_vector_file}")
+        # feedback.pushDebugInfo(f"output_vector_file: {output_vector_file}")
         if output_vector_file != "":
             feedback.pushInfo(f"Propagation polygons (output_vector_file): {output_vector_file}")
             # raster for each grid
@@ -1200,7 +1209,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
             sp_ref = osr.SpatialReference()
             sp_ref.SetFromUserInput(base_raster.crs().authid())
             # otro
-            otrods = ogr.GetDriverByName("GPKG").CreateDataSource(output_vector_file)
+            otrods = ogr.GetDriverByName("Memory").CreateDataSource(output_vector_file)
             otrolyr = otrods.CreateLayer("", srs=sp_ref, geom_type=ogr.wkbPolygon)
             otrolyr.CreateField(ogr.FieldDefn("simulation", ogr.OFTInteger))
             otrolyr.CreateField(ogr.FieldDefn("time", ogr.OFTInteger))
@@ -1246,6 +1255,14 @@ class ScarSIMPP(QgsProcessingAlgorithm):
                     feature.SetField("perimeter", int(geom.Boundary().Length()))
                     otrolyr.CreateFeature(feature)
 
+            otrolyr.SyncToDisk()
+
+            otrods.FlushCache()  # write to disk
+            otro_ds = None
+
+            src_ds.FlushCache()  # write to disk
+            src_ds = None
+
             if context.willLoadLayerOnCompletion(output_vector_file):
                 layer_details = context.LayerDetails(
                     "Propagation Scars",
@@ -1287,6 +1304,14 @@ class ScarSIMPP(QgsProcessingAlgorithm):
 
     def icon(self):
         return QIcon(":/plugins/fireanalyticstoolbox/assets/bodyscar.svg")
+
+    def helpString(self):
+        return self.shortHelpString()
+
+    def shortHelpString(self):
+        return self.tr(
+            "Warning: Propagation Scars Polygons is loaded in memory, it must be manually saved or deleted (not just renamed as layer) before attempting to run the algorithm again. <b>Silently won't be replaced if already exists.</b>"
+        )
 
 
 def run_alg_styler_propagation():
