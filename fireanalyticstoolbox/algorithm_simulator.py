@@ -122,8 +122,13 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         #
         if platform_system() in ["Linux", "Windows"] and platform_machine() in ["x86_64", "AMD64"]:
             return True, ""
+        elif platform_system() == "Darwin" and platform_machine() == "x86_64":
+            return True, ""
+        elif platform_system() == "Darwin" and platform_machine() == "arm64":
+            QgsMessageLog.logMessage("Using a very old binary!!", tag=TAG, level=Qgis.Warning)
+            return True, ""
         else:
-            return False, "OS {platform_system()} {platform_machine()} not supported yet"
+            return False, f"OS {platform_system()} {platform_machine()} not supported yet"
 
     def initAlgorithm(self, config):
         """
@@ -908,6 +913,6 @@ def get_ext() -> str:
     if ext not in [".exe", ".Linux.x86_64", ".Darwin.arm64", ".Darwin.x86_64"]:
         QgsMessageLog.logMessage(f"Untested platform: {ext}", tag=TAG, level=Qgis.Warning)
     if ext == ".Darwin.arm64":
-        QgsMessageLog.logMessage(f"Build not automated, may be using old binary: {ext}", tag=TAG, level=Qgis.Warning)
+        QgsMessageLog.logMessage(f"Build not automated, probably using old binary: {ext}", tag=TAG, level=Qgis.Warning)
 
     return ext
