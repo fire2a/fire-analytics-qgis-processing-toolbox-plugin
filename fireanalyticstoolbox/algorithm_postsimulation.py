@@ -446,17 +446,27 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
                 output_dict["BurnProbability"] = bplayer
             # grids polygons
             if scar_poly := scar_out.get("ScarPolygon"):
-                layer_details = context.LayerDetails(
-                    "Propagation Scars",
-                    context.project(),
-                    "Propagation Scars",
-                    QgsProcessingUtils.LayerHint.Vector,
-                )
-                layer_details.forceName = True
-                layer_details.groupName = NAME["layer_group"]
-                layer_details.layerSortKey = 3
-                context.addLayerToLoadOnCompletion(scar_poly, layer_details)
-                output_dict["ScarPolygon"] = scar_poly
+                # feedback.pushDebugInfo(f"{scar_poly=}")
+                if scar_fixed_geom := processing.run(
+                    "native:fixgeometries",
+                    {"INPUT": scar_poly, "METHOD": 1, "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT},
+                    context=context,
+                    feedback=feedback,
+                    is_child_algorithm=True,
+                ):
+                    # feedback.pushDebugInfo(f"{scar_fixed_geom=}")
+                    if scar_fixed_geom := scar_fixed_geom.get("OUTPUT"):
+                        layer_details = context.LayerDetails(
+                            "Propagation Scars",
+                            context.project(),
+                            "Propagation Scars",
+                            QgsProcessingUtils.LayerHint.Vector,
+                        )
+                        layer_details.forceName = True
+                        layer_details.groupName = NAME["layer_group"]
+                        layer_details.layerSortKey = 3
+                        context.addLayerToLoadOnCompletion(scar_fixed_geom, layer_details)
+                        output_dict["ScarPolygon"] = scar_fixed_geom
 
         # messages
         if self.parameterAsBool(parameters, self.MSGS, context):
