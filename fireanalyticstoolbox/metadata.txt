@@ -21,7 +21,7 @@ repository=https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plug
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-changelog=Auxiliary Match AIIGrids algorithm deployed
+changelog=minor fixes + expermiental meteo algorithm (only skeleton)
 
 
 
