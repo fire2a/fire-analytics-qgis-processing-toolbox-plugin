@@ -37,6 +37,7 @@ from .algorithm_clusterize import ClusterizeAlgorithm
 from .algorithm_instance_downloader import InstanceDownloader
 from .algorithm_knapsack import PolygonKnapsackAlgorithm, RasterKnapsackAlgorithm
 from .algorithm_match_aiigrids import MatchAIIGrid
+from .algorithm_meteo import MeteoAlgo
 from .algorithm_postsimulation import (BetweennessCentralityMetric, DownStreamProtectionValueMetric,
                                        IgnitionPointsSIMPP, MessagesSIMPP, PostSimulationAlgorithm, ScarSIMPP,
                                        StatisticSIMPP)
@@ -85,6 +86,7 @@ class FireToolboxProvider(QgsProcessingProvider):
         self.addAlgorithm(RasterTreatmentAlgorithm())
         self.addAlgorithm(RasterTreatmentTeamAlgorithm())
         self.addAlgorithm(MatchAIIGrid())
+        self.addAlgorithm(MeteoAlgo())
 
     def id(self):
         """

@@ -55,6 +55,7 @@ jobs:
         sparse-checkout: |
           src/fire2a/raster.py
           src/fire2a/utils.py
+          src/fire2a/meteo.py
           src/fire2a/__init__.py
         sparse-checkout-cone-mode: false
 
