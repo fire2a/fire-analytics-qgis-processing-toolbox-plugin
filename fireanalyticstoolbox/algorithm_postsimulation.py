@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 """
 /***************************************************************************
  FireToolbox
@@ -51,16 +50,16 @@ from re import findall, search
 from typing import Any, Tuple
 
 import processing
-from fire2a.raster import get_geotransform, id2xy, read_raster, transform_coords_to_georef
+from fire2a.raster import id2xy, read_raster, transform_coords_to_georef
 from fire2a.utils import loadtxt_nodata
 from networkx import DiGraph, MultiDiGraph, betweenness_centrality, single_source_dijkstra_path
 # from matplotlib import colormaps
 # from matplotlib.colors import to_rgba_array
 from numpy import any as np_any
-from numpy import (argsort, array, dtype, float32, fromiter, int16, int32, loadtxt, ndarray, ones, sqrt, unique,
-                   vectorize, vstack, zeros)
+from numpy import (argsort, array, dtype, float32, fromiter, int16, int32, loadtxt, ndarray, sqrt, unique, vectorize,
+                   vstack, zeros)
 from osgeo import gdal, ogr, osr
-from osgeo.gdal import GA_ReadOnly, GCI_PaletteIndex, GDT_Float32, GDT_Int16
+from osgeo.gdal import GDT_Float32, GDT_Int16
 from qgis.core import (Qgis, QgsColorRampShader, QgsFeature, QgsFeatureSink, QgsField, QgsFields, QgsGeometry,
                        QgsGraduatedSymbolRenderer, QgsLineString, QgsMessageLog, QgsPalettedRasterRenderer, QgsPoint,
                        QgsProcessing, QgsProcessingAlgorithm, QgsProcessingContext, QgsProcessingException,
@@ -76,7 +75,7 @@ from qgis.PyQt.QtGui import QColor, QIcon
 from scipy import stats as scipy_stats
 
 from .algorithm_utils import get_output_raster_format, write_log
-from .config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
+from .config import NAME, SIM_OUTPUTS, STATS, TAG, jolo
 
 plugin_dir = Path(__file__).parent
 assets_dir = Path(plugin_dir, "simulator")
@@ -345,7 +344,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         for stat in STATS:
             if sample_file := next(Path(results_dir).glob(stat["dir"] + sep + stat["file"] + "*" + stat["ext"]), None):
                 stat_out = processing.run(
-                    f"fire2a:statistic",
+                    "fire2a:statistic",
                     {
                         "BaseLayer": base_raster,
                         "SampleStatisticFile": str(sample_file),
@@ -447,6 +446,18 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
             # grids polygons
             if scar_poly := scar_out.get("ScarPolygon"):
                 # feedback.pushDebugInfo(f"{scar_poly=}")
+                layer_details = context.LayerDetails(
+                    "Propagation Scars",
+                    context.project(),
+                    "Propagation Scars",
+                    QgsProcessingUtils.LayerHint.Vector,
+                )
+                layer_details.forceName = True
+                layer_details.groupName = NAME["layer_group"]
+                layer_details.layerSortKey = 3
+                context.addLayerToLoadOnCompletion(scar_poly, layer_details)
+                output_dict["ScarPolygon"] = scar_poly
+                """
                 if scar_fixed_geom := processing.run(
                     "native:fixgeometries",
                     {"INPUT": scar_poly, "METHOD": 1, "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT},
@@ -467,6 +478,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
                         layer_details.layerSortKey = 3
                         context.addLayerToLoadOnCompletion(scar_fixed_geom, layer_details)
                         output_dict["ScarPolygon"] = scar_fixed_geom
+                """
 
         # messages
         if self.parameterAsBool(parameters, self.MSGS, context):
@@ -905,15 +917,15 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
             # mean
             band = dst_ds2.GetRasterBand(1)
             if 0 != band.SetNoDataValue(0):
-                feedback.pushWarning(f"Set No Data failed for mean band")
+                feedback.pushWarning("Set No Data failed for mean band")
             if 0 != band.WriteArray(data.mean(axis=0)):
-                feedback.pushWarning(f"WriteArray failed for mean band")
+                feedback.pushWarning("WriteArray failed for mean band")
             # std
             band = dst_ds2.GetRasterBand(2)
             if 0 != band.SetNoDataValue(0):
-                feedback.pushWarning(f"Set No Data failed for mean band")
+                feedback.pushWarning("Set No Data failed for mean band")
             if 0 != band.WriteArray(data.std(axis=0)):
-                feedback.pushWarning(f"WriteArray failed for mean band")
+                feedback.pushWarning("WriteArray failed for mean band")
             dst_ds2.FlushCache()  # write to disk
             dst_ds2 = None
             output_dict[self.OUTPUT_RASTER_2] = output_raster2_filename
@@ -965,6 +977,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
 
     IN_SCAR = "SampleScarFile"
     BASE_LAYER = "BaseLayer"
+    # IN_FIXGEOM = "FixGeometries"
     OUT_RASTER = "ScarRaster"
     OUT_POLY = "ScarPolygon"
     OUT_BP = "BurnProbability"
@@ -979,18 +992,14 @@ class ScarSIMPP(QgsProcessingAlgorithm):
             return False, f"{scar_dir} does not contain any non-empty '{scar_name}[0-9]*{ext}' files"
         scar_raster = self.parameterAsOutputLayer(parameters, self.OUT_RASTER, context)
         burn_prob = self.parameterAsOutputLayer(parameters, self.OUT_BP, context)
+        scar_poly = self.parameterAsOutputLayer(parameters, self.OUT_POLY, context)
         for afile in [scar_raster, burn_prob]:
             if afile != "":
                 ext = Path(afile).suffix[1:]
                 if ext not in QgsRasterFileWriter.supportedFormatExtensions(QgsRasterFileWriter.RasterFormatOptions()):
                     return False, f"{self.OUT_RASTER} format .{ext} not supported"
-        # TODO check poly format
-        scar_poly = self.parameterAsOutputLayer(parameters, self.OUT_POLY, context)
-        # if scar_poly != "":
-        #     if not scar_poly.startswith("memory:Output") or not scar_poly.endswith(".gpkg"):
-        #         return False, f"{self.OUT_POLY} should be a memory layer or a .gpkg file"
         if scar_poly == "" and scar_raster == "" and burn_prob == "":
-            return False, f"No output selected!"
+            return False, "No output selected!"
         return True, ""
 
     def initAlgorithm(self, config):
@@ -1029,15 +1038,20 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 name=self.OUT_POLY,
-                description=self.tr(
-                    'Output propagation scars polygons (gpkg formatted, requires simulation ran with "propagation fire'
-                    ' scar" options)'
-                ),
+                description=self.tr("Output propagation scars polygons"),
                 type=QgsProcessing.TypeVectorPolygon,
                 optional=True,
                 createByDefault=True,
             )
         )
+        # self.addParameter(
+        #     QgsProcessingParameterBoolean(
+        #         name=self.IN_FIXGEOM,
+        #         description=("Fix geometries of the generated propagation polygons"),
+        #         defaultValue=False,
+        #         optional=True,
+        #     )
+        # )
         self.addParameter(
             QgsProcessingParameterRasterDestination(
                 name=self.OUT_BP,
@@ -1118,7 +1132,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
             data += [loadtxt_nodata(Path(parent2, afile), delimiter=",", dtype=int16)]
         data = array(data)
         if not np_any(data[data != 0]):
-            feedback.reportError(f"Nothing burned!")
+            feedback.reportError("Nothing burned!")
             return {}
 
         # store
@@ -1155,7 +1169,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
                 layer_details.setPostProcessor(run_alg_styler_bin("Final Scars"))
                 layer_details.groupName = NAME["layer_group"]
                 layer_details.layerSortKey = 2
-            feedback.pushDebugInfo(f"Final scar finished\n")
+            feedback.pushDebugInfo("Final scar finished\n")
             output_dict[self.OUT_RASTER] = output_raster_filename
 
         burn_prob_fname = self.parameterAsOutputLayer(parameters, self.OUT_BP, context)
@@ -1205,10 +1219,10 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         # GRIDS
         #
         # vector
-        output_vector_file = self.parameterAsOutputLayer(parameters, self.OUT_POLY, context)
+        output_vector_file = self.parameterAsFileOutput(parameters, self.OUT_POLY, context)
         # feedback.pushDebugInfo(f"output_vector_file: {output_vector_file}")
         if output_vector_file != "":
-            feedback.pushInfo(f"Propagation polygons (output_vector_file): {output_vector_file}")
+            feedback.pushInfo(f"Propagation polygons {output_vector_file=}")
             # raster for each grid
             src_ds = gdal.GetDriverByName("MEM").Create("", W, H, len(files), gdal.GDT_Float32)
             src_ds.SetGeoTransform(GT)  # specify coords
@@ -1243,7 +1257,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
                     count += 1
                     layer_name = f"propagation_sim{sim}_per{per}"
                     # feedback.pushDebugInfo(f"{layer_name}, file: {afile}")
-                    feedback.pushDebugInfo(f"sim: {sim}, per: {per}, file: {afile}")
+                    feedback.pushDebugInfo(f"{sim=}, {per=}, {afile=}, {count=}")
 
                     # raster polygonize
                     src_band = src_ds.GetRasterBand(count)
@@ -1265,26 +1279,40 @@ class ScarSIMPP(QgsProcessingAlgorithm):
                     feature.SetField("perimeter", int(geom.Boundary().Length()))
                     otrolyr.CreateFeature(feature)
 
+            feedback.pushDebugInfo("fixing geometries...")
+
+            if scar_fixed_geom := processing.run(
+                "native:fixgeometries",
+                {
+                    "INPUT": output_vector_file,  # "memory:ds" otrolyr "memory:tmp"
+                    "METHOD": 1,
+                    "OUTPUT": output_vector_file,  # QgsProcessing.TEMPORARY_OUTPUT
+                },
+                context=context,
+                feedback=feedback,
+                is_child_algorithm=True,
+            ):
+                if scar_fixed_geom := scar_fixed_geom.get("OUTPUT"):
+                    layer_details = context.LayerDetails(
+                        "Propagation Scars",
+                        context.project(),
+                        "Propagation Scars",
+                        QgsProcessingUtils.LayerHint.Vector,
+                    )
+                    layer_details.forceName = True
+                    layer_details.groupName = NAME["layer_group"]
+                    layer_details.layerSortKey = 2
+                    context.addLayerToLoadOnCompletion(scar_fixed_geom, layer_details)
+                    output_dict[self.OUT_POLY] = scar_fixed_geom
+
             otrolyr.SyncToDisk()
+            otrolyr = None
 
             otrods.FlushCache()  # write to disk
-            otro_ds = None
+            otrods = None
 
             src_ds.FlushCache()  # write to disk
             src_ds = None
-
-            if context.willLoadLayerOnCompletion(output_vector_file):
-                layer_details = context.LayerDetails(
-                    "Propagation Scars",
-                    context.project(),
-                    "Propagation Scars",
-                    layerTypeHint=QgsProcessingUtils.LayerHint.Vector,
-                )
-                layer_details.forceName = True
-                layer_details.groupName = NAME["layer_group"]
-                layer_details.layerSortKey = 3
-                context.addLayerToLoadOnCompletion(output_vector_file, layer_details)
-            output_dict[self.OUT_POLY] = output_vector_file
 
             # store grids
             data = array(data)
@@ -1320,7 +1348,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return self.tr(
-            "Warning: Propagation Scars Polygons is loaded in memory, it must be manually saved or deleted (not just renamed as layer) before attempting to run the algorithm again. <b>Silently won't be replaced if already exists.</b>"
+            """"<b>Warning</b>: Propagation Scars Polygons is processed in memory in gpkg format, then converted by qgis's native:fixgeometries algorithm"""
         )
 
 

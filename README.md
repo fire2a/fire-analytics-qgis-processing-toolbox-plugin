@@ -32,6 +32,21 @@ User tutorials are at [fire2a/docs](https://fire2a.github.io/docs/)
 - Done! (Do a change, reload the plugin, test, ...)
 - Pull requests welcome! ([coding style](https://github.com/fire2a/fire2a-lib/blob/main/coding_style.md))
 
+#### How to debug a qgis plugin:
+
+    # fmt: off
+    # Use pdb for debugging
+    import pdb # isort: skip
+    # also import pyqtRemoveInputHook
+    from qgis.PyQt.QtCore import pyqtRemoveInputHook # isort: skip
+    # These allow you to set a breakpoint in the app
+    pyqtRemoveInputHook()
+    pdb.set_trace()
+    # these allow you explore with ipython
+    from IPython import embed
+    embed()
+    # fmt: on
+
 Also checkout our [algorithms library](https://fire2a.github.io/docs/docs/fire2a-lib.html)
 
 ## Structure
