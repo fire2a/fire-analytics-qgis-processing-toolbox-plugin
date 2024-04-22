@@ -538,8 +538,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return self.tr(
-            """Warning: <b>Propagation Scars Polygons</b> is loaded in memory, it must be manually saved or deleted (not just renamed as layer) before attempting to run the algorithm again. <b>Silently won't be replaced if already exists.</b><br><br>
-            Enabling <b>Propagation Directed Graph can hang-up your system</b>, around 300.000 arrows is manageable (can be counted in Messages folder, using bash $wc -l Messages*csv)
+            """<b>Warning: Enabling Propagation Directed Graph can hang-up your system</b>, around 300.000 arrows is manageable (can be counted in Messages folder, using bash $wc -l Messages*csv)
             To process them anyway, use its Propagation DiGraph algorithm unchecking 'Open output file after running algorithm'
             <i>The alternative visualization is using <b>Propagation Fire Scars</b> for very large simulations</i><br><br>
             """
