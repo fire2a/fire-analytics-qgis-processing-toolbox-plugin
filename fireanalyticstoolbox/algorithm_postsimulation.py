@@ -1026,10 +1026,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterDestination(
                 name=self.OUT_RASTER,
-                description=self.tr(
-                    'Output final scar(s) raster (requires simulation ran with "final or propagation fire scar"'
-                    " options)"
-                ),
+                description=self.tr("Output final scar raster"),
                 optional=True,
                 createByDefault=True,
             )
@@ -1054,10 +1051,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterDestination(
                 name=self.OUT_BP,
-                description=self.tr(
-                    'Output burn probability raster (requires >1 simulations and "final or propagation fire scar"'
-                    " options)"
-                ),
+                description=self.tr("Output burn probability raster"),
                 optional=True,
                 createByDefault=True,
             )
@@ -1347,7 +1341,9 @@ class ScarSIMPP(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return self.tr(
-            """"<b>Warning</b>: Propagation Scars Polygons is processed in memory in gpkg format, then converted by qgis's native:fixgeometries algorithm"""
+            """ - Output final scar raster needs simulation ran with Final Fire Scar option, each band is a simulation
+            - Output burn probability raster is the mean of all simulations, requires >1 simulations
+            - Propagation Scars Polygons is processed in memory in gpkg format, then converted by qgis's native:fixgeometries algorithm (also needs the simulation ran with Propagation Fire Scars option)"""
         )
 
 
