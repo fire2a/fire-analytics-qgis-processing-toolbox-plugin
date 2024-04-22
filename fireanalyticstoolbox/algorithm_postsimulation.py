@@ -1226,7 +1226,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
             sp_ref = osr.SpatialReference()
             sp_ref.SetFromUserInput(base_raster.crs().authid())
             # otro
-            otrods = ogr.GetDriverByName("Memory").CreateDataSource(output_vector_file)
+            otrods = ogr.GetDriverByName("GPKG").CreateDataSource(output_vector_file)
             otrolyr = otrods.CreateLayer("", srs=sp_ref, geom_type=ogr.wkbPolygon)
             otrolyr.CreateField(ogr.FieldDefn("simulation", ogr.OFTInteger))
             otrolyr.CreateField(ogr.FieldDefn("time", ogr.OFTInteger))
