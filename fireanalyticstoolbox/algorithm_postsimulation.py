@@ -53,8 +53,6 @@ import processing
 from fire2a.raster import id2xy, read_raster, transform_coords_to_georef
 from fire2a.utils import loadtxt_nodata
 from networkx import DiGraph, MultiDiGraph, betweenness_centrality, single_source_dijkstra_path
-# from matplotlib import colormaps
-# from matplotlib.colors import to_rgba_array
 from numpy import any as np_any
 from numpy import (argsort, array, dtype, float32, fromiter, int16, int32, loadtxt, ndarray, sqrt, unique, vectorize,
                    vstack, zeros)
@@ -77,6 +75,10 @@ from scipy import stats as scipy_stats
 from .algorithm_utils import get_output_raster_format, write_log
 from .config import NAME, SIM_OUTPUTS, STATS, TAG, jolo
 
+# from matplotlib import colormaps
+# from matplotlib.colors import to_rgba_array
+
+
 plugin_dir = Path(__file__).parent
 assets_dir = Path(plugin_dir, "simulator")
 gdal.UseExceptions()
@@ -88,6 +90,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
     BASE_LAYER = "BaseLayer"
     IN_LOG = "LogFile"
     OUT_LAYER = "IgnitionPointsLayer"
+    OUT_LAYER2 = "IgnitionPointsLayer2"
 
     def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
         """log file exists and is not empty"""
@@ -134,6 +137,13 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
                 type=QgsProcessing.TypeVectorPoint,
             )
         )
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(
+                name=self.OUT_LAYER2,
+                description=self.tr("Output ignition point(s) layer2"),
+                type=QgsProcessing.TypeVectorPoint,
+            )
+        )
 
     def processAlgorithm(self, parameters, context, feedback):
         """Here is where the processing itself takes place."""
@@ -141,8 +151,9 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         base_raster = self.parameterAsRasterLayer(parameters, self.BASE_LAYER, context)
         _, raster_props = read_raster(base_raster.publicSource(), data=False)
         feedback.pushDebugInfo(f"base_raster.crs.authid: {base_raster.crs().authid()}\n")
-        # log file
-        log_text = Path(self.parameterAsString(parameters, self.IN_LOG, context)).read_text(encoding="utf-8")
+        # log_file
+        log_file = Path(self.parameterAsString(parameters, self.IN_LOG, context))
+        log_text = log_file.read_text(encoding="utf-8")
         preview_from, preview_to = 34, 256 * 2 - 34
         if len(log_text) < preview_from:
             preview_from = 0
@@ -172,7 +183,6 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         ).T
         ignition_cell -= 1  # 1 based to 0 based
         # add features
-        features = []
         for sim_id, cell in zip(simulation_id, ignition_cell):
             i, j = id2xy(cell, raster_props["RasterXSize"], raster_props["RasterYSize"])
             x, y = transform_coords_to_georef(i + 0.5, j + 0.5, raster_props["Transform"])
@@ -206,8 +216,57 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
             layer_details.layerSortKey = 0
             context.addLayerToLoadOnCompletion(dest_id, layer_details)
 
+        log_csv = log_file.parent / "IgnitionsHistory" / "ignitions_log.csv"
+        ip_log = loadtxt(log_csv, delimiter=",", skiprows=1, dtype=[("sim", int32), ("cellid", int32)])
+
+        fields2 = QgsFields()
+        fields2.append(QgsField(name="simulation", type=QVariant.Int, len=10))
+        fields2.append(QgsField(name="cell", type=QVariant.Int, len=10))
+        fields2.append(QgsField(name="x_pixel", type=QVariant.Int, len=10))
+        fields2.append(QgsField(name="y_line", type=QVariant.Int, len=10))
+        (sink2, dest_id2) = self.parameterAsSink(
+            parameters,
+            self.OUT_LAYER2,
+            context,
+            fields2,
+            QgsWkbTypes.Point,  # >v3.3 ? Qgis.WkbType.Point
+            base_raster.crs(),
+        )
+        simulation_id, ignition_cell = ip_log["sim"], ip_log["cellid"]
+        ignition_cell -= 1  # 1 based to 0 based
+        # add features
+        for sim_id, cell in zip(simulation_id, ignition_cell):
+            i, j = id2xy(cell, raster_props["RasterXSize"], raster_props["RasterYSize"])
+            x, y = transform_coords_to_georef(i + 0.5, j + 0.5, raster_props["Transform"])
+            feature = QgsFeature(fields2)
+            feature.setId(int(sim_id))
+            feature.setAttributes([int(sim_id), int(cell + 1), int(i), int(j)])
+            feature.setGeometry(QgsGeometry(QgsPoint(x, y)))
+            sink2.addFeature(feature, QgsFeatureSink.FastInsert)
+            feedback.pushDebugInfo(f"simulation id: {sim_id}, ignition cell: {cell}, x: {x}, y: {y}, i: {i}, j: {j}")
+            if feedback.isCanceled():
+                break
+        processing.run(
+            "qgis:setstyleforvectorlayer",
+            {"INPUT": dest_id2, "STYLE": str(Path(assets_dir, "ignition_points.qml"))},
+            context=context,
+            feedback=feedback,
+            is_child_algorithm=True,
+        )
+        layer = QgsProcessingUtils.mapLayerFromString(dest_id2, context)
+        layer_details = context.LayerDetails(
+            "Ignition Points2",
+            context.project(),
+            dest_id2,
+            QgsProcessingUtils.LayerHint.Vector,
+            # layer.name(), context.project(), dest_id, QgsProcessingUtils.LayerHint.Vector
+        )
+        layer_details.groupName = NAME["layer_group"]
+        layer_details.layerSortKey = 0
+        context.addLayerToLoadOnCompletion(dest_id2, layer_details)
+
         write_log(feedback, name=self.name())
-        return {self.OUT_LAYER: dest_id}
+        return {self.OUT_LAYER: dest_id, self.OUT_LAYER2: dest_id2}
 
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)
