@@ -70,9 +70,12 @@ class C2F(QProcess):
         # TODO make the nlog kwargs a dict and log_file them
         # self.log_file.write('log_stat: ' + msg + '\n')
 
-    def append_message(self, msg):
-        self.feedback.pushConsoleInfo(msg)
-        self.log_file.write("append_message: " + msg + "\n")
+    def append_message(self, msg, stderr=False):
+        if stderr:
+            self.feedback.pushWarning(msg)
+        else:
+            self.feedback.pushConsoleInfo(msg)
+        self.log_file.write(msg + "\n")
 
     def start(self, cmd, proc_dir=None):
         self.log_stat("start INI")
@@ -165,14 +168,16 @@ class C2F(QProcess):
     def read_standard_output(self):
         data = self.readAllStandardOutput()
         stdout = bytes(data).decode("utf8")
-        # self.log_file.write(stdout)
-        self.append_message(stdout)
+        if stdout != "":
+            # self.log_file.write(stdout)
+            self.append_message(stdout)
 
     def read_standard_error(self):
         data = self.readAllStandardError()
         stderr = bytes(data).decode("utf8")
-        # self.log_file.write(stderr)
-        self.append_message("===! standard error ouput !===\n" + stderr)
+        if stderr != "":
+            # self.log_file.write(stderr)
+            self.append_message(stderr, stderr=True)
 
     def on_state_changed(self, state):
         msg = ProcessState.get(state, "!Unknown")
