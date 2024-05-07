@@ -47,9 +47,8 @@ from fire2a.raster import read_raster, transform_georef_to_coords, xy2id
 from numpy import array
 from osgeo import gdal
 from qgis.core import (QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm, QgsProcessingContext,
-                       QgsProcessingException, QgsProcessingOutputBoolean, QgsProcessingParameterBoolean,
-                       QgsProcessingParameterDefinition, QgsProcessingParameterEnum, QgsProcessingParameterFile,
-                       QgsProcessingParameterFolderDestination, QgsProcessingParameterGeometry,
+                       QgsProcessingException, QgsProcessingParameterBoolean, QgsProcessingParameterDefinition,
+                       QgsProcessingParameterEnum, QgsProcessingParameterFile, QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterNumber, QgsProcessingParameterRasterLayer, QgsProcessingParameterString,
                        QgsProcessingParameterVectorLayer, QgsProject, QgsRasterLayer, QgsUnitTypes)
 from qgis.gui import Qgis
@@ -57,7 +56,7 @@ from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 
 from .algorithm_utils import write_log
-from .config import METRICS, NAME, SIM_INPUTS, SIM_OUTPUTS, STATS, TAG, jolo
+from .config import NAME, SIM_INPUTS, SIM_OUTPUTS, STATS, TAG
 from .simulator.c2fqprocess import C2F
 
 output_args = [item["arg"] for item in SIM_OUTPUTS]
@@ -433,14 +432,14 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         fuels = rasters.pop("fuels")
         fuels_props = get_qgs_raster_properties(fuels)
         fuel_driver = get_gdal_driver_shortname(fuels)
-        if fuel_driver != "AAIGrid":
-            return False, f"fuel raster is not AAIGrid, got {fuel_driver}"
+        if fuel_driver not in ["AAIGrid", "GTiff"]:
+            return False, f"fuel raster is not AAIGrid or GTiff, got {fuel_driver}, use gdal_translate algorithm!"
         for k, v in rasters.items():
             if v is None:
                 continue
             driver = get_gdal_driver_shortname(v)
-            if driver != "AAIGrid":
-                return False, f'{k} is not AAIGrid, "{v.name()}" is {driver}'
+            if driver not in ["AAIGrid", "GTiff"]:
+                return False, f'{k} is not AAIGrid or GTiff, "{v.name()}" is {driver}, use gdal_translate algorithm!'
             raster_props = get_qgs_raster_properties(v)
             if raster_props["units"] != QgsUnitTypes.DistanceMeters:
                 unit_name = Qgis.DistanceUnit(raster_props["units"]).name
@@ -576,7 +575,13 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 or (k == "py" and ignition_mode == 1)
             ):
                 feedback.pushDebugInfo(f"copy: {k}:{v}")
-                copy(v.publicSource(), Path(instance_dir, f"{k}.asc"))
+                gds = get_gdal_driver_shortname(v)
+                if gds == "GTiff":
+                    copy(v.publicSource(), Path(instance_dir, f"{k}.tif"))
+                elif gds == "AAIGrid":
+                    copy(v.publicSource(), Path(instance_dir, f"{k}.asc"))
+                else:
+                    feedback.reportError(f"NO copy: {k}:{v}")
             else:
                 feedback.pushDebugInfo(f"NO copy: {k}:{v}")
         feedback.pushDebugInfo("\n")
@@ -595,7 +600,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 feedback=feedback,
                 is_child_algorithm=True,
             )
-            feedback.pushDebugInfo(f"painted\n")
+            feedback.pushDebugInfo("painted\n")
 
         # IGNITION
         _, raster_props = read_raster(raster["fuels"].publicSource(), data=False)
@@ -677,9 +682,9 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             return self.output_dict
 
         # RUN
-        c2f = C2F(proc_dir=self.c2f_path, feedback=feedback, log_file = results_dir / "LogFile.txt")
+        c2f = C2F(proc_dir=self.c2f_path, feedback=feedback, log_file=results_dir / "LogFile.txt")
         if platform_system() == "Windows":
-            cmd = 'C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -Command "& {'+cmd+'}"'
+            cmd = 'C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -Command "& {' + cmd + '}"'
         c2f.start(cmd)
         pid = c2f.pid()
         while True:
@@ -698,7 +703,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             self.RESULTS_DIR: str(results_dir),
             self.OUTPUTS: selected_outputs,
         }
-        feedback.pushDebugInfo(f"simulation finished, checking result log!")
+        feedback.pushDebugInfo("simulation finished, checking result log!")
         return self.output_dict
 
     def postProcessAlgorithm(self, context, feedback):
