@@ -659,6 +659,8 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             if v is False or v is None:
                 continue
             cmd += f" --{k} {v if v is not True else ''}"
+        # append ignitionsLog
+        cmd += " --ignitionsLog"
         # append cli args
         cmd += " " + self.parameterAsString(parameters, self.ADD_ARGS, context)
 
