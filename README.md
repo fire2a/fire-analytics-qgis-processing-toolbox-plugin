@@ -3,6 +3,7 @@
 This repo sources Fire2a(.com research group)'s QGIS-Processing-Toolbox plugin: _"FireAnalyticsToolbox"_
 
 User tutorials are at [fire2a/docs](https://fire2a.github.io/docs/)
+Y también en [fire2a/documentacion](https://fire2a.github.io/documentacion/)
 
 ## Quickstart
 ### Install
