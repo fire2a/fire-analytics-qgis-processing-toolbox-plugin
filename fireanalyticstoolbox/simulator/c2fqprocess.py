@@ -50,7 +50,7 @@ class C2F(QProcess):
         self.state_code = None
         self.error_code = None
         self.exit_code = None
-        self.log_file = open(log_file, "w") 
+        self.log_file = open(log_file, "w")
         self.log_stat("init")
 
     def log_stat(self, msg):

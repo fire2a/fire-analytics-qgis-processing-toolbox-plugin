@@ -21,7 +21,11 @@ repository=https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plug
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-changelog=macOS extension fixes + fire scar polygon not confusing anymore + expermiental meteo algorithm (only skeleton)
+changelog=v.0.1.25: -tif allowed for Cell2Fire-W Simulator
+- simulator output duplication fixed
+v0.1.24: -macOS all binaries allowed (fails on old intel not M1 apples) 
+- fire scar wont silently fail updating (some versions fail on temporary output, provide file.gpkg on FireScar instead)
+- Expermiental meteo algorithm (only skeleton)
 
 
 
