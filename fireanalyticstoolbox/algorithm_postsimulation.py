@@ -46,7 +46,7 @@ from pathlib import Path
 from pickle import dump as pickle_dump
 from pickle import load as pickle_load
 from platform import system as platform_system
-from re import findall, search
+from re import search
 from typing import Any, Tuple
 
 import processing
@@ -54,8 +54,7 @@ from fire2a.raster import id2xy, read_raster, transform_coords_to_georef
 from fire2a.utils import loadtxt_nodata
 from networkx import DiGraph, MultiDiGraph, betweenness_centrality, single_source_dijkstra_path
 from numpy import any as np_any
-from numpy import (argsort, array, dtype, float32, fromiter, int16, int32, loadtxt, ndarray, sqrt, unique, vectorize,
-                   vstack, zeros)
+from numpy import argsort, array, float32, int16, int32, loadtxt, ndarray, sqrt, unique, vectorize, vstack, zeros
 from osgeo import gdal, ogr, osr
 from osgeo.gdal import GDT_Float32, GDT_Int16
 from qgis.core import (Qgis, QgsColorRampShader, QgsFeature, QgsFeatureSink, QgsField, QgsFields, QgsGeometry,
@@ -88,27 +87,28 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
     """Ignition Points Simulation Post Processing Algorithm load LogFile.txt and create a point layer"""
 
     BASE_LAYER = "BaseLayer"
-    IN_LOG = "LogFile"
-    OUT_LAYER = "IgnitionPointsLayer"
-    OUT_LAYER2 = "IgnitionPointsLayer2"
+    # IN_LOG = "LogFile"
+    IN_LOG2 = "LogFile"
+    # OUT_LAYER = "IgnitionPointsLayer"
+    OUT_LAYER2 = "IgnitionPointsLayer"
 
     def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
         """log file exists and is not empty"""
-        log_file = Path(self.parameterAsString(parameters, self.IN_LOG, context))
+        log_file = Path(self.parameterAsString(parameters, self.IN_LOG2, context))
         if not log_file.stat().st_size > 0:
             return False, f"{log_file} file is empty!"
-        log_text = log_file.read_text(encoding="utf-8")
-        simulation_id, ignition_cell = fromiter(
-            findall("ignition point for Year [0-9]*, sim ([0-9]+): ([0-9]+)", log_text), dtype=dtype((int32, 2))
-        ).T
-        if len(simulation_id) == 0 or len(ignition_cell) == 0:
-            return (
-                False,
-                (
-                    f"{log_file} file does not contain any match for ignition points: 'ignition point for Year [0-9]*,"
-                    " sim ([0-9]+): ([0-9]+)'"
-                ),
-            )
+        # log_text = log_file.read_text(encoding="utf-8")
+        # simulation_id, ignition_cell = fromiter(
+        #     findall("ignition point for Year [0-9]*, sim ([0-9]+): ([0-9]+)", log_text), dtype=dtype((int32, 2))
+        # ).T
+        # if len(simulation_id) == 0 or len(ignition_cell) == 0:
+        #     return (
+        #         False,
+        #         (
+        #             f"{log_file} file does not contain any match for ignition points: 'ignition point for Year [0-9]*,"
+        #             " sim ([0-9]+): ([0-9]+)'"
+        #         ),
+        #     )
         return True, ""
 
     def initAlgorithm(self, config):
@@ -120,27 +120,37 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
                 optional=False,
             )
         )
+        # self.addParameter(
+        #     QgsProcessingParameterFile(
+        #         name=self.IN_LOG,
+        #         description="Simulator log file (normally firesim_yymmdd_HHMMSS/results/LogFile.txt)",
+        #         behavior=QgsProcessingParameterFile.File,
+        #         extension="txt",
+        #         defaultValue=None,
+        #         optional=False,
+        #     )
+        # )
         self.addParameter(
             QgsProcessingParameterFile(
-                name=self.IN_LOG,
-                description="Simulator log file (normally firesim_yymmdd_HHMMSS/results/LogFile.txt)",
+                name=self.IN_LOG2,
+                description="Simulator log file (normally firesim_yymmdd_HHMMSS/results/IgnitionsHistory/ignitions_log.csv)",
                 behavior=QgsProcessingParameterFile.File,
-                extension="txt",
+                extension="csv",
                 defaultValue=None,
                 optional=False,
             )
         )
-        self.addParameter(
-            QgsProcessingParameterFeatureSink(
-                name=self.OUT_LAYER,
-                description=self.tr("Output ignition point(s) layer"),
-                type=QgsProcessing.TypeVectorPoint,
-            )
-        )
+        # self.addParameter(
+        #     QgsProcessingParameterFeatureSink(
+        #         name=self.OUT_LAYER,
+        #         description=self.tr("Output ignition point(s) layer"),
+        #         type=QgsProcessing.TypeVectorPoint,
+        #     )
+        # )
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 name=self.OUT_LAYER2,
-                description=self.tr("Output ignition point(s) layer2"),
+                description=self.tr("Output ignition point(s) layer"),
                 type=QgsProcessing.TypeVectorPoint,
             )
         )
@@ -152,20 +162,21 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         _, raster_props = read_raster(base_raster.publicSource(), data=False)
         feedback.pushDebugInfo(f"base_raster.crs.authid: {base_raster.crs().authid()}\n")
         # log_file
-        log_file = Path(self.parameterAsString(parameters, self.IN_LOG, context))
-        log_text = log_file.read_text(encoding="utf-8")
-        preview_from, preview_to = 34, 256 * 2 - 34
-        if len(log_text) < preview_from:
-            preview_from = 0
-        if len(log_text) < preview_to:
-            preview_to = len(log_text)
-        feedback.pushDebugInfo(f"preview of simulation log:\n{log_text[preview_from: preview_to]}\n")
+        # log_file = Path(self.parameterAsString(parameters, self.IN_LOG, context))
+        # log_text = log_file.read_text(encoding="utf-8")
+        # preview_from, preview_to = 34, 256 * 2 - 34
+        # if len(log_text) < preview_from:
+        #     preview_from = 0
+        # if len(log_text) < preview_to:
+        #     preview_to = len(log_text)
+        # feedback.pushDebugInfo(f"preview of simulation log:\n{log_text[preview_from: preview_to]}\n")
         # create layer
         fields = QgsFields()
         fields.append(QgsField(name="simulation", type=QVariant.Int, len=10))
         fields.append(QgsField(name="cell", type=QVariant.Int, len=10))
         fields.append(QgsField(name="x_pixel", type=QVariant.Int, len=10))
         fields.append(QgsField(name="y_line", type=QVariant.Int, len=10))
+        """
         (sink, dest_id) = self.parameterAsSink(
             parameters,
             self.OUT_LAYER,
@@ -215,8 +226,10 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
             layer_details.groupName = NAME["layer_group"]
             layer_details.layerSortKey = 0
             context.addLayerToLoadOnCompletion(dest_id, layer_details)
-
-        log_csv = log_file.parent / "IgnitionsHistory" / "ignitions_log.csv"
+        """
+        # log_csv = log_file.parent / "IgnitionsHistory" / "ignitions_log.csv"
+        log_csv = Path(self.parameterAsString(parameters, self.IN_LOG2, context))
+        feedback.pushDebugInfo(f"reading log_csv: {log_csv}")
         ip_log = loadtxt(log_csv, delimiter=",", skiprows=1, dtype=[("sim", int32), ("cellid", int32)])
 
         fields2 = QgsFields()
@@ -266,7 +279,8 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         context.addLayerToLoadOnCompletion(dest_id2, layer_details)
 
         write_log(feedback, name=self.name())
-        return {self.OUT_LAYER: dest_id, self.OUT_LAYER2: dest_id2}
+        # return {self.OUT_LAYER: dest_id, self.OUT_LAYER2: dest_id2}
+        return {self.OUT_LAYER2: dest_id2}
 
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)
@@ -364,7 +378,8 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         results_dir = Path(self.parameterAsString(parameters, self.RESULTS_DIR, context))
 
         # IgnitionPoints
-        log_file = Path(results_dir, "LogFile.txt")
+        # log_file = Path(results_dir, "LogFile.txt")
+        log_file = Path(results_dir, "IgnitionsHistory", "ignitions_log.csv")
         if log_file.is_file() and log_file.stat().st_size > 0:
             feedback.pushDebugInfo(log_file.read_text())
             if out_is:
@@ -376,7 +391,8 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
                 {
                     "BaseLayer": base_raster,
                     "IgnitionPointsLayer": out,
-                    "LogFile": str(results_dir / "LogFile.txt"),
+                    # "LogFile": str(results_dir / "LogFile.txt"),
+                    "LogFile": str(log_file),
                 },
                 context=context,
                 feedback=feedback,

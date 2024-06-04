@@ -100,6 +100,14 @@ SIM_OUTPUTS = [
         "arg": "output-messages",
         "unit": "simtime",
     },
+    {
+        "name": "Ignition Points",
+        "dir": "IgnitionsHistory",
+        "file": "ignitions_log",
+        "ext": "csv",
+        "arg": "ignitionsLog",
+        "unit": "cell_id",
+    },
 ]
 SIM_OUTPUTS.extend(STATS)
 
