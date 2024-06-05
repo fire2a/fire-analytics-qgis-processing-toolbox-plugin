@@ -85,6 +85,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     FUEL_MODEL = "FuelModel"
     FUEL = "FuelRaster"
     PAINTFUELS = "SetFuelLayerStyle"
+    FIREBREAKS = "FireBreaksRaster"
     ELEVATION = "ElevationRaster"
     # PV = "PvRaster"
     CBH = "CbhRaster"
@@ -207,6 +208,14 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 description="Enable Crown Fire behavior",
                 defaultValue=False,
                 optional=False,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterRasterLayer(
+                name=self.FIREBREAKS,
+                description=self.tr("\nFirebreaks raster (1=firebreak)"),
+                defaultValue=[QgsProcessing.TypeRaster],
+                optional=True,
             )
         )
         # IGNITION
@@ -584,6 +593,13 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             else:
                 feedback.pushDebugInfo(f"NO copy: {k}:{v}")
         feedback.pushDebugInfo("\n")
+
+        # FIREBREAKS
+        if firebreaks := self.parameterAsRasterLayer(parameters, self.FIREBREAKS, context):
+            from fire2a.cell2fire import raster_layer_to_firebreak_csv
+            output_file=Path(instance_dir, "firebreaks.csv")
+            raster_layer_to_firebreak_csv(firebreaks, firebreak_val=1, output_file=output_file)
+            args["FirebreakCells"] = str(output_file)
 
         if paint_fuels:
             feedback.pushDebugInfo(
