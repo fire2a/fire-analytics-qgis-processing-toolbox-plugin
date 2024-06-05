@@ -54,6 +54,7 @@ jobs:
         path: "fireanalyticstoolbox/fire2a"
         sparse-checkout: |
           src/fire2a/raster.py
+          src/fire2a/cell2fire.py
           src/fire2a/utils.py
           src/fire2a/meteo.py
           src/fire2a/__init__.py
@@ -101,3 +102,4 @@ jobs:
       with:
         artifacts: "fireanalyticstoolbox_${{ github.ref_name }}.zip"
         token: ${{ secrets.GITHUB_TOKEN }}
+        draft: true
