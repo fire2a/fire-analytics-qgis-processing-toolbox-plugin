@@ -87,28 +87,17 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
     """Ignition Points Simulation Post Processing Algorithm load LogFile.txt and create a point layer"""
 
     BASE_LAYER = "BaseLayer"
-    # IN_LOG = "LogFile"
-    IN_LOG2 = "LogFile"
-    # OUT_LAYER = "IgnitionPointsLayer"
-    OUT_LAYER2 = "IgnitionPointsLayer"
+    IN_LOG = "LogFile"
+    OUT_LAYER = "IgnitionPointsLayer"
 
     def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
         """log file exists and is not empty"""
-        log_file = Path(self.parameterAsString(parameters, self.IN_LOG2, context))
+        log_file = Path(self.parameterAsString(parameters, self.IN_LOG, context))
         if not log_file.stat().st_size > 0:
             return False, f"{log_file} file is empty!"
-        # log_text = log_file.read_text(encoding="utf-8")
-        # simulation_id, ignition_cell = fromiter(
-        #     findall("ignition point for Year [0-9]*, sim ([0-9]+): ([0-9]+)", log_text), dtype=dtype((int32, 2))
-        # ).T
-        # if len(simulation_id) == 0 or len(ignition_cell) == 0:
-        #     return (
-        #         False,
-        #         (
-        #             f"{log_file} file does not contain any match for ignition points: 'ignition point for Year [0-9]*,"
-        #             " sim ([0-9]+): ([0-9]+)'"
-        #         ),
-        #     )
+        ip_log = loadtxt(log_file, delimiter=",", skiprows=1, dtype=[("sim", int32), ("cellid", int32)])
+        if len(ip_log) == 0:
+            return False, f"{log_file} file contains only headers but no ignition points"
         return True, ""
 
     def initAlgorithm(self, config):
@@ -120,19 +109,9 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
                 optional=False,
             )
         )
-        # self.addParameter(
-        #     QgsProcessingParameterFile(
-        #         name=self.IN_LOG,
-        #         description="Simulator log file (normally firesim_yymmdd_HHMMSS/results/LogFile.txt)",
-        #         behavior=QgsProcessingParameterFile.File,
-        #         extension="txt",
-        #         defaultValue=None,
-        #         optional=False,
-        #     )
-        # )
         self.addParameter(
             QgsProcessingParameterFile(
-                name=self.IN_LOG2,
+                name=self.IN_LOG,
                 description="Simulator log file (normally firesim_yymmdd_HHMMSS/results/IgnitionsHistory/ignitions_log.csv)",
                 behavior=QgsProcessingParameterFile.File,
                 extension="csv",
@@ -140,16 +119,9 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
                 optional=False,
             )
         )
-        # self.addParameter(
-        #     QgsProcessingParameterFeatureSink(
-        #         name=self.OUT_LAYER,
-        #         description=self.tr("Output ignition point(s) layer"),
-        #         type=QgsProcessing.TypeVectorPoint,
-        #     )
-        # )
         self.addParameter(
             QgsProcessingParameterFeatureSink(
-                name=self.OUT_LAYER2,
+                name=self.OUT_LAYER,
                 description=self.tr("Output ignition point(s) layer"),
                 type=QgsProcessing.TypeVectorPoint,
             )
@@ -161,22 +133,18 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         base_raster = self.parameterAsRasterLayer(parameters, self.BASE_LAYER, context)
         _, raster_props = read_raster(base_raster.publicSource(), data=False)
         feedback.pushDebugInfo(f"base_raster.crs.authid: {base_raster.crs().authid()}\n")
-        # log_file
-        # log_file = Path(self.parameterAsString(parameters, self.IN_LOG, context))
-        # log_text = log_file.read_text(encoding="utf-8")
-        # preview_from, preview_to = 34, 256 * 2 - 34
-        # if len(log_text) < preview_from:
-        #     preview_from = 0
-        # if len(log_text) < preview_to:
-        #     preview_to = len(log_text)
-        # feedback.pushDebugInfo(f"preview of simulation log:\n{log_text[preview_from: preview_to]}\n")
+        # ignition points csv log file
+        log_csv = Path(self.parameterAsString(parameters, self.IN_LOG, context))
+        feedback.pushDebugInfo(f"reading {log_csv=}")
+        ip_log = loadtxt(log_csv, delimiter=",", skiprows=1, dtype=[("sim", int32), ("cellid", int32)])
         # create layer
+        # fields
         fields = QgsFields()
         fields.append(QgsField(name="simulation", type=QVariant.Int, len=10))
         fields.append(QgsField(name="cell", type=QVariant.Int, len=10))
         fields.append(QgsField(name="x_pixel", type=QVariant.Int, len=10))
         fields.append(QgsField(name="y_line", type=QVariant.Int, len=10))
-        """
+        # sink
         (sink, dest_id) = self.parameterAsSink(
             parameters,
             self.OUT_LAYER,
@@ -185,13 +153,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
             QgsWkbTypes.Point,  # >v3.3 ? Qgis.WkbType.Point
             base_raster.crs(),
         )
-        # feedback.pushDebugInfo(f"dest_id: {dest_id}, type: {type(dest_id)}")
-        # feedback.pushDebugInfo(f"sink: {sink}, type: {type(sink)}, dir: {dir(sink)}")
-        feedback.pushDebugInfo(f"output layer id: {dest_id}\n")
-        # parse log file
-        simulation_id, ignition_cell = fromiter(
-            findall("ignition point for Year [0-9]*, sim ([0-9]+): ([0-9]+)", log_text), dtype=dtype((int32, 2))
-        ).T
+        simulation_id, ignition_cell = ip_log["sim"], ip_log["cellid"]
         ignition_cell -= 1  # 1 based to 0 based
         # add features
         for sim_id, cell in zip(simulation_id, ignition_cell):
@@ -205,8 +167,6 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
             feedback.pushDebugInfo(f"simulation id: {sim_id}, ignition cell: {cell}, x: {x}, y: {y}, i: {i}, j: {j}")
             if feedback.isCanceled():
                 break
-        # feedback.pushDebugInfo(f"addFeatures: {sink}, {type(sink)}")
-        feedback.pushDebugInfo("\n")
         processing.run(
             "qgis:setstyleforvectorlayer",
             {"INPUT": dest_id, "STYLE": str(Path(assets_dir, "ignition_points.qml"))},
@@ -214,73 +174,19 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
             feedback=feedback,
             is_child_algorithm=True,
         )
-        if context.willLoadLayerOnCompletion(dest_id):
-            layer = QgsProcessingUtils.mapLayerFromString(dest_id, context)
-            layer_details = context.LayerDetails(
-                "Ignition Points",
-                context.project(),
-                dest_id,
-                QgsProcessingUtils.LayerHint.Vector,
-                # layer.name(), context.project(), dest_id, QgsProcessingUtils.LayerHint.Vector
-            )
-            layer_details.groupName = NAME["layer_group"]
-            layer_details.layerSortKey = 0
-            context.addLayerToLoadOnCompletion(dest_id, layer_details)
-        """
-        # log_csv = log_file.parent / "IgnitionsHistory" / "ignitions_log.csv"
-        log_csv = Path(self.parameterAsString(parameters, self.IN_LOG2, context))
-        feedback.pushDebugInfo(f"reading log_csv: {log_csv}")
-        ip_log = loadtxt(log_csv, delimiter=",", skiprows=1, dtype=[("sim", int32), ("cellid", int32)])
-
-        fields2 = QgsFields()
-        fields2.append(QgsField(name="simulation", type=QVariant.Int, len=10))
-        fields2.append(QgsField(name="cell", type=QVariant.Int, len=10))
-        fields2.append(QgsField(name="x_pixel", type=QVariant.Int, len=10))
-        fields2.append(QgsField(name="y_line", type=QVariant.Int, len=10))
-        (sink2, dest_id2) = self.parameterAsSink(
-            parameters,
-            self.OUT_LAYER2,
-            context,
-            fields2,
-            QgsWkbTypes.Point,  # >v3.3 ? Qgis.WkbType.Point
-            base_raster.crs(),
-        )
-        simulation_id, ignition_cell = ip_log["sim"], ip_log["cellid"]
-        ignition_cell -= 1  # 1 based to 0 based
-        # add features
-        for sim_id, cell in zip(simulation_id, ignition_cell):
-            i, j = id2xy(cell, raster_props["RasterXSize"], raster_props["RasterYSize"])
-            x, y = transform_coords_to_georef(i + 0.5, j + 0.5, raster_props["Transform"])
-            feature = QgsFeature(fields2)
-            feature.setId(int(sim_id))
-            feature.setAttributes([int(sim_id), int(cell + 1), int(i), int(j)])
-            feature.setGeometry(QgsGeometry(QgsPoint(x, y)))
-            sink2.addFeature(feature, QgsFeatureSink.FastInsert)
-            feedback.pushDebugInfo(f"simulation id: {sim_id}, ignition cell: {cell}, x: {x}, y: {y}, i: {i}, j: {j}")
-            if feedback.isCanceled():
-                break
-        processing.run(
-            "qgis:setstyleforvectorlayer",
-            {"INPUT": dest_id2, "STYLE": str(Path(assets_dir, "ignition_points.qml"))},
-            context=context,
-            feedback=feedback,
-            is_child_algorithm=True,
-        )
-        layer = QgsProcessingUtils.mapLayerFromString(dest_id2, context)
+        # layer = QgsProcessingUtils.mapLayerFromString(dest_id, context)
         layer_details = context.LayerDetails(
-            "Ignition Points2",
+            "Ignition Points",  # always name it as Ignition Points, alternative: layer.name()
             context.project(),
-            dest_id2,
+            dest_id,
             QgsProcessingUtils.LayerHint.Vector,
-            # layer.name(), context.project(), dest_id, QgsProcessingUtils.LayerHint.Vector
         )
         layer_details.groupName = NAME["layer_group"]
         layer_details.layerSortKey = 0
-        context.addLayerToLoadOnCompletion(dest_id2, layer_details)
+        context.addLayerToLoadOnCompletion(dest_id, layer_details)
 
         write_log(feedback, name=self.name())
-        # return {self.OUT_LAYER: dest_id, self.OUT_LAYER2: dest_id2}
-        return {self.OUT_LAYER2: dest_id2}
+        return {self.OUT_LAYER: dest_id}
 
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)
