@@ -21,7 +21,7 @@ repository=https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plug
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-changelog=macOS extension fixes + fire scar polygon not confusing anymore + expermiental meteo algorithm (only skeleton)
+changelog=Ignition points is now a simulator output option, read from results/IgnitionHistory/ignition_log.csv
 
 
 
