@@ -191,9 +191,9 @@ def pyomo_init_algorithm(self, config):
         name="EXECUTABLE",
         description=self.tr("Set solver executable file [REQUIRED if STATUS]"),
         behavior=QgsProcessingParameterFile.File,
-        extension="exe" if platform_system() == "Windows" else "",
         optional=True,
     )
+    qppf.setExtension("exe" if platform_system() == "Windows" else "")
     qppf.setFlags(qppf.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
     self.addParameter(qppf)
     # boolean parameter to display the model
