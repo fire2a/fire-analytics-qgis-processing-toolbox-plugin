@@ -34,6 +34,7 @@ from qgis.core import QgsProcessingProvider
 from qgis.PyQt.QtGui import QIcon
 
 from .algorithm_clusterize import ClusterizeAlgorithm
+from .algorithm_deprecated import IgnitionPointsFromLogFileSIMPP
 from .algorithm_instance_downloader import InstanceDownloader
 from .algorithm_knapsack import PolygonKnapsackAlgorithm, RasterKnapsackAlgorithm
 from .algorithm_match_aiigrids import MatchAIIGrid
@@ -87,6 +88,7 @@ class FireToolboxProvider(QgsProcessingProvider):
         self.addAlgorithm(RasterTreatmentTeamAlgorithm())
         self.addAlgorithm(MatchAIIGrid())
         self.addAlgorithm(MeteoAlgo())
+        self.addAlgorithm(IgnitionPointsFromLogFileSIMPP())
 
     def id(self):
         """

@@ -12,7 +12,7 @@ SIM_INPUTS = {
     "fuels": {"units": "categorical", "description": "Fuel"},
     "elevation": {"units": "m", "description": "Elevation"},
     "cbh": {"units": "m", "description": "\ncbh: Canopy Base Height"},
-    "cbd": {"units": "kg/m3", "description": "cbd: Canopy Base Density"},
+    "cbd": {"units": "kg/m3", "description": "cbd: Canopy Bulk Density"},
     "ccf": {"units": "0,1", "description": "ccf: Canopy Cover Fraction"},
     "py": {"units": "0,1", "description": "Probability map (requires generation mode 1)"},
 }
@@ -99,6 +99,14 @@ SIM_OUTPUTS = [
         "ext": "csv",
         "arg": "output-messages",
         "unit": "simtime",
+    },
+    {
+        "name": "Ignition Points",
+        "dir": "IgnitionsHistory",
+        "file": "ignitions_log",
+        "ext": "csv",
+        "arg": "ignitionsLog",
+        "unit": "cell_id",
     },
 ]
 SIM_OUTPUTS.extend(STATS)

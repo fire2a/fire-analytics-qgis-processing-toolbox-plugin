@@ -47,9 +47,8 @@ from fire2a.raster import read_raster, transform_georef_to_coords, xy2id
 from numpy import array
 from osgeo import gdal
 from qgis.core import (QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm, QgsProcessingContext,
-                       QgsProcessingException, QgsProcessingOutputBoolean, QgsProcessingParameterBoolean,
-                       QgsProcessingParameterDefinition, QgsProcessingParameterEnum, QgsProcessingParameterFile,
-                       QgsProcessingParameterFolderDestination, QgsProcessingParameterGeometry,
+                       QgsProcessingException, QgsProcessingParameterBoolean, QgsProcessingParameterDefinition,
+                       QgsProcessingParameterEnum, QgsProcessingParameterFile, QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterNumber, QgsProcessingParameterRasterLayer, QgsProcessingParameterString,
                        QgsProcessingParameterVectorLayer, QgsProject, QgsRasterLayer, QgsUnitTypes)
 from qgis.gui import Qgis
@@ -57,7 +56,7 @@ from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 
 from .algorithm_utils import write_log
-from .config import METRICS, NAME, SIM_INPUTS, SIM_OUTPUTS, STATS, TAG, jolo
+from .config import NAME, SIM_INPUTS, SIM_OUTPUTS, STATS, TAG
 from .simulator.c2fqprocess import C2F
 
 output_args = [item["arg"] for item in SIM_OUTPUTS]
@@ -357,7 +356,12 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 description=self.tr("\nOUTPUTS SECTION\noptions (click '...' button on the right)"),
                 options=[item["name"] for item in SIM_OUTPUTS],
                 allowMultiple=True,
-                defaultValue=[0, 2, 3],
+                defaultValue=[
+                    i
+                    for i, item in enumerate(SIM_OUTPUTS)
+                    if item["name"]
+                    in ["Propagation Fire Scars", "Propagation Directed Graph", "Ignition Points", "Hit Rate Of Spread"]
+                ],
                 optional=True,
             )
         )
@@ -595,7 +599,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 feedback=feedback,
                 is_child_algorithm=True,
             )
-            feedback.pushDebugInfo(f"painted\n")
+            feedback.pushDebugInfo("painted\n")
 
         # IGNITION
         _, raster_props = read_raster(raster["fuels"].publicSource(), data=False)
@@ -677,9 +681,9 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             return self.output_dict
 
         # RUN
-        c2f = C2F(proc_dir=self.c2f_path, feedback=feedback, log_file = results_dir / "LogFile.txt")
+        c2f = C2F(proc_dir=self.c2f_path, feedback=feedback, log_file=results_dir / "LogFile.txt")
         if platform_system() == "Windows":
-            cmd = 'C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -Command "& {'+cmd+'}"'
+            cmd = 'C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -Command "& {' + cmd + '}"'
         c2f.start(cmd)
         pid = c2f.pid()
         while True:
@@ -698,7 +702,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             self.RESULTS_DIR: str(results_dir),
             self.OUTPUTS: selected_outputs,
         }
-        feedback.pushDebugInfo(f"simulation finished, checking result log!")
+        feedback.pushDebugInfo("simulation finished, checking result log!")
         return self.output_dict
 
     def postProcessAlgorithm(self, context, feedback):
@@ -733,8 +737,10 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             else:
                 output_dict[st["name"]] = None
 
-        grid = SIM_OUTPUTS[0]
-        final_grid = SIM_OUTPUTS[1]
+        # grid = SIM_OUTPUTS[0] 'Final Fire Scar'
+        grid = next(item for item in SIM_OUTPUTS if item["name"] == "Final Fire Scar")
+        # final_grid = SIM_OUTPUTS[1] 'Propagation Fire Scars'
+        final_grid = next(item for item in SIM_OUTPUTS if item["name"] == "Propagation Fire Scars")
         files = Path(results_dir).glob(grid["dir"] + "[0-9]*" + sep + grid["file"] + "[0-9]*")
         if sample_file := next(files, None):
             output_dict[grid["name"]] = str(sample_file)
@@ -743,12 +749,21 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             output_dict[grid["name"]] = None
             output_dict[final_grid["name"]] = None
 
-        msg = SIM_OUTPUTS[2]
-        files = Path(results_dir, msg["dir"]).glob(msg["file"] + "*")
+        # msg = SIM_OUTPUTS[2] Propagation Directed Graph
+        msg = next(item for item in SIM_OUTPUTS if item["name"] == "Propagation Directed Graph")
+        files = Path(results_dir, msg["dir"]).glob(msg["file"] + "*." + msg["ext"])
         if sample_file := next(files, None):
             output_dict[msg["name"]] = str(sample_file)
         else:
             output_dict[st["name"]] = None
+
+        # get the dictionary element with key name "Ignition Points"
+        igni_log = next(item for item in SIM_OUTPUTS if item["name"] == "Ignition Points")
+        igni_file = Path(results_dir, igni_log["dir"], igni_log["file"] + "." + igni_log["ext"])
+        if igni_file.is_file():
+            output_dict[igni_log["name"]] = str(igni_file)
+        else:
+            output_dict[igni_log["name"]] = None
 
         # results_dir = Path().cwd()
         # files = []
