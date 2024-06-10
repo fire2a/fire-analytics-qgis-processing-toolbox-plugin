@@ -578,7 +578,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
                 "Output pickled messages file (needed by BC or DPV metrics, defaults to"
                 " results/Messages/messages.pickle)"
             ),
-            fileFilter="pickled files (*.pickled)",
+            fileFilter="pickled files (*.pickle)",
             # defaultValue=defaultValue,
             optional=True,
             createByDefault=False,
