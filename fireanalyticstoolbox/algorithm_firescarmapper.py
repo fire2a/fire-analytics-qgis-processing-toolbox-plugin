@@ -29,7 +29,7 @@ from .firescarmapping.model_u_net import model, device
 from .firescarmapping.as_dataset import create_datasetAS
 import numpy as np
 from torch.utils.data import DataLoader
-
+import os
 from osgeo import gdal, osr 
 
 
@@ -37,8 +37,7 @@ class FireScarMapper(QgsProcessingAlgorithm):
     IN_BEFORE = "BeforeRasters"
     IN_AFTER = "AfterRasters"
     OUT_SCARS = "OutputScars"
-    IN_MODEL = "Trained Model"
-
+    
     def initAlgorithm(self, config):
         self.addParameter(
             QgsProcessingParameterMultipleLayers(
@@ -58,14 +57,7 @@ class FireScarMapper(QgsProcessingAlgorithm):
                 optional=False,
             )
         )
-        self.addParameter(
-            QgsProcessingParameterFile(
-                name=self.IN_MODEL,
-                description=self.tr("Trained model file"),
-                extension="model",
-                optional=False,
-            )
-        )
+        
         self.addParameter(
             QgsProcessingParameterRasterDestination(
                 name=self.OUT_SCARS,
@@ -78,7 +70,8 @@ class FireScarMapper(QgsProcessingAlgorithm):
         feedback.pushDebugInfo(f"Input rasters:\n names: {[ r.name() for r in before]}\ntypes: {[ r.rasterType() for r in before]}")
         burnt = self.parameterAsLayerList(parameters, self.IN_AFTER, context)
         feedback.pushDebugInfo(f"Input rasters:\n names: {[ r.name() for r in burnt]}\ntypes: {[ r.rasterType() for r in burnt]}")
-        model_path = self.parameterAsFile(parameters, self.IN_MODEL, context)
+        model_path = os.path.join(os.path.dirname(__file__), 'firescarmapping', 'ep25_lr1e-04_bs16_021__as_std_adam_f01_13_07_x3.model')
+
         output_path = self.parameterAsOutputLayer(parameters, self.OUT_SCARS, context)
 
         if len(before) != len(burnt):
@@ -137,7 +130,7 @@ class FireScarMapper(QgsProcessingAlgorithm):
                 # Adjust the name of the output path to be unique for each firescar
                 output_path_with_index = output_path[:-4] + f"_{i+1}.tif"
                 self.writeRaster(generated_matrix, output_path_with_index, context)
-                self.addRasterLayer(output_path_with_index, f"Firescar {i+1}", context)
+                self.addRasterLayer(output_path_with_index,before_files[i]['name'], context)
 
         return {}
 

@@ -17,7 +17,7 @@ class firescardataset():
         if mult > 1:
             self.imgfiles = np.array([*self.imgfiles] * mult)
             self.imgprefiles = np.array([*self.imgprefiles] * mult)
-    
+            
     def __len__(self):
         return len(self.imgfiles)
     
@@ -52,11 +52,9 @@ class firescardataset():
                         imgdata[k-1][imgdata[k-1]<LI_min_as[k-1]]=mean_as[k-1]
             return imgdata
         
-        idx-=1  
         imgdata1 = self.imgfiles[idx]
         imgdatapre = self.imgprefiles[idx]
         new_array=np.concatenate((imgdata1, imgdatapre), axis=0)  
-
         if (np.isfinite(new_array)==False).any():                               #Replace nan for the neighbours mean values
             mask=np.where(np.isfinite(new_array))
             interp=NearestNDInterpolator(np.transpose(mask), new_array[mask])
@@ -83,6 +81,7 @@ class firescardataset():
             'imgfile': self.imgfiles[idx]}
         if self.transform:
             sample = self.transform(sample)
+        idx-=1
         return sample
 
 class ToTensor(object):
@@ -99,35 +98,6 @@ class ToTensor(object):
         'imgfile': sample['imgfile']}
 
         return out
-    
-class Randomize(object):
-    """Randomize image orientation including rotations by integer multiples of
-    90 deg, (horizontal) mirroring, and (vertical) flipping."""
-    def __call__(self, sample):
-        """
-        Randomizes the sample
-        
-        sample: sample to be randomized
-        
-        """
-        imgdata = sample['img']
-        idx=sample["idx"]
-        # mirror horizontally
-        mirror = np.random.randint(0, 2)
-        if mirror:
-            imgdata = np.flip(imgdata, 2)
-        # flip vertically
-        flip = np.random.randint(0, 2)
-        if flip:
-            imgdata = np.flip(imgdata, 1)
-        # rotate by [0,1,2,3]*90 deg
-        rot = np.random.randint(0, 4)
-        if rot:
-            imgdata = np.rot90(imgdata, rot, axes=(1,2))
-
-        return {'idx': sample['idx'],
-                'img': imgdata.copy(),
-                'imgfile': sample['imgfile']}
     
 class Normalize(object):
     """Normalize pixel values to the range [0, 1] measured using minmax-scaling"""    
@@ -153,7 +123,6 @@ def create_datasetAS(*args, apply_transforms=True, **kwargs):
         if apply_transforms:
             data_transforms = transforms.Compose([
                 Normalize(),
-                #Randomize(),
                 ToTensor()
             ])
         else:
