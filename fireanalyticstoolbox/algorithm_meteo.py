@@ -32,7 +32,6 @@ __revision__ = "$Format:%H$"
 from datetime import datetime
 from pathlib import Path
 
-from fire2a.meteo import generate as generater_weather
 from qgis.core import (QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsProcessing, QgsProcessingAlgorithm,
                        QgsProcessingException, QgsProcessingParameterDateTime, QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterNumber, QgsProcessingParameterVectorLayer, QgsProject)
@@ -144,7 +143,7 @@ class MeteoAlgo(QgsProcessingAlgorithm):
         else:
             point = iface.mapCanvas().center()
             crs = iface.mapCanvas().mapSettings().destinationCrs()
-            feedback.pushInfo("No location provided, using center of current map {point=}, {crs=}")
+            feedback.pushInfo(f"No location provided, using center of current map {point=}, {crs=}")
         # transform point to epsg:4326
         source_crs = QgsCoordinateReferenceSystem(crs)  # Replace with your CRS ID
         destination_crs = QgsCoordinateReferenceSystem(4326)  # EPSG:4326 for WGS 84
@@ -159,10 +158,17 @@ class MeteoAlgo(QgsProcessingAlgorithm):
 
         # Call the weather generator
         # ==========================
+        # FIXME REMOVE IN PRODUCTION 0
+        from importlib import reload
+        from fire2a import meteo
+        reload(meteo)
+        from fire2a.meteo import generate as generater_weather
+        # FIXME REMOVE IN PRODUCTION 1
         retval, output_dict = generater_weather(**instance)
 
         if retval == 0:
             feedback.pushInfo(f"Generated {len(output_dict['filelist'])=} {output_dict['filelist'][:10]=} etc.")
+            feedback.pushDebugInfo(f"{output_dict=}") # FIXME REMOVE IN PRODUCTION
             write_log(feedback, name=self.name())
             return {self.OUT: str(instance["outdir"]), "filelist": output_dict["filelist"]}
         elif retval >= 0:
