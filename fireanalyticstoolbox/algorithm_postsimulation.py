@@ -1110,8 +1110,8 @@ class ScarSIMPP(QgsProcessingAlgorithm):
             return {}
 
         # store
-        with open(Path(parent2, "final_grids.pickle"), "wb") as f:
-            pickle_dump(data, f)
+        # with open(Path(parent2, "final_grids.pickle"), "wb") as f:
+        #    pickle_dump(data, f)
         # raster
         output_raster_filename = self.parameterAsOutputLayer(parameters, self.OUT_RASTER, context)
         if output_raster_filename != "":
