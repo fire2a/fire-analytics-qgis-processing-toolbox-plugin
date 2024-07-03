@@ -22,6 +22,7 @@ repository=https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plug
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
 changelog=
+	v0.2.2: Fixes in dependencies, Pyomo fails compatibility with numpy 2.0.0
 	v0.2.1: Fixes PropagationDirectedGraph file filter pickled -> pickle, fire2a-lib importlib_metadata -> importlib.metadata
 	v0.2.0: Added feature: Locate --Firebreaks by passing any raster (with ones in its values) to the Fire Simulator
 	v0.1.24: Ignition points is now a simulator output option, read from results/IgnitionHistory/ignition_log.csv
@@ -39,10 +40,11 @@ experimental=False
 # deprecated flag (applies to the whole plugin, not just a single version)
 deprecated=False
 
+# https://qgis.org/en/site/forusers/visualchangelog38/index.html#feature-support-for-plugin-dependencies
 # Since QGIS 3.8, a comma separated list of plugins to be installed
 # (or upgraded) can be specified.
 # Check the documentation for more information.
-plugin_dependencies=numpy>=1.24.1,pandas>=2.0.2,scipy>=1.10.1,pyomo>=6.7.0,networkx>=2.7
+plugin_dependencies=numpy>=1.24.1<2.0.0,pandas>=2.0.2,scipy>=1.10.1,pyomo>=6.7.0,networkx>=2.7
 
 Category of the plugin: Raster, Vector, Database or Web
 # category=
