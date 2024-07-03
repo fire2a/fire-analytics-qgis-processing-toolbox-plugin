@@ -14,7 +14,7 @@ from shutil import which
 
 import pyomo.environ
 from pyomo.common.errors import ApplicationError
-from pyomo.opt import SolverFactory, SolverStatus, TerminationCondition
+from pyomo.opt import SolverFactory, SolverManagerFactory, SolverStatus, TerminationCondition
 from qgis.core import QgsMessageLog, QgsProcessingException
 
 from ..config import TAG
@@ -29,6 +29,30 @@ SOLVER = {
     "cplex_direct": "mipgap=0.005 timelimit=300",
     # "cplex_persistent": "mipgap=0.005 timelimit=300", needs tweak opt.set_ to work
 }
+NEOS_SOLVER = [
+    "bonmin",
+    "cbc",
+    "conopt",
+    "couenne",
+    "cplex",
+    "filmint",
+    "filter",
+    "ipopt",
+    "knitro",
+    "l-bfgs-b",
+    "lancelot",
+    "lgo",
+    "loqo",
+    "minlp",
+    "minos",
+    "minto",
+    "mosek",
+    "octeract",
+    "ooqp",
+    "path",
+    "raposa",
+    "snopt",
+]
 
 
 def init_ndarray(data, model, *args):
@@ -165,7 +189,7 @@ def pyomo_init_algorithm(self, config):
     # solver string combobox (enums
     qpps = QgsProcessingParameterString(
         name="SOLVER",
-        description="Solver: recommended options string [and executable STATUS]",
+        description="Local Solver: recommended options string [and executable STATUS]",
     )
     qpps.setMetadata(
         {
@@ -205,14 +229,39 @@ def pyomo_init_algorithm(self, config):
     )
     qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
     self.addParameter(qppb)
+    # NEOS
+    qpps = QgsProcessingParameterString(
+        name="NEOS_EMAIL",
+        description="NEOS Solver Server registered email (visit https://neos-guide.org/)",
+        defaultValue="fernandobadilla@hotmail.com",
+    )
+    qpps.setFlags(qpps.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+    self.addParameter(qpps)
+    qpps = QgsProcessingParameterString(
+        name="NEOS_SOLVER",
+        description="Solver for NEOS",
+        defaultValue="cplex",
+    )
+    qpps.setMetadata(
+        {
+            "widget_wrapper": {
+                "value_hints": NEOS_SOLVER,
+            }
+        }
+    )
+    qpps.setFlags(qpps.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+    self.addParameter(qpps)
 
 
 def pyomo_run_model(self, parameters, context, feedback, model, display_model=None):
     """runs a pyomo model reading parameters from a QgsProcessingAlgorithm form, returns the results object
     Reserves the following variables in the algorithm:
-    SOLVER: solver name and options
+    SOLVER: Local solver name and options
     EXECUTABLE: path to the solver executable
     CUSTOM_OPTIONS_STRING: custom options to pass to the solver
+    DISPLAY_MODEL: display the model in the console
+    NEOS_SOLVER: solver for NEOS server
+    NEOS_EMAIL: email for NEOS server
     """
     executable = self.parameterAsString(parameters, "EXECUTABLE", context)
     # feedback.pushDebugInfo(f"exesolver_string:{executable}")
@@ -232,12 +281,19 @@ def pyomo_run_model(self, parameters, context, feedback, model, display_model=No
             options_string = custom_options
     feedback.pushDebugInfo(f"options_string: {options_string}\n")
 
-    if executable:
-        opt = SolverFactory(solver, executable=executable)
-        # FIXME if solver is cplex_persistent
-        # opt.set_instance(model)
+    # neos
+    if neos_email := self.parameterAsString(parameters, "NEOS_EMAIL", context):
+        environ["NEOS_EMAIL"] = neos_email
+        solver_manager = SolverManagerFactory("neos")
+        solver = self.parameterAsString(parameters, "NEOS_SOLVER", context)
+        feedback.pushDebugInfo(f"{neos_email=}, {solver=}")
     else:
-        opt = SolverFactory(solver)
+        if executable:
+            opt = SolverFactory(solver, executable=executable)
+            # FIXME if solver is cplex_persistent
+            # opt.set_instance(model)
+        else:
+            opt = SolverFactory(solver)
 
     if display_model is None:
         display_model = self.parameterAsBool(parameters, "DISPLAY_MODEL", context)
@@ -249,9 +305,19 @@ def pyomo_run_model(self, parameters, context, feedback, model, display_model=No
     pyomo_err_feedback = FileLikeFeedback(feedback, False)
     with redirect_stdout(pyomo_std_feedback), redirect_stderr(pyomo_err_feedback):
         if options_string:
-            results = opt.solve(model, tee=True, options_string=options_string)
+            if neos_email:
+                feedback.pushDebugInfo(f"send to neos; {solver=}, options={options_string}")
+                results = solver_manager.solve(model, solver=solver, tee=True, options_string=options_string)
+                feedback.pushDebugInfo(f"neos returned {results}")
+            else:
+                results = opt.solve(model, tee=True, options_string=options_string)
         else:
-            results = opt.solve(model, tee=True)
+            if neos_email:
+                feedback.pushDebugInfo("send to neos; {solver=}")
+                results = solver_manager.solve(model, solver=solver, tee=True)
+                feedback.pushDebugInfo(f"neos returned {results}")
+            else:
+                results = opt.solve(model, tee=True)
         # TODO
         # # Stop the algorithm if cancel button has been clicked
         # if feedback.isCanceled():
