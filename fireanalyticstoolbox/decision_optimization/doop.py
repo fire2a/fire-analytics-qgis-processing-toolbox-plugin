@@ -12,7 +12,6 @@ from re import compile as re_compile
 from re import sub as re_sub
 from shutil import which
 
-import pyomo.environ
 from pyomo.common.errors import ApplicationError
 from pyomo.opt import SolverFactory, SolverManagerFactory, SolverStatus, TerminationCondition
 from qgis.core import QgsProcessingException

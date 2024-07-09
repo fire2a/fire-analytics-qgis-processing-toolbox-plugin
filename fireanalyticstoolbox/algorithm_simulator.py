@@ -597,7 +597,8 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         # FIREBREAKS
         if firebreaks := self.parameterAsRasterLayer(parameters, self.FIREBREAKS, context):
             from fire2a.cell2fire import raster_layer_to_firebreak_csv
-            output_file=Path(instance_dir, "firebreaks.csv")
+
+            output_file = Path(instance_dir, "firebreaks.csv")
             raster_layer_to_firebreak_csv(firebreaks, firebreak_val=1, output_file=output_file)
             args["FirebreakCells"] = str(output_file)
 

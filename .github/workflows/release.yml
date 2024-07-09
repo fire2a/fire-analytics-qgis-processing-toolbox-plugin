@@ -53,11 +53,7 @@ jobs:
         repository: "fire2a/fire2a-lib" 
         path: "fireanalyticstoolbox/fire2a"
         sparse-checkout: |
-          src/fire2a/raster.py
-          src/fire2a/cell2fire.py
-          src/fire2a/utils.py
-          src/fire2a/meteo.py
-          src/fire2a/__init__.py
+          src/fire2a/*.py
         sparse-checkout-cone-mode: false
 
     - name: download cell2fire
