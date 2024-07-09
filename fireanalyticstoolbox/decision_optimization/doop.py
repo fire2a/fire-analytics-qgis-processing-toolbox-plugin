@@ -199,6 +199,7 @@ def pyomo_init_algorithm(self, config):
     qpps = QgsProcessingParameterString(
         name="SOLVER",
         description="LOCAL SOLVER\nName: recommended options string [and executable STATUS]",
+        optional=True,
     )
     qpps.setMetadata(
         {
@@ -232,8 +233,9 @@ def pyomo_init_algorithm(self, config):
     # NEOS
     qpps = QgsProcessingParameterString(
         name="NEOS_EMAIL",
-        description="CLOUD SOLVER\nNEOS registered email (visit https://neos-guide.org/)",
-        defaultValue="lashavia@heweatr.com",
+        description="CLOUD SOLVER (no MsWindows)\nNEOS registered email (visit https://neos-guide.org/)",
+        defaultValue="",
+        optional=True,
     )
     qpps.setFlags(qpps.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
     self.addParameter(qpps)
@@ -241,6 +243,7 @@ def pyomo_init_algorithm(self, config):
         name="NEOS_SOLVER",
         description="NEOS solver name",
         defaultValue="cplex",
+        optional=True,
     )
     qpps.setMetadata(
         {
