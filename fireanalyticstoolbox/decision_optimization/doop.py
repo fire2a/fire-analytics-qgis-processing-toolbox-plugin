@@ -15,7 +15,7 @@ from shutil import which
 import pyomo.environ
 from pyomo.common.errors import ApplicationError
 from pyomo.opt import SolverFactory, SolverManagerFactory, SolverStatus, TerminationCondition
-from qgis.core import QgsMessageLog, QgsProcessingException
+from qgis.core import QgsProcessingException
 
 from ..config import TAG
 
@@ -107,7 +107,7 @@ def check_solver_availabilityBASED():
     for s in pyomo_solvers_list:
         try:
             solvers_filter.append(pyo.SolverFactory(s).available())
-        except (ApplicationError, NameError, ImportError) as e:
+        except (ApplicationError, NameError, ImportError):
             solvers_filter.append(False)
     pyomo_solvers_list = list(compress(pyomo_solvers_list, solvers_filter))
     return pyomo_solvers_list
@@ -184,12 +184,22 @@ def pyomo_init_algorithm(self, config):
     from qgis.core import (QgsProcessingParameterBoolean, QgsProcessingParameterDefinition, QgsProcessingParameterFile,
                            QgsProcessingParameterString)
 
+    # boolean parameter to display the model
+    qppb = QgsProcessingParameterBoolean(
+        name="DISPLAY_MODEL",
+        description="Display the pyomo model in the console (disabled for rasters, can easily clog & crash QGIS, use for debugging small models only!)",
+        defaultValue="False",
+        optional=False,
+    )
+    qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+    self.addParameter(qppb)
+
     # SOLVERS
     value_hints, self.solver_exception_msg = check_solver_availability(SOLVER)
     # solver string combobox (enums
     qpps = QgsProcessingParameterString(
         name="SOLVER",
-        description="Local Solver: recommended options string [and executable STATUS]",
+        description="LOCAL SOLVER\nName: recommended options string [and executable STATUS]",
     )
     qpps.setMetadata(
         {
@@ -204,7 +214,7 @@ def pyomo_init_algorithm(self, config):
     # options_string
     qpps2 = QgsProcessingParameterString(
         name="CUSTOM_OPTIONS_STRING",
-        description="Override options_string (type a single space ' ' to not send any options to the solver)",
+        description=self.tr("Override options_string (type a single space ' ' to not send any options to the solver)"),
         defaultValue="",
         optional=True,
     )
@@ -220,26 +230,17 @@ def pyomo_init_algorithm(self, config):
     qppf.setExtension("exe" if platform_system() == "Windows" else "")
     qppf.setFlags(qppf.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
     self.addParameter(qppf)
-    # boolean parameter to display the model
-    qppb = QgsProcessingParameterBoolean(
-        name="DISPLAY_MODEL",
-        description="Display the pyomo model in the console (disabled for rasters)",
-        defaultValue="False",
-        optional=False,
-    )
-    qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
-    self.addParameter(qppb)
     # NEOS
     qpps = QgsProcessingParameterString(
         name="NEOS_EMAIL",
-        description="NEOS Solver Server registered email (visit https://neos-guide.org/)",
-        defaultValue="fernandobadilla@hotmail.com",
+        description="CLOUD SOLVER\nNEOS registered email (visit https://neos-guide.org/)",
+        defaultValue="lashavia@heweatr.com",
     )
     qpps.setFlags(qpps.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
     self.addParameter(qpps)
     qpps = QgsProcessingParameterString(
         name="NEOS_SOLVER",
-        description="Solver for NEOS",
+        description="NEOS solver name",
         defaultValue="cplex",
     )
     qpps.setMetadata(
@@ -251,6 +252,15 @@ def pyomo_init_algorithm(self, config):
     )
     qpps.setFlags(qpps.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
     self.addParameter(qpps)
+    # options_string
+    qpps2 = QgsProcessingParameterString(
+        name="NEOS_CUSTOM_OPTIONS_STRING",
+        description=self.tr("NEOS custom options string"),
+        defaultValue="",
+        optional=True,
+    )
+    qpps2.setFlags(qpps2.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+    self.addParameter(qpps2)
 
 
 def pyomo_run_model(self, parameters, context, feedback, model, display_model=None):
@@ -262,6 +272,7 @@ def pyomo_run_model(self, parameters, context, feedback, model, display_model=No
     DISPLAY_MODEL: display the model in the console
     NEOS_SOLVER: solver for NEOS server
     NEOS_EMAIL: email for NEOS server
+    NEOS_CUSTOM_OPTIONS_STRING: custom options to pass to the NEOS server
     """
     executable = self.parameterAsString(parameters, "EXECUTABLE", context)
     # feedback.pushDebugInfo(f"exesolver_string:{executable}")
@@ -284,9 +295,10 @@ def pyomo_run_model(self, parameters, context, feedback, model, display_model=No
     # neos
     if neos_email := self.parameterAsString(parameters, "NEOS_EMAIL", context):
         environ["NEOS_EMAIL"] = neos_email
-        solver_manager = SolverManagerFactory("neos")
-        solver = self.parameterAsString(parameters, "NEOS_SOLVER", context)
-        feedback.pushDebugInfo(f"{neos_email=}, {solver=}")
+        neos_solver_manager = SolverManagerFactory("neos")
+        neos_solver = self.parameterAsString(parameters, "NEOS_SOLVER", context)
+        neos_options_string = self.parameterAsString(parameters, "NEOS_CUSTOM_OPTIONS_STRING", context)
+        feedback.pushDebugInfo(f"{neos_email=}, {neos_solver=}")
     else:
         if executable:
             opt = SolverFactory(solver, executable=executable)
@@ -307,14 +319,16 @@ def pyomo_run_model(self, parameters, context, feedback, model, display_model=No
         if options_string:
             if neos_email:
                 feedback.pushDebugInfo(f"send to neos; {solver=}, options={options_string}")
-                results = solver_manager.solve(model, solver=solver, tee=True, options_string=options_string)
+                results = neos_solver_manager.solve(
+                    model, solver=neos_solver, tee=True, options_string=neos_options_string
+                )
                 feedback.pushDebugInfo(f"neos returned {results}")
             else:
                 results = opt.solve(model, tee=True, options_string=options_string)
         else:
             if neos_email:
                 feedback.pushDebugInfo("send to neos; {solver=}")
-                results = solver_manager.solve(model, solver=solver, tee=True)
+                results = neos_solver_manager.solve(model, solver=neos_solver, tee=True)
                 feedback.pushDebugInfo(f"neos returned {results}")
             else:
                 results = opt.solve(model, tee=True)
