@@ -666,8 +666,8 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         # BUILD COMMAND
         for opt in selected_outputs:
             args[output_args[opt]] = True
-        args["input-instance-folder"] = str(instance_dir)
-        args["output-folder"] = str(results_dir)
+        args["input-instance-folder"] = '"' + str(instance_dir) + '"'
+        args["output-folder"] = '"' + str(results_dir) + '"'
         feedback.pushDebugInfo(f"args: {args}\n")
 
         cmd = f"./Cell2Fire{get_ext()}"
