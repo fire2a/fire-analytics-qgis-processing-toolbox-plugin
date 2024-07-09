@@ -31,7 +31,9 @@ enabled = true
 [tool.ruff]
 line-length = 120
 
+[tool.isort]
+line_length = 120
+
 [tool.ruff.lint]
 # Disable fix for unused imports (`F401`).
 unfixable = ["F401"]
-

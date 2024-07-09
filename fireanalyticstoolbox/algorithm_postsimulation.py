@@ -1169,9 +1169,15 @@ class ScarSIMPP(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return self.tr(
-            """ - Output final scar raster needs simulation ran with Final Fire Scar option, each band is a simulation
-            - Output burn probability raster is the mean of all simulations, requires >1 simulations
-            - Propagation Scars Polygons is processed in memory in gpkg format, then converted by qgis's native:fixgeometries algorithm (also needs the simulation ran with Propagation Fire Scars option)"""
+            """ - Input <b>Sample</b> Fire Scar is any of the ForestGrid files; with it a pattern search for all Grids(any digit)/ForestGrid(any digit).csv will be performed.
+            - Output <b>Final</b> Scar raster needs simulation ran with Final Fire Scar option, each band is a simulation
+            - Output <b>Burn Probability</b> raster is the mean of all simulations, requires >1 simulations
+            - Output <b>Propagation</b> Scars Polygons accumulates fixed-geometry, polygonized, in-memory rasters (4 steps); attributing for each one its: simulation, period, perimeter and area. This is known to fail in some qgis-versions, OSes or low RAM hardware. Mitigations:
+            A. Change the default .gpkg format to .shp or test other
+            B. Use the advanced options to tweak or disable the fix geometries option
+            C. <b>Skip this output altogether by clicking the option button '...' and selecting Skip Output</b>
+
+            <i>If the Bundle algorithm failed for you, this propagation output is the most likely cause...</i>"""
         )
 
 
