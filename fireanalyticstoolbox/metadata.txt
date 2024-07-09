@@ -45,7 +45,8 @@ deprecated=False
 # Since QGIS 3.8, a comma separated list of plugins to be installed
 # (or upgraded) can be specified.
 # Check the documentation for more information.
-plugin_dependencies=numpy>=1.24.1<2.0.0,pandas>=2.0.2,scipy>=1.10.1,pyomo>=6.7.0,networkx>=2.7
+# plugin_dependencies=numpy>=1.24.1<2.0.0,pandas>=2.0.2,scipy>=1.10.1,pyomo>=6.7.0,networkx>=2.7,fire2a-lib
+plugin_dependencies=fire2a-lib
 
 Category of the plugin: Raster, Vector, Database or Web
 # category=

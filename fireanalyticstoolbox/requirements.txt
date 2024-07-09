@@ -1,5 +1,6 @@
-numpy >=1.24.1, <2.0.0 # keep until pyomo release
-pandas >=2.0.2
-scipy >=1.10.1
-pyomo >=6.7.0
-networkx >=2.7
+# numpy >=1.24.1, <2.0.0 # keep until pyomo release
+# pandas >=2.0.2
+# scipy >=1.10.1
+# pyomo >=6.7.0
+# networkx >=2.7
+fire2a-lib
