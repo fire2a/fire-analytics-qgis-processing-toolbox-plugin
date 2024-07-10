@@ -520,9 +520,12 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return self.tr(
-            """<b>Warning: Enabling Propagation Directed Graph can hang-up your system</b>, around 300.000 arrows is manageable (can be counted in Messages folder, using bash $wc -l Messages*csv)
-            To process them anyway, use its Propagation DiGraph algorithm unchecking 'Open output file after running algorithm'
-            <i>The alternative visualization is using <b>Propagation Fire Scars</b> for very large simulations</i><br><br>
+            """Although <b>Propagation Directed Graph</b> output is fundamental to risk metrics such as DPV and BC: <b>Warning: Enabling it here can hang-up your system</b>, around 300.000 arrows is manageable for a regular laptop<br>
+            Be safe by counting them first: Go to results/Messages folder:<br>
+             - using bash $ wc -l Messages*csv<br>
+             - using PowerShell > Get-Content Messages*.csv | Measure-Object -Line<br>
+            To process but not display them, use Propagation DiGraph algorithm directly, unchecking 'Open output file after running algorithm'<br><br>
+            <i>The visualization alternative is <b>Propagation Fire Scars</b>. Or even <b>Final Fire Scar</b>, recommended for very large simulations</i>
             """
         )
 
