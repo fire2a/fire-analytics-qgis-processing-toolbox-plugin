@@ -225,7 +225,7 @@ class FireScarMapper(QgsProcessingAlgorithm):
             raise QgsProcessingException(f"Failed to write array to raster: {str(e)}")
 
         # Establecer el valor NoData si es necesario
-        band.SetNoDataValue(-9999)
+        band.SetNoDataValue(0)
 
         # Limpiar caché y cerrar el raster
         band.FlushCache()
