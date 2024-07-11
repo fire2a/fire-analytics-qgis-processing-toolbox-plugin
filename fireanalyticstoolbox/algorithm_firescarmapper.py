@@ -20,8 +20,16 @@
  ***************************************************************************/
 """
 
-AWS_ACCESS_KEY_ID = "<AWS_ACCESS_KEY_ID>"
-AWS_SECRET_ACCESS_KEY = "<AWS_SECRET_ACCESS_KEY>"
+"""
+TODO:
+- Ver lo del initAlgorithm con Fernando
+- Ver bien el tema de las direcciones que quedan guardadas las imagenes y cicatrices (tal vez sea buena idea una carpeta de carpetas)
+- Usar el modelo desde el data lake (listo, faltaría ver bien las carpetas dentro del bucket)
+- Ver bien cual sería la mejora forma de que se guarden las cosas en el data lake 
+- ver como se va a actualizar el data lake, lambda ? 
+"""
+
+
 from fire2a.raster import get_rlayer_data
 import os
 from qgis.core import (QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterRasterDestination,
@@ -38,7 +46,6 @@ from osgeo import gdal, osr
 import torch
 
 class FireScarMapper(QgsProcessingAlgorithm):
-    OUT_SCARS = "OutputScars"
     S3_BUCKET = "fire2a-firescars"
     AWS_ACCESS_KEY_ID = "<AWS_ACCESS_KEY_ID>"
     AWS_SECRET_ACCESS_KEY = "<AWS_SECRET_ACCESS_KEY>"
@@ -71,16 +78,17 @@ class FireScarMapper(QgsProcessingAlgorithm):
             dialog_pairs = S3SelectionDialog(self.S3_BUCKET, self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, prefix=selected_locality)
             if dialog_pairs.exec_():
                 selected_pair_folder = dialog_pairs.get_selected_item()  # Debería contener la ruta del par de fotos seleccionado en S3
-
+                feedback.pushDebugInfo(f"selected_pair_folder: {selected_pair_folder}")
                 # Construir las rutas de los archivos basados en la selección
-                local_path_before = os.path.join(os.path.dirname(__file__), 'temp_before.tif')
-                local_path_burnt = os.path.join(os.path.dirname(__file__), 'temp_burnt.tif')
+                local_path_before = os.path.join(os.path.dirname(__file__), "results",f"{selected_pair_folder.split('/')[0]}-{selected_pair_folder.split('/')[1]}-ImgPre.tif")
+                local_path_burnt = os.path.join(os.path.dirname(__file__), "results",f"{selected_pair_folder.split('/')[0]}-{selected_pair_folder.split('/')[1]}-ImgPost.tif")
                 
                 # Listar los archivos dentro del par de fotos seleccionado
                 s3 = boto3.client(
                     's3',
                     aws_access_key_id=self.AWS_ACCESS_KEY_ID,
-                    aws_secret_access_key=self.AWS_SECRET_ACCESS_KEY
+                    aws_secret_access_key=self.AWS_SECRET_ACCESS_KEY,
+                    region_name="us-east-1"
                 )
                 paginator = s3.get_paginator('list_objects_v2')
                 try:
@@ -96,29 +104,39 @@ class FireScarMapper(QgsProcessingAlgorithm):
                     for file in files:
                         if 'ImgPreF' in file:
                             feedback.pushDebugInfo(f"Downloading file: {file} to {local_path_before}")
+                            feedback.pushDebugInfo(f"file name: {file}")
                             self.download_file_from_s3(self.S3_BUCKET, file, local_path_before)
+                            before_layer = QgsRasterLayer(local_path_before, f"{file.split('/')[2][:-23]}")
                         elif 'ImgPosF' in file:
                             feedback.pushDebugInfo(f"Downloading file: {file} to {local_path_burnt}")
                             self.download_file_from_s3(self.S3_BUCKET, file, local_path_burnt)
+                            burnt_layer = QgsRasterLayer(local_path_burnt, f"{file.split('/')[2][:-23]}")
                 except Exception as e:
                     raise QgsProcessingException(f"Failed to list or download files from S3: {str(e)}")
                 
                 # Cargar las imágenes descargadas como capas raster
-                before_layer = QgsRasterLayer(local_path_before, "Before Raster")
-                burnt_layer = QgsRasterLayer(local_path_burnt, "Burnt Raster")
 
                 if not before_layer.isValid() or not burnt_layer.isValid():
                     raise QgsProcessingException("Failed to load raster layers from the downloaded images")
 
                 feedback.pushDebugInfo(f"Loaded rasters:\nBefore Raster valid: {before_layer.isValid()}\nBurnt Raster valid: {burnt_layer.isValid()}")
+                # descargar modelo
 
                 model_path = os.path.join(os.path.dirname(__file__), 'firescarmapping', 'ep25_lr1e-04_bs16_021__as_std_adam_f01_13_07_x3.model')
-                output_path = self.parameterAsOutputLayer(parameters, self.OUT_SCARS, context)
+                if not os.path.exists(model_path):
+                    self.download_file_from_s3(self.S3_BUCKET, "Model/ep25_lr1e-04_bs16_021__as_std_adam_f01_13_07_x3.model", model_path)
+                else:
+                    feedback.pushDebugInfo(f"Model already exists at {model_path}")
+
+
+                output_path = os.path.join(os.path.dirname(__file__), "results",f"{selected_pair_folder.split('/')[0]}-{selected_pair_folder.split('/')[1]}-Firescar.tif")
+                feedback.pushDebugInfo(f"output path: {output_path}")  
 
                 rasters = [
-                    {"type": "before", "id": 0, "qid": before_layer.id(), "name": before_layer.name()[8:], "data": get_rlayer_data(before_layer), "layer": before_layer},
-                    {"type": "burnt", "id": 1, "qid": burnt_layer.id(), "name": burnt_layer.name()[8:], "data": get_rlayer_data(burnt_layer), "layer": burnt_layer}
+                    {"type": "before", "id": 0, "qid": before_layer.id(), "name": before_layer.name(), "data": get_rlayer_data(before_layer), "layer": before_layer},
+                    {"type": "burnt", "id": 1, "qid": burnt_layer.id(), "name": burnt_layer.name(), "data": get_rlayer_data(burnt_layer), "layer": burnt_layer}
                 ]
+                feedback.pushDebugInfo(f"layer name: {before_layer.name()}")  
 
                 before_files = [rasters[0]]
                 after_files = [rasters[1]]
@@ -153,11 +171,11 @@ class FireScarMapper(QgsProcessingAlgorithm):
 
                     if output_path:
                         # Adjust the name of the output path to be unique for each firescar
-                        output_path_with_index = output_path[:-4] + f"_{i+1}.tif"
-                        feedback.pushDebugInfo(f"Writing raster to: {output_path_with_index}")
-                        self.writeRaster(generated_matrix, output_path_with_index, context)
-                        feedback.pushDebugInfo(f"Adding raster layer: {output_path_with_index}")
-                        self.addRasterLayer(output_path_with_index, before_files[i]['name'], context)
+                        #output_path_with_index = output_path[:-4] + f"_{i+1}.tif"
+                        feedback.pushDebugInfo(f"Writing raster to: {output_path}")
+                        self.writeRaster(generated_matrix, output_path, context)
+                        feedback.pushDebugInfo(f"Adding raster layer: {output_path}")
+                        self.addRasterLayer(output_path, before_files[i]['name'], context)
 
                 return {}
 
@@ -174,13 +192,16 @@ class FireScarMapper(QgsProcessingAlgorithm):
         pixelWidth = 1
         pixelHeight = 1
 
-        raster.SetGeoTransform((originX, pixelWidth, 0, originY, 0, pixelHeight))
-        srs = osr.SpatialReference()
-        srs.ImportFromEPSG(4326)
-        raster.SetProjection(srs.ExportToWkt())
+        raster.SetGeoTransform((originX, pixelWidth, 0, originY, 0, -pixelHeight))
 
-        raster.GetRasterBand(1).WriteArray(matrix)
-        raster.GetRasterBand(1).SetNoDataValue(-9999)
+        spatialReference = osr.SpatialReference()
+        spatialReference.ImportFromEPSG(4326)
+        raster.SetProjection(spatialReference.ExportToWkt())
+
+        band = raster.GetRasterBand(1)
+        band.WriteArray(matrix)
+
+        band.FlushCache()
         raster.FlushCache()
         raster = None
 
