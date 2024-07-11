@@ -1,6 +1,6 @@
 import boto3
-from qgis.PyQt.QtCore import QObject, QThread, pyqtSignal, Qt
-from qgis.PyQt.QtWidgets import QDialog, QVBoxLayout, QListWidget, QPushButton, QLabel, QMessageBox
+from qgis.PyQt.QtCore import QObject, QThread, pyqtSignal
+from qgis.PyQt.QtWidgets import QDialog, QVBoxLayout, QListWidget, QPushButton, QMessageBox
 
 class S3Loader(QObject):
     finished = pyqtSignal(list)
@@ -71,7 +71,8 @@ class S3SelectionDialog(QDialog):
         event.accept()
 
     def load_finished(self, folders):
-        self.list_widget.addItems(folders)
+        display_folders = [folder.split('/')[-2] + '/' for folder in folders]  # Obtener solo los nombres de las carpetas
+        self.list_widget.addItems(display_folders)
         self.loader_thread.quit()
         self.loader_thread.wait()
         
@@ -84,7 +85,8 @@ class S3SelectionDialog(QDialog):
     def select_clicked(self):
         selected_items = self.list_widget.selectedItems()
         if selected_items:
-            self.selected_item = selected_items[0].text()
+            selected_folder_name = selected_items[0].text()
+            self.selected_item = self.prefix + selected_folder_name  # Concatenar el prefijo completo
             self.accept()
         else:
             QMessageBox.warning(self, "Warning", "Please select a folder.")

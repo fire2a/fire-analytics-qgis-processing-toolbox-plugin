@@ -27,13 +27,13 @@ TODO:
 - Usar el modelo desde el data lake (listo, faltaría ver bien las carpetas dentro del bucket)
 - Ver bien cual sería la mejora forma de que se guarden las cosas en el data lake 
 - ver como se va a actualizar el data lake, lambda ? 
+- ver que en el QGIS también se muestre la foto previa y posterior
 """
 
 
 from fire2a.raster import get_rlayer_data
 import os
-from qgis.core import (QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterRasterDestination,
-                       QgsProject, QgsRasterLayer, QgsProcessingException)
+from qgis.core import (QgsProcessingAlgorithm, QgsProject, QgsRasterLayer, QgsProcessingException)
 from qgis.PyQt.QtCore import QCoreApplication
 
 import boto3
@@ -44,6 +44,7 @@ import numpy as np
 from torch.utils.data import DataLoader
 from osgeo import gdal, osr
 import torch
+
 
 class FireScarMapper(QgsProcessingAlgorithm):
     S3_BUCKET = "fire2a-firescars"
@@ -175,6 +176,9 @@ class FireScarMapper(QgsProcessingAlgorithm):
                         feedback.pushDebugInfo(f"Writing raster to: {output_path}")
                         self.writeRaster(generated_matrix, output_path, context)
                         feedback.pushDebugInfo(f"Adding raster layer: {output_path}")
+                        height, width = generated_matrix.shape
+                        feedback.pushDebugInfo(f"{height=}")
+                        feedback.pushDebugInfo(f"{width=}")
                         self.addRasterLayer(output_path, before_files[i]['name'], context)
 
                 return {}
