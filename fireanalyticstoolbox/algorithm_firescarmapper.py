@@ -42,7 +42,7 @@ from .firescarmapping.as_dataset import create_datasetAS
 from .firescarmapping.bucketdisplay import S3SelectionDialog
 import numpy as np
 from torch.utils.data import DataLoader
-from osgeo import gdal, osr
+from osgeo import gdal, osr, gdal_array
 import torch
 
 
@@ -181,30 +181,59 @@ class FireScarMapper(QgsProcessingAlgorithm):
         raise QgsProcessingException("No se seleccionó una localidad o par de fotos válidos.")
     
     def writeRaster(self, matrix, file_path, before_layer, feedback):
-        height, width = before_layer. matrix.shape
+        # Obtener las dimensiones del raster antes del incendio
+        width = before_layer.width()
+        height = before_layer.height()
+
+        # Crear el archivo raster de salida
         driver = gdal.GetDriverByName('GTiff')
-        raster = driver.Create(file_path, width, height, 1, gdal.GDT_Int16)
+        raster = driver.Create(file_path, width, height, 1, gdal.GDT_Float32)
 
-        # Obtener la extensión y el tamaño de píxel de la imagen antes del incendio
+        if raster is None:
+            raise QgsProcessingException("Failed to create raster file.")
+
+        # Configurar la geotransformación y proyección
         extent = before_layer.extent()
-        pixel_width = before_layer.rasterUnitsPerPixelX()
-        pixel_height = before_layer.rasterUnitsPerPixelY()
-
-        # Calcular la geotransformación
-        originX = extent.xMinimum()
-        originY = extent.yMaximum()
-        geo_transform = (originX, pixel_width, 0, originY, 0, -pixel_height)
-
-        # Establecer la georreferenciación del raster generado
-        raster.SetGeoTransform(geo_transform)
+        pixel_width = extent.width() / width
+        pixel_height = extent.height() / height
+        raster.SetGeoTransform((extent.xMinimum(), pixel_width, 0, extent.yMaximum(), 0, -pixel_height))
         raster.SetProjection(before_layer.crs().toWkt())
 
+        # Obtener la banda del raster
         band = raster.GetRasterBand(1)
-        band.WriteArray(matrix)
 
+        # Calcular el offset y el tamaño de la región de la cicatriz para ajustar al raster
+        # Asegurar que la cicatriz no se recorte más allá de las dimensiones del raster
+        start_row = 0
+        start_col = 0
+        matrix_height, matrix_width = matrix.shape
+
+        if matrix_height > height:
+            start_row = (matrix_height - height) // 2
+            matrix_height = height
+        if matrix_width > width:
+            start_col = (matrix_width - width) // 2
+            matrix_width = width
+
+        # Recortar la matriz para que coincida con las dimensiones del raster
+        resized_matrix = matrix[start_row:start_row + matrix_height, start_col:start_col + matrix_width]
+
+        # Escribir la matriz en la banda del raster de salida
+        try:
+            gdal_array.BandWriteArray(band, resized_matrix, 0, 0)
+        except ValueError as e:
+            raise QgsProcessingException(f"Failed to write array to raster: {str(e)}")
+
+        # Establecer el valor NoData si es necesario
+        band.SetNoDataValue(-9999)
+
+        # Limpiar caché y cerrar el raster
         band.FlushCache()
         raster.FlushCache()
         raster = None
+
+        feedback.pushInfo(f"Raster written to {file_path}")
+
 
     def addRasterLayer(self, file_path, layer_name, context):
         layer = QgsRasterLayer(file_path, layer_name, "gdal")
