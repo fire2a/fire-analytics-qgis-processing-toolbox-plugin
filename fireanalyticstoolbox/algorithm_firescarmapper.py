@@ -22,19 +22,21 @@
 
 """
 TODO:
-- Ver lo del initAlgorithm con Fernando
-- Ver bien el tema de las direcciones que quedan guardadas las imagenes y cicatrices (tal vez sea buena idea una carpeta de carpetas)
-- Usar el modelo desde el data lake (listo, faltaría ver bien las carpetas dentro del bucket)
-- Ver bien cual sería la mejora forma de que se guarden las cosas en el data lake 
-- ver como se va a actualizar el data lake, lambda ? 
-- ver que en el QGIS también se muestre la foto previa y posterior
+- initAlgorithm con Fernando
+- las direcciones que quedan guardadas las imagenes y cicatrices localmenteb(tal vez sea buena idea una carpeta de carpetas)
+- como incorporar las credenciales que se pongan
+- ver el tema del feedback que se está dando cuando se están ejecutando las cosas (está en "No responde" mientras se está ejecutando)
+- ver el color de las bandas de las imagenes 
+- ver de agrupar todo en en grupos para las layers
+entrega el resultado)
 """
 
 
 from fire2a.raster import get_rlayer_data
 import os
-from qgis.core import (QgsProcessingAlgorithm, QgsProject, QgsRasterLayer, QgsProcessingException, QgsRasterDataProvider)
+from qgis.core import (QgsProcessingAlgorithm, QgsProject, QgsRasterLayer, QgsProcessingException, QgsLayerTreeLayer, QgsLayerTreeGroup, QgsColorRampShader, QgsRasterShader, QgsSingleBandPseudoColorRenderer, QgsRasterBandStats)
 from qgis.PyQt.QtCore import QCoreApplication
+from PyQt5.QtGui import QColor
 
 import boto3
 from .firescarmapping.model_u_net import model, device  # Importar el modelo y dispositivo necesarios
@@ -97,9 +99,9 @@ class FireScarMapper(QgsProcessingAlgorithm):
                             feedback.pushDebugInfo(f"selected_pair_folder: {selected_pair_folder}")
 
                             # Construir las rutas de los archivos basados en la selección
-                            local_path_before = os.path.join(os.path.dirname(__file__), "results", f"{selected_pair_folder.split('/')[0]}-{selected_pair_folder.split('/')[1]}-ImgPre.tif")
-                            local_path_burnt = os.path.join(os.path.dirname(__file__), "results", f"{selected_pair_folder.split('/')[0]}-{selected_pair_folder.split('/')[1]}-ImgPost.tif")
-                            
+                            local_path_before = os.path.join(os.path.dirname(__file__), "results", f"{selected_pair_folder.split('/')[1]}-{selected_pair_folder.split('/')[5]}-ImgPre.tif")
+                            local_path_burnt = os.path.join(os.path.dirname(__file__), "results", f"{selected_pair_folder.split('/')[1]}-{selected_pair_folder.split('/')[5]}-ImgPost.tif")
+
                             # Listar los archivos dentro del par de fotos seleccionado
                             s3 = boto3.client(
                                 's3',
@@ -186,7 +188,18 @@ class FireScarMapper(QgsProcessingAlgorithm):
                                     # Llamar a la función para escribir el raster georreferenciado
                                     self.writeRaster(generated_matrix, output_path, before_layer, feedback)
                                     feedback.pushDebugInfo(f"Adding raster layer: {output_path}")
-                                    self.addRasterLayer(output_path, firescar_outputfile_name, context)
+                                    group_name = f"{selected_locality.split('/')[1]} - {selected_pair_folder.split('/')[5]}"
+
+                                    # Verificar si el grupo ya existe, si no, crearlo
+                                    root = QgsProject.instance().layerTreeRoot()
+                                    group = root.findGroup(group_name)
+                                    if not group:
+                                        group = root.addGroup(group_name)
+                                    self.addRasterLayer(local_path_before, f"{selected_pair_folder.split('/')[1]}-{selected_pair_folder.split('/')[5]}-ImgPre", group, context)
+                                    self.addRasterLayer(local_path_burnt, f"{selected_pair_folder.split('/')[1]}-{selected_pair_folder.split('/')[5]}-ImgPosF", group, context)
+                                    self.addRasterLayer(output_path, firescar_outputfile_name, group, context)
+                                    self.add_openstreetmap_layer_if_needed()
+                                    
 
                             return {}
 
@@ -247,12 +260,37 @@ class FireScarMapper(QgsProcessingAlgorithm):
         feedback.pushInfo(f"Raster written to {file_path}")
 
 
-    def addRasterLayer(self, file_path, layer_name, context):
+    def addRasterLayer(self, file_path, layer_name, group, context):
         layer = QgsRasterLayer(file_path, layer_name, "gdal")
         if not layer.isValid():
             raise QgsProcessingException(f"Failed to load raster layer from {file_path}")
 
-        QgsProject.instance().addMapLayer(layer)
+        QgsProject.instance().addMapLayer(layer, False)
+        group.insertChildNode(0, QgsLayerTreeLayer(layer))
+
+    def add_openstreetmap_layer_if_needed(self):
+        # Verificar si ya hay una capa OpenStreetMap
+        project = QgsProject.instance()
+        layers = project.mapLayers().values()
+        for layer in layers:
+            if layer.name() == "OpenStreetMap":
+                print("OpenStreetMap layer already exists.")
+                return
+
+        # URL del tile server de OpenStreetMap
+        urlWithParams = 'type=xyz&url=http://a.tile.openstreetmap.org/{z}/{x}/{y}.png'
+        
+        # Crear la capa OpenStreetMap
+        layer = QgsRasterLayer(urlWithParams, 'OpenStreetMap', 'wms')
+        
+        # Verificar si la capa fue creada correctamente
+        if not layer.isValid():
+            print("Failed to create OpenStreetMap layer")
+            return
+        
+        # Agregar la capa al proyecto
+        project.addMapLayer(layer)
+        print("OpenStreetMap layer added.")
 
     def name(self):
         return "firescarmapper"
