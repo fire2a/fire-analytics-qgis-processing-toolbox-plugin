@@ -76,108 +76,119 @@ class FireScarMapper(QgsProcessingAlgorithm):
                 selected_locality += '/'  # Asegurarse de que la ruta de la localidad termine con '/'
 
             # Abrir el diálogo de selección de S3 para pares de fotos dentro de la localidad
-            dialog_pairs = S3SelectionDialog(self.S3_BUCKET, self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, prefix=selected_locality)
-            if dialog_pairs.exec_():
-                selected_pair_folder = dialog_pairs.get_selected_item()  # Debería contener la ruta del par de fotos seleccionado en S3
-                feedback.pushDebugInfo(f"selected_pair_folder: {selected_pair_folder}")
-                # Construir las rutas de los archivos basados en la selección
-                local_path_before = os.path.join(os.path.dirname(__file__), "results",f"{selected_pair_folder.split('/')[0]}-{selected_pair_folder.split('/')[1]}-ImgPre.tif")
-                local_path_burnt = os.path.join(os.path.dirname(__file__), "results",f"{selected_pair_folder.split('/')[0]}-{selected_pair_folder.split('/')[1]}-ImgPost.tif")
-                
-                # Listar los archivos dentro del par de fotos seleccionado
-                s3 = boto3.client(
-                    's3',
-                    aws_access_key_id=self.AWS_ACCESS_KEY_ID,
-                    aws_secret_access_key=self.AWS_SECRET_ACCESS_KEY,
-                    region_name="us-east-1"
-                )
-                paginator = s3.get_paginator('list_objects_v2')
-                try:
-                    files = []
-                    for result in paginator.paginate(Bucket=self.S3_BUCKET, Prefix=selected_pair_folder):
-                        if 'Contents' in result:
-                            files.extend([obj['Key'] for obj in result['Contents'] if obj['Key'].endswith('.tif')])
+            dialog_year = S3SelectionDialog(self.S3_BUCKET, self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, prefix=selected_locality)
+            if dialog_year.exec_():
+                selected_year = dialog_year.get_selected_item()  # Debería contener la ruta del par de fotos seleccionado en S3
+                feedback.pushDebugInfo(f"selected_year: {selected_year}")
 
-                    if len(files) != 2:
-                        raise QgsProcessingException("La carpeta seleccionada no contiene exactamente dos archivos TIF.")
-                    
-                    # Descargar los archivos
-                    for file in files:
-                        if 'ImgPreF' in file:
-                            feedback.pushDebugInfo(f"Downloading file: {file} to {local_path_before}")
-                            feedback.pushDebugInfo(f"file name: {file}")
-                            self.download_file_from_s3(self.S3_BUCKET, file, local_path_before)
-                            before_layer = QgsRasterLayer(local_path_before, f"{file.split('/')[2][:-23]}")
-                        elif 'ImgPosF' in file:
-                            feedback.pushDebugInfo(f"Downloading file: {file} to {local_path_burnt}")
-                            self.download_file_from_s3(self.S3_BUCKET, file, local_path_burnt)
-                            burnt_layer = QgsRasterLayer(local_path_burnt, f"{file.split('/')[2][:-23]}")
-                except Exception as e:
-                    raise QgsProcessingException(f"Failed to list or download files from S3: {str(e)}")
-                
-                # Cargar las imágenes descargadas como capas raster
+                dialog_month = S3SelectionDialog(self.S3_BUCKET, self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, prefix=selected_year)
+                if dialog_month.exec_():
+                    selected_month = dialog_month.get_selected_item()  # Debería contener la ruta del par de fotos seleccionado en S3
+                    feedback.pushDebugInfo(f"selected_month: {selected_month}")
 
-                if not before_layer.isValid() or not burnt_layer.isValid():
-                    raise QgsProcessingException("Failed to load raster layers from the downloaded images")
+                    dialog_day = S3SelectionDialog(self.S3_BUCKET, self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, prefix=selected_month)
+                    if dialog_day.exec_():
+                        selected_day = dialog_day.get_selected_item()  # Debería contener la ruta del par de fotos seleccionado en S3
+                        feedback.pushDebugInfo(f"selected_day: {selected_day}")
 
-                feedback.pushDebugInfo(f"Loaded rasters:\nBefore Raster valid: {before_layer.isValid()}\nBurnt Raster valid: {burnt_layer.isValid()}")
-                # descargar modelo
+                        dialog_pairs = S3SelectionDialog(self.S3_BUCKET, self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, prefix=selected_day)
+                        if dialog_pairs.exec_():
+                            selected_pair_folder = dialog_pairs.get_selected_item()  # Debería contener la ruta del par de fotos seleccionado en S3
+                            feedback.pushDebugInfo(f"selected_pair_folder: {selected_pair_folder}")
 
-                model_path = os.path.join(os.path.dirname(__file__), 'firescarmapping', 'ep25_lr1e-04_bs16_021__as_std_adam_f01_13_07_x3.model')
-                if not os.path.exists(model_path):
-                    self.download_file_from_s3(self.S3_BUCKET, "Model/ep25_lr1e-04_bs16_021__as_std_adam_f01_13_07_x3.model", model_path)
-                else:
-                    feedback.pushDebugInfo(f"Model already exists at {model_path}")
+                            # Construir las rutas de los archivos basados en la selección
+                            local_path_before = os.path.join(os.path.dirname(__file__), "results", f"{selected_pair_folder.split('/')[0]}-{selected_pair_folder.split('/')[1]}-ImgPre.tif")
+                            local_path_burnt = os.path.join(os.path.dirname(__file__), "results", f"{selected_pair_folder.split('/')[0]}-{selected_pair_folder.split('/')[1]}-ImgPost.tif")
+                            
+                            # Listar los archivos dentro del par de fotos seleccionado
+                            s3 = boto3.client(
+                                's3',
+                                aws_access_key_id=self.AWS_ACCESS_KEY_ID,
+                                aws_secret_access_key=self.AWS_SECRET_ACCESS_KEY,
+                                region_name="us-east-1"
+                            )
+                            paginator = s3.get_paginator('list_objects_v2')
+                            try:
+                                files = []
+                                for result in paginator.paginate(Bucket=self.S3_BUCKET, Prefix=selected_pair_folder):
+                                    if 'Contents' in result:
+                                        files.extend([obj['Key'] for obj in result['Contents'] if obj['Key'].endswith('.tif')])
 
+                                if len(files) != 2:
+                                    raise QgsProcessingException("La carpeta seleccionada no contiene exactamente dos archivos TIF.")
+                                
+                                # Descargar los archivos
+                                for file in files:
+                                    if 'ImgPreF' in file:
+                                        feedback.pushDebugInfo(f"Downloading file: {file} to {local_path_before}")
+                                        self.download_file_from_s3(self.S3_BUCKET, file, local_path_before)
+                                        before_layer = QgsRasterLayer(local_path_before, f"{file.split('/')[2][:-23]}")
+                                    elif 'ImgPosF' in file:
+                                        feedback.pushDebugInfo(f"Downloading file: {file} to {local_path_burnt}")
+                                        self.download_file_from_s3(self.S3_BUCKET, file, local_path_burnt)
+                                        burnt_layer = QgsRasterLayer(local_path_burnt, f"{file.split('/')[2][:-23]}")
+                            except Exception as e:
+                                raise QgsProcessingException(f"Failed to list or download files from S3: {str(e)}")
+                            
+                            # Cargar las imágenes descargadas como capas raster
+                            if not before_layer.isValid() or not burnt_layer.isValid():
+                                raise QgsProcessingException("Failed to load raster layers from the downloaded images")
 
-                firescar_outputfile_name = f"{selected_pair_folder.split('/')[0]}-{selected_pair_folder.split('/')[1]}-Firescar.tif"
-                output_path = os.path.join(os.path.dirname(__file__), "results", firescar_outputfile_name)
-                feedback.pushDebugInfo(f"output path: {output_path}")  
+                            feedback.pushDebugInfo(f"Loaded rasters:\nBefore Raster valid: {before_layer.isValid()}\nBurnt Raster valid: {burnt_layer.isValid()}")
 
-                rasters = [
-                    {"type": "before", "id": 0, "qid": before_layer.id(), "name": before_layer.name(), "data": get_rlayer_data(before_layer), "layer": before_layer},
-                    {"type": "burnt", "id": 1, "qid": burnt_layer.id(), "name": burnt_layer.name(), "data": get_rlayer_data(burnt_layer), "layer": burnt_layer}
-                ]
-                feedback.pushDebugInfo(f"layer name: {before_layer.name()}")  
+                            # Descargar modelo
+                            model_path = os.path.join(os.path.dirname(__file__), 'firescarmapping', 'ep25_lr1e-04_bs16_021__as_std_adam_f01_13_07_x3.model')
+                            if not os.path.exists(model_path):
+                                self.download_file_from_s3(self.S3_BUCKET, "Model/ep25_lr1e-04_bs16_021__as_std_adam_f01_13_07_x3.model", model_path)
+                            else:
+                                feedback.pushDebugInfo(f"Model already exists at {model_path}")
 
-                before_files_data = [rasters[0]['data']]
-                after_files_data = [rasters[1]['data']]
+                            # Ruta de salida para la cicatriz generada
+                            firescar_outputfile_name = f"{selected_pair_folder.split('/')[1]}-{selected_pair_folder.split('/')[5]}-Firescar.tif"
+                            output_path = os.path.join(os.path.dirname(__file__), "results", firescar_outputfile_name)
+                            feedback.pushDebugInfo(f"output path: {output_path}")  
 
-                device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-                model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+                            # Preparar los datos para la evaluación del modelo
+                            rasters = [
+                                {"type": "before", "id": 0, "qid": before_layer.id(), "name": before_layer.name(), "data": get_rlayer_data(before_layer), "layer": before_layer},
+                                {"type": "burnt", "id": 1, "qid": burnt_layer.id(), "name": burnt_layer.name(), "data": get_rlayer_data(burnt_layer), "layer": burnt_layer}
+                            ]
 
-                np.random.seed(3)
-                torch.manual_seed(3)
+                            before_files_data = [rasters[0]['data']]
+                            after_files_data = [rasters[1]['data']]
 
-                data_eval = create_datasetAS(before_files_data, after_files_data, mult=1)
+                            # Cargar el modelo y evaluar las cicatrices generadas
+                            device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+                            model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+                            np.random.seed(3)
+                            torch.manual_seed(3)
+                            data_eval = create_datasetAS(before_files_data, after_files_data, mult=1)
+                            batch_size = 1  # 1 para crear imágenes de diagnóstico, cualquier valor de lo contrario
+                            all_dl = DataLoader(data_eval, batch_size=batch_size)
 
-                batch_size = 1  # 1 to create diagnostic images, any value otherwise
-                all_dl = DataLoader(data_eval, batch_size=batch_size)  #, shuffle=True)
+                            model.eval()
 
-                model.eval()
+                            for i, batch in enumerate(all_dl):
+                                feedback.pushDebugInfo(f"Processing batch {i}")
+                                x = batch['img'].float().to(device)
+                                feedback.pushDebugInfo(f"Input shape: {x.shape}")
+                                output = model(x).cpu()
+                                feedback.pushDebugInfo(f"Output shape: {output.shape}")
 
-                for i, batch in enumerate(all_dl):
-                    feedback.pushDebugInfo(f"Processing batch {i}")
-                    x = batch['img'].float().to(device)
-                    feedback.pushDebugInfo(f"Input shape: {x.shape}")
-                    output = model(x).cpu()
-                    feedback.pushDebugInfo(f"Output shape: {output.shape}")
+                                # Obtener el mapa de predicción binaria
+                                pred = np.zeros(output.shape)
+                                pred[output >= 0] = 1
 
-                    # obtain binary prediction map
-                    pred = np.zeros(output.shape)
-                    pred[output >= 0] = 1
+                                generated_matrix = pred[0][0]
 
-                    generated_matrix = pred[0][0]
+                                if output_path:
+                                    feedback.pushDebugInfo(f"Writing raster to: {output_path}")
+                                    # Llamar a la función para escribir el raster georreferenciado
+                                    self.writeRaster(generated_matrix, output_path, before_layer, feedback)
+                                    feedback.pushDebugInfo(f"Adding raster layer: {output_path}")
+                                    self.addRasterLayer(output_path, firescar_outputfile_name, context)
 
-                    if output_path:
-                        feedback.pushDebugInfo(f"Writing raster to: {output_path}")
-                        # Llamar a la función para escribir el raster georreferenciado
-                        self.writeRaster(generated_matrix, output_path, before_layer, feedback)
-                        feedback.pushDebugInfo(f"Adding raster layer: {output_path}")
-                        self.addRasterLayer(output_path, before_layer.name(), context)
-
-
-                return {}
+                            return {}
 
         raise QgsProcessingException("No se seleccionó una localidad o par de fotos válidos.")
     
