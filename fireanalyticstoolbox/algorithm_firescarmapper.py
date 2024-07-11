@@ -33,7 +33,7 @@ TODO:
 
 from fire2a.raster import get_rlayer_data
 import os
-from qgis.core import (QgsProcessingAlgorithm, QgsProject, QgsRasterLayer, QgsProcessingException)
+from qgis.core import (QgsProcessingAlgorithm, QgsProject, QgsRasterLayer, QgsProcessingException, QgsRasterDataProvider)
 from qgis.PyQt.QtCore import QCoreApplication
 
 import boto3
@@ -139,10 +139,8 @@ class FireScarMapper(QgsProcessingAlgorithm):
                 ]
                 feedback.pushDebugInfo(f"layer name: {before_layer.name()}")  
 
-                before_files = [rasters[0]]
-                after_files = [rasters[1]]
-                before_files_data = [before_files[0]['data']]
-                after_files_data = [after_files[0]['data']]
+                before_files_data = [rasters[0]['data']]
+                after_files_data = [rasters[1]['data']]
 
                 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
                 model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
@@ -171,36 +169,35 @@ class FireScarMapper(QgsProcessingAlgorithm):
                     generated_matrix = pred[0][0]
 
                     if output_path:
-                        # Adjust the name of the output path to be unique for each firescar
-                        #output_path_with_index = output_path[:-4] + f"_{i+1}.tif"
                         feedback.pushDebugInfo(f"Writing raster to: {output_path}")
-                        self.writeRaster(generated_matrix, output_path, context)
+                        # Llamar a la función para escribir el raster georreferenciado
+                        self.writeRaster(generated_matrix, output_path, before_layer, feedback)
                         feedback.pushDebugInfo(f"Adding raster layer: {output_path}")
-                        height, width = generated_matrix.shape
-                        feedback.pushDebugInfo(f"{height=}")
-                        feedback.pushDebugInfo(f"{width=}")
-                        self.addRasterLayer(output_path, before_files[i]['name'], context)
+                        self.addRasterLayer(output_path, f"Firescar_{i+1}", context)
+
 
                 return {}
 
         raise QgsProcessingException("No se seleccionó una localidad o par de fotos válidos.")
     
-    def writeRaster(self, matrix, file_path, context):
-        height, width = matrix.shape
-
+    def writeRaster(self, matrix, file_path, before_layer, feedback):
+        height, width = before_layer. matrix.shape
         driver = gdal.GetDriverByName('GTiff')
         raster = driver.Create(file_path, width, height, 1, gdal.GDT_Int16)
 
-        originX = 0
-        originY = 0
-        pixelWidth = 1
-        pixelHeight = 1
+        # Obtener la extensión y el tamaño de píxel de la imagen antes del incendio
+        extent = before_layer.extent()
+        pixel_width = before_layer.rasterUnitsPerPixelX()
+        pixel_height = before_layer.rasterUnitsPerPixelY()
 
-        raster.SetGeoTransform((originX, pixelWidth, 0, originY, 0, -pixelHeight))
+        # Calcular la geotransformación
+        originX = extent.xMinimum()
+        originY = extent.yMaximum()
+        geo_transform = (originX, pixel_width, 0, originY, 0, -pixel_height)
 
-        spatialReference = osr.SpatialReference()
-        spatialReference.ImportFromEPSG(4326)
-        raster.SetProjection(spatialReference.ExportToWkt())
+        # Establecer la georreferenciación del raster generado
+        raster.SetGeoTransform(geo_transform)
+        raster.SetProjection(before_layer.crs().toWkt())
 
         band = raster.GetRasterBand(1)
         band.WriteArray(matrix)
