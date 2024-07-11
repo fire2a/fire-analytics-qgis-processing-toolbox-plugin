@@ -204,7 +204,7 @@ class MeteoAlgo(QgsProcessingAlgorithm):
 
     def shortDescription(self):
         return self.tr(
-            """Meteo algorithm, generates weather scenarios for fire simulations.<br>
+            """test Meteo algorithm, generates weather scenarios for fire simulations.<br>
             <b>Args:</b><br>
             - <b>location</b>: the first point of a vector layer will be used, else the center of the map is calculated. <b>Only Chile between 28S and 34S makes sense</b><br>
             - <b>start timestamp</b>: Reference historical data of the last 5 years<br>
