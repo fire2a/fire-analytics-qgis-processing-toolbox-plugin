@@ -68,7 +68,7 @@ class FireScarMapper(QgsProcessingAlgorithm):
     
     def processAlgorithm(self, parameters, context, feedback):
         # Abrir el diálogo de selección de S3 para localidades
-        dialog_locality = S3SelectionDialog(self.S3_BUCKET, self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY)
+        dialog_locality = S3SelectionDialog(self.S3_BUCKET, self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, prefix="Images/")
         if dialog_locality.exec_():
             selected_locality = dialog_locality.get_selected_item()  # Debería contener la ruta de la localidad seleccionada en S3
 
@@ -130,7 +130,8 @@ class FireScarMapper(QgsProcessingAlgorithm):
                     feedback.pushDebugInfo(f"Model already exists at {model_path}")
 
 
-                output_path = os.path.join(os.path.dirname(__file__), "results",f"{selected_pair_folder.split('/')[0]}-{selected_pair_folder.split('/')[1]}-Firescar.tif")
+                firescar_outputfile_name = f"{selected_pair_folder.split('/')[0]}-{selected_pair_folder.split('/')[1]}-Firescar.tif"
+                output_path = os.path.join(os.path.dirname(__file__), "results", firescar_outputfile_name)
                 feedback.pushDebugInfo(f"output path: {output_path}")  
 
                 rasters = [
@@ -173,7 +174,7 @@ class FireScarMapper(QgsProcessingAlgorithm):
                         # Llamar a la función para escribir el raster georreferenciado
                         self.writeRaster(generated_matrix, output_path, before_layer, feedback)
                         feedback.pushDebugInfo(f"Adding raster layer: {output_path}")
-                        self.addRasterLayer(output_path, f"Firescar_{i+1}", context)
+                        self.addRasterLayer(output_path, before_layer.name(), context)
 
 
                 return {}
