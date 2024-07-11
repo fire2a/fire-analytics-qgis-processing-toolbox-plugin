@@ -1,0 +1,3 @@
+treat_names=['JRC', 'NHA', 'TQK', 'UGM', 'WLV']
+budget=4937.717580720547
+area=53485224340.891495

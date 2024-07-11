@@ -1,0 +1,8 @@
+H=200
+W=200
+R=5
+E=3
+treat_names=['ksm', 'vhb', 'gjc', 'loe', 'jwc']
+team_names=['LM', 'GL', 'ZL']
+area=98881.854
+budget=12871051.620577073
