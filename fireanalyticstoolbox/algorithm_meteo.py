@@ -204,11 +204,16 @@ class MeteoAlgo(QgsProcessingAlgorithm):
 
     def shortDescription(self):
         return self.tr(
-            """test Meteo algorithm, generates weather scenarios for fire simulations.<br>
+            """This algorithm generates weather scenarios for the Cell2Fire fire simulator and the Kitral fuel model. 
+            These scenarios use real data from weather stations and are valid for Chile from the Valparaíso region to the Araucanía region.<br>
+            
             <b>Args:</b><br>
-            - <b>location</b>: the first point of a vector layer will be used, else the center of the map is calculated. <b>Only Chile between 28S and 34S makes sense</b><br>
-            - <b>start timestamp</b>: Reference historical data of the last 5 years<br>
-            - <b>step resolution</b>: number of rows in the output raster (it's meaning can later be changed using the --Weather-Period-Length cli argument that defaults to 60<br>
+            
+            - <b>location</b>: Is used to select the weather stations closest to this point.
+            The first point of a vector layer will be used, else the center of the map is calculated. <b>Only Chile between 32S and 40S makes sense</b><br>
+            - <b>start timestamp</b>: NA Reference historical data of the last 5 years<br>
+            - <b>step resolution</b>: NA number of rows in the output raster (it's meaning can later be changed using the --Weather-Period-Length cli argument that defaults to 60<br>
+            -<b> Length of each scenario </b>: Indicates the duration, in hours, of each scenario.  <br>
             - <b>number_of_simulations</b>: files to generate<br>
             <b>Returns:</b><br>
             - <b>output_directory</b>: folder where the files are saved containing:<br>
