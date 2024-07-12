@@ -216,6 +216,7 @@ class MeteoAlgo(QgsProcessingAlgorithm):
             -<b> Length of each scenario </b>: Indicates the duration, in hours, of each scenario.  <br>
             - <b>number_of_simulations</b>: files to generate<br>
             <b>Returns:</b><br>
+            
             - <b>output_directory</b>: folder where the files are saved containing:<br>
             - Weather(*).csv numbered files with each weather scenario<br>
             - TBI: vector layer representing the weather scenarios as arrows<br>
