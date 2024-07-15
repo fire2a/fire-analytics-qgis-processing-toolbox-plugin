@@ -30,7 +30,7 @@ Never gonna tell a lie and hurt you</about>
 		<tracker>https://github.com/fdobad/qgis-minimal-plugin/issues</tracker>
 		<repository>https://github.com/fdobad/qgis-minimal-plugin</repository>
 		<tags>"pluginbuilder, template, minimal, never gonna give you up"</tags>
-		<external_dependencies/>numpy<external_dependencies/>
+		<external_dependencies>fire2a-lib<external_dependencies/>
 		<server>False<server/>
 	</pyqgis_plugin>
 	<pyqgis_plugin name="Fire Analytics Processing-Toolbox" version="0.2.4" plugin_id="2">
