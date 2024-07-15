@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugins ml-update="aware" ml-stage="preload" ml-view="top">
-	<pyqgis_plugin name="Rick Roll" version="0.2" plugin_id="1029384756">
+	<pyqgis_plugin name="Rick Roll" version="0.2" plugin_id="1">
 		<description>Get Rick Rolled to the rythm</description>
 		<about>We're no strangers to love&#xA;
 You know the rules and so do I (do I)&#xA;
@@ -30,16 +30,17 @@ Never gonna tell a lie and hurt you</about>
 		<tracker>https://github.com/fdobad/qgis-minimal-plugin/issues</tracker>
 		<repository>https://github.com/fdobad/qgis-minimal-plugin</repository>
 		<tags>"pluginbuilder, template, minimal, never gonna give you up"</tags>
-		<external_dependencies><external_dependencies/>
+		<external_dependencies/>numpy<external_dependencies/>
 		<server>False<server/>
 	</pyqgis_plugin>
-	<pyqgis_plugin name="Fire Analytics Processing-Toolbox" version="0.2.4" plugin_id="1029384756">
-		<description>Wild/Forest fires simulation and insights related algorithms. Including a fire simulator, user valued risk metrics and prescriptive analytics via mathematical programming optimization to generate management recommendations</description>
-		<about>This Processing-ToolBox-Plugin gathers and implements multiple algorithms needed by landscape planners, fire risk managers, biologists, geographers, and so on; Looking for optimized decision support and insights into large forest fires in a data-oriented pipelined way. Developed by the Fire2a(.com) research group, under the GNU GPL v3 license. We are eager to help! Contact Us!&#xA;
-ALL VERSIONS: https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases&#xA;
-BEFORE INSTALLING ENTER: !pip install fire2a-lib , in your QGIS python console.&#xA;</about>
+	<pyqgis_plugin name="Fire Analytics Processing-Toolbox" version="0.2.4" plugin_id="2">
+		<description>Wild &amp; Forest fires simulation and insights related algorithms. Including a fire simulator, user valued risk metrics and prescriptive analytics via mathematical programming optimization to generate management recommendations</description>
+		<about>This Processing-ToolBox-Plugin gathers and implements multiple algorithms needed by landscape planners, fire risk managers, biologists, geographers, and so on; Looking for optimized decision support and insights into large forest fires in a friendly dialog or graphical-model data-oriented pipelined way (also CLI and scripting). Developed by the Fire Adv.Analytics research group, under GNU GPL v3 license. Contact Us fire2a.com&#xA;
+DOCUMENTATION: github.com/fire2a/docs&#xA;
+ALL VERSIONS: github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases&#xA;
+BEFORE INSTALLING ENTER: !pip install fire2a-lib , in your QGIS python console.</about>
 		<version>0.2.4</version>
-		<qgis_minimum_version>3.34</qgis_minimum_version>
+		<qgis_minimum_version>3.36.1</qgis_minimum_version>
 		<qgis_maximum_version>6.66</qgis_maximum_version>
 		<homepage>https://fire2a.github.io/docs</homepage>
 		<file_name>fireanalyticstoolbox</file_name>
@@ -54,7 +55,7 @@ BEFORE INSTALLING ENTER: !pip install fire2a-lib , in your QGIS python console.&
 		<tracker>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/issues</tracker>
 		<repository>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/</repository>
 		<tags>python,fire,forest fires,wildfires,fire simulator,prescriptive analytics</tags>
-		<external_dependencies><external_dependencies/>
+		<external_dependencies/>
 		<server>False<server/>
 	</pyqgis_plugin>
 </plugins>
