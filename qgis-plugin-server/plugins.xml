@@ -34,8 +34,8 @@ Never gonna tell a lie and hurt you</about>
 		<server/>
 	</pyqgis_plugin>
 	<pyqgis_plugin name="Rick roller name" version="0.2" plugin_id="1029384756">
-		<description></description>
-		<about></about>
+		</description>
+		</about>
 		<version>0.2</version>
 		<qgis_minimum_version>3.1</qgis_minimum_version>
 		<qgis_maximum_version>6.66</qgis_maximum_version>
@@ -52,7 +52,7 @@ Never gonna tell a lie and hurt you</about>
 		<tracker>https://github.com/fdobad/qgis-minimal-plugin/issues</tracker>
 		<repository>https://github.com/fdobad/qgis-minimal-plugin</repository>
 		<tags>"pluginbuilder, template, minimal, never gonna give you up"</tags>
-		<external_dependencies>fire2a-lib<external_dependencies/>
+		<external_dependencies>"fire2a-lib"<external_dependencies/>
 		<server/>
 	</pyqgis_plugin>
 	<pyqgis_plugin name="Fire Analytics Processing-Toolbox" version="0.1.25" plugin_id="1029384756">
