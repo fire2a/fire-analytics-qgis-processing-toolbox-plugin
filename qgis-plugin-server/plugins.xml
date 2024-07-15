@@ -31,7 +31,7 @@ Never gonna tell a lie and hurt you</about>
 		<repository>https://github.com/fdobad/qgis-minimal-plugin</repository>
 		<tags>"pluginbuilder, template, minimal, never gonna give you up"</tags>
 		<external_dependencies>fire2a-lib<external_dependencies/>
-		<server>False<server/>
+		<server/>
 	</pyqgis_plugin>
 	<pyqgis_plugin name="Fire Analytics Processing-Toolbox" version="0.2.4" plugin_id="2">
 		<description>Wild &amp; Forest fires simulation and insights related algorithms. Including a fire simulator, user valued risk metrics and prescriptive analytics via mathematical programming optimization to generate management recommendations</description>
@@ -56,6 +56,6 @@ BEFORE INSTALLING ENTER: !pip install fire2a-lib , in your QGIS python console.<
 		<repository>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/</repository>
 		<tags>python,fire,forest fires,wildfires,fire simulator,prescriptive analytics</tags>
 		<external_dependencies/>
-		<server>False<server/>
+		<server/>
 	</pyqgis_plugin>
 </plugins>
