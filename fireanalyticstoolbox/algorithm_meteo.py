@@ -159,16 +159,16 @@ class MeteoAlgo(QgsProcessingAlgorithm):
         # Call the weather generator
         # ==========================
         # FIXME REMOVE IN PRODUCTION 0
-        from importlib import reload
-        from fire2a import meteo
-        reload(meteo)
+        # from importlib import reload
+        # from fire2a import meteo
+        # reload(meteo)
         from fire2a.meteo import generate as generater_weather
         # FIXME REMOVE IN PRODUCTION 1
         retval, output_dict = generater_weather(**instance)
 
         if retval == 0:
             feedback.pushInfo(f"Generated {len(output_dict['filelist'])=} {output_dict['filelist'][:10]=} etc.")
-            feedback.pushDebugInfo(f"{output_dict=}") # FIXME REMOVE IN PRODUCTION
+            # feedback.pushDebugInfo(f"{output_dict=}") # FIXME REMOVE IN PRODUCTION
             write_log(feedback, name=self.name())
             return {self.OUT: str(instance["outdir"]), "filelist": output_dict["filelist"]}
         elif retval >= 0:
