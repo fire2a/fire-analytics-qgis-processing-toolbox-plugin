@@ -432,6 +432,7 @@ class RasterTreatmentTeamAlgorithm(QgsProcessingAlgorithm):
         return "https://www.github.com/fdobad/qgis-processingplugin-template/issues"
 
     def shortDescription(self):
+        sample_path = (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri()
         return self.tr(
             """<b>Objetive:</b> Maximize the changed value of the treated raster<br> 
             <b>Decisions:</b> Which treatment to apply by which team to each pixel (or no change)<br>
@@ -458,9 +459,8 @@ class RasterTreatmentTeamAlgorithm(QgsProcessingAlgorithm):
             - rasters "must be saved to disk (for layers to have a publicSource != "")"<br>
             - raster no data == -1 <br>
             <br>
-            sample: """
-            + (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri()
-            + """<br><br> Use generate_polygon_treatment.py in QGIS's python console to generate a complete random instance (rasters, 3.csv's and sensible params.txt)<br><br>
+            sample: <a href='"""+sample_path+"'>"+sample_path+"""</a><br><br>
+            Use generate_polygon_treatment.py in QGIS's python console to generate a complete random instance (rasters, 3.csv's and sensible params.txt)<br><br>
 
             <b>Possible Future Features</b><br>
             (i) An optional <b>boolean multiband raster</b> defining the allowed target treatments (where 1s is allowed)<br>
@@ -629,7 +629,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         # TODO better with
         # treats_arr = np.array([ treats_dic.get((h, w, tr), -3) for h, w, tr in np.ndindex(H, W, TR)], dtype=float).reshape ?
         treats_arr = np.array(
-            [[treats_dic.get((h, w, tr), -3) for tr in model.TR] for h, w in np.ndindex(H, W)], dtype=float
+            [[treats_dic.get((h, w, tr), -3) for tr in model.R] for h, w in np.ndindex(H, W)], dtype=float
         )
         # feedback.pushDebugInfo(f"{treats_arr=}, {treats_arr.shape=}")
         feedback.pushDebugInfo(f"{treats_arr.shape=}")
@@ -707,6 +707,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         return "https://www.github.com/fdobad/qgis-processingplugin-template/issues"
 
     def shortDescription(self):
+        sample_path = (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri()
         return self.tr(
             """<b>Objetive:</b> Maximize the changed value of the treated raster<br> 
             <b>Decisions:</b> Which treatment to apply to each pixel (or no change)<br>
@@ -725,9 +726,8 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
             - rasters "must be saved to disk (for layers to have a publicSource != "")"<br>
             - raster no data == -1 <br>
             <br>
-            sample: """
-            + (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri()
-            + """<br><br> Use generate_polygon_treatment.py in QGIS's python console to generate a random instance (rasters & treatmets_costs.csv)<br><br>
+            sample: <a href='"""+sample_path+"'>"+sample_path+"""</a><br><br>
+            Use generate_polygon_treatment.py in QGIS's python console to generate a random instance (rasters & treatmets_costs.csv)<br><br>
 
             (v) Possible feature? An optional <b>boolean multiband raster</b> defining the allowed target treatments (1s is allowed)<br>
             (viii) Possible feature? Pass SOS constraint weights to the solver, or simpler: a base exponent to build treatment index-order exponential weights, e.g., 2->[8,4,2,1] for 4 treatments in a pixel <br>
@@ -1051,6 +1051,7 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
         return "https://www.github.com/fdobad/qgis-processingplugin-template/issues"
 
     def shortDescription(self):
+        sample_path = (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri()
         return self.tr(
             """<b>Objetive:</b> Maximize the changed value of the treated polygons<br> 
             <b>Decisions:</b> Which treatment to apply to each polygon (or no change)<br>
@@ -1067,9 +1068,8 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
             (iv) <b>Area</b> (same units than the geometry of the polygons)<br>
             <br>
             <br>
-            Sample: """
-            + (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri()
-            + """<br><br> Use polygons.gpkg, polygons_treatments.csv & polygons_params.txt to run a sample<br><br>
+            sample: <a href='"""+sample_path+"'>"+sample_path+"""</a><br><br>
+            Use polygons.gpkg, polygons_treatments.csv & polygons_params.txt to run a sample<br><br>
             Or generate_polygon_treatment.py in QGIS's python console to generate a sensible instance in any polygon layer"""
         )
 
@@ -1114,7 +1114,7 @@ def do_raster_treatment(
     Returns:
         The pyomo model object.
     """
-    printf(f"Building pyomo model", feedback)
+    printf("Building pyomo model", feedback)
     start = time()
     m = pyo.ConcreteModel(name="raster_treatment")
 
@@ -1282,7 +1282,7 @@ def do_raster_treatment_teams(
     Returns:
         The pyomo model object.
     """
-    printf(f"Building pyomo model", feedback)
+    printf("Building pyomo model", feedback)
     start = time()
     m = pyo.ConcreteModel(name="raster_treatment_team")
 

@@ -203,6 +203,14 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
         capacity = np.round(weight_sum * ratio)
         feedback.pushInfo(f"capacity bound: {ratio=}, {weight_sum=}, {capacity=}\n")
 
+        # cplex hack
+        # TODO : make pull request to pyomo to fix this
+        if tmp := self.parameterAsString(parameters, "SOLVER", context):
+            if tmp.startswith("cplex"):
+                value_data = value_data.astype("float64")
+                weight_data = weight_data.astype("float64")
+                feedback.pushDebugInfo(f"cplex hack: changed dtypes {value_data.dtype=},{weight_data.dtype=}")
+
         model = do_knapsack(value_data[mask], weight_data[mask], capacity)
         results = pyomo_run_model(self, parameters, context, feedback, model)
         retval, solver_dic = pyomo_parse_results(results, feedback)
@@ -458,6 +466,14 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         weight_sum = weight_data[mask].sum()
         capacity = np.round(weight_sum * ratio)
         feedback.pushInfo(f"capacity bound: {ratio=}, {weight_sum=}, {capacity=}\n")
+
+        # cplex hack
+        # TODO : make pull request to pyomo to fix this
+        if tmp := self.parameterAsString(parameters, "SOLVER", context):
+            if tmp.startswith("cplex"):
+                value_data = value_data.astype("float64")
+                weight_data = weight_data.astype("float64")
+                feedback.pushDebugInfo(f"cplex hack: changed dtypes {value_data.dtype=},{weight_data.dtype=}")
 
         model = do_knapsack(value_data[mask], weight_data[mask], capacity)
         results = pyomo_run_model(self, parameters, context, feedback, model, display_model=False)
