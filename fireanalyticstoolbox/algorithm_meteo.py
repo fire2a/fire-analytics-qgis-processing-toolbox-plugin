@@ -204,21 +204,17 @@ class MeteoAlgo(QgsProcessingAlgorithm):
 
     def shortDescription(self):
         return self.tr(
-            """This algorithm generates weather scenarios for the Cell2Fire fire simulator and the Kitral fuel model. 
-            These scenarios use real data from weather stations and are valid for Chile from the Valparaíso region to the Araucanía region.<br>
-            
-            <b>Args:</b><br>
-            
-            - <b>location</b>: Is used to select the weather stations closest to this point.
-            The first point of a vector layer will be used, else the center of the map is calculated. <b>Only Chile between 32S and 40S makes sense</b><br>
-            - <b>start timestamp</b>: NA Reference historical data of the last 5 years<br>
-            - <b>step resolution</b>: NA number of rows in the output raster (it's meaning can later be changed using the --Weather-Period-Length cli argument that defaults to 60<br>
-            -<b> Length of each scenario </b>: Indicates the duration, in hours, of each scenario.  <br>
+            """<b>Meteo</b> generates weather scenarios files for (Cell2)Fire(W) Simulator using the Kitral fuel model standard.<br>
+            Real Chilean weather station data from the Valparaíso to the Araucanía region is used; Defining the target area (32S to 40S)<br>
+            <br>
+            - Selecting a <b>location</b> will pick the three nearest weather stations for sampling<br>
+            - <b>Length of each scenario </b>: Indicates the duration, in hours, of each scenario<br>
             - <b>number_of_simulations</b>: files to generate<br>
-            <b>Returns:</b><br>
-            
-            - <b>output_directory</b>: folder where the files are saved containing:<br>
-            - Weather(*).csv numbered files with each weather scenario<br>
-            - TBI: vector layer representing the weather scenarios as arrows<br>
+            - <b>output_directory</b>: folder where the files are written containing Weather(+digit).csv numbered files with each weather scenario<br>
+            <br>
+            Future Roadmap:<br>
+            - <b>start timestamp</b>: 1. Label the generated scenarios with the start date and time. 2. Generate according to the time of day<br>
+            - <b>step resolution</b>: Do other than hourly weather scenarios, to be used with the --Weather-Period-Length option (that defaults to 60)<br>
+            - Draw an animated vector layer representing the weather scenarios as arrows<br>
             """
         )
