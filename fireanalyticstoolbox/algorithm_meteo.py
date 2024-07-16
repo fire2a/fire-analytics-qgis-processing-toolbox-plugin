@@ -32,7 +32,7 @@ __revision__ = "$Format:%H$"
 from datetime import datetime
 from pathlib import Path
 
-from qgis.core import (QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsProcessing, QgsProcessingAlgorithm,
+from qgis.core import (QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterDefinition,
                        QgsProcessingException, QgsProcessingParameterDateTime, QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterNumber, QgsProcessingParameterVectorLayer, QgsProject)
 from qgis.PyQt.QtCore import QCoreApplication
@@ -61,16 +61,15 @@ class MeteoAlgo(QgsProcessingAlgorithm):
                 optional=True,
             )
         )
-        self.addParameter(
-            QgsProcessingParameterDateTime(
+        qppdt = QgsProcessingParameterDateTime(
                 self.IN_DATE,
                 self.tr("Start timestamp"),
                 defaultValue=self.now,
                 optional=False,
             )
-        )
-        self.addParameter(
-            QgsProcessingParameterNumber(
+        qppdt.setFlags(qppdt.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppdt)
+        qppn = QgsProcessingParameterNumber(
                 self.IN_ROWRES,
                 self.tr("Step resolution in minutes (time between rows)"),
                 type=QgsProcessingParameterNumber.Integer,
@@ -78,7 +77,8 @@ class MeteoAlgo(QgsProcessingAlgorithm):
                 minValue=1,
                 optional=False,
             )
-        )
+        qppn.setFlags(qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppn)
         self.addParameter(
             QgsProcessingParameterNumber(
                 self.IN_NUMROWS,
