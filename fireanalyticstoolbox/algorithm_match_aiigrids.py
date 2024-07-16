@@ -36,6 +36,7 @@ from qgis.core import (QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParam
                        QgsProcessingParameterRasterDestination, QgsProcessingParameterRasterLayer,
                        QgsProcessingParameterString, QgsProcessingUtils)
 from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtGui import QIcon
 
 from .algorithm_utils import QgsProcessingParameterRasterDestinationAIIGrid, write_log
 
@@ -192,10 +193,10 @@ class MatchAIIGrid(QgsProcessingAlgorithm):
         return self.tr("Match AII Grids")
 
     def group(self):
-        return self.tr(self.groupId())
+        return self.tr("Simulator Preparation Help")
 
     def groupId(self):
-        return "zauxiliary"
+        return "simulatorpreparation"
 
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)
@@ -213,3 +214,6 @@ class MatchAIIGrid(QgsProcessingAlgorithm):
             not implemented: dealing with CRSs or nodatas.
             """
         )
+
+    def icon(self):
+        return QIcon(":/plugins/fireanalyticstoolbox/assets/match_aii.svg")

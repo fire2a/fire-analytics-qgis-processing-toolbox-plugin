@@ -37,6 +37,7 @@ from qgis.core import (QgsCoordinateReferenceSystem, QgsCoordinateTransform, Qgs
                        QgsProcessingParameterNumber, QgsProcessingParameterVectorLayer, QgsProject)
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.utils import iface
+from qgis.PyQt.QtGui import QIcon
 
 from .algorithm_utils import write_log
 
@@ -188,10 +189,10 @@ class MeteoAlgo(QgsProcessingAlgorithm):
         return self.tr("Meteo")
 
     def group(self):
-        return self.tr(self.groupId())
+        return self.tr("Simulator Preparation Help")
 
     def groupId(self):
-        return "zexperimental"
+        return "simulatorpreparation"
 
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)
@@ -218,3 +219,6 @@ class MeteoAlgo(QgsProcessingAlgorithm):
             - Draw an animated vector layer representing the weather scenarios as arrows<br>
             """
         )
+
+    def icon(self):
+        return QIcon(":/plugins/fireanalyticstoolbox/assets/meteo.svg")

@@ -12,5 +12,7 @@
 	<file>downloader.svg</file>
 	<file>bc.svg</file>
 	<file>dpv.svg</file>
+	<file>match_aii.svg</file>
+	<file>meteo.svg</file>
     </qresource>
 </RCC>
