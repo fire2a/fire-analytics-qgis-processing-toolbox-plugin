@@ -541,7 +541,6 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
         files, msg_dir, msg_name, ext = glob_numbered_files(
             Path(self.parameterAsString(parameters, self.IN_MSG, context))
         )
-        # files, msg_dir, msg_name, ext = get_files2(Path(self.parameterAsString(parameters, self.IN_MSG, context)))
         if files == []:
             return False, f"{msg_dir} does not contain any non-empty '{msg_name}[0-9]*.{ext}' files"
         return True, ""
@@ -943,13 +942,14 @@ class ScarSIMPP(QgsProcessingAlgorithm):
     OUT_BP = "BurnProbability"
 
     def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
-        retval, retmsg, files, scar_dir, scar_name, ext = get_scar_files(
+        from fire2a.cell2fire import get_scars_files
+        retval, msg, root, parent_dirs, parent_ids, files, children_ids = get_scars_files(
             Path(self.parameterAsString(parameters, self.IN_SCAR, context))
         )
         if not retval:
-            return False, retmsg
+            return False, msg
         if files == []:
-            return False, f"{scar_dir} does not contain any non-empty '{scar_name}[0-9]*{ext}' files"
+            return False, f"{root} does not contain any non-empty scar files"
         scar_raster = self.parameterAsOutputLayer(parameters, self.OUT_RASTER, context)
         burn_prob = self.parameterAsOutputLayer(parameters, self.OUT_BP, context)
         scar_poly = self.parameterAsOutputLayer(parameters, self.OUT_POLY, context)
@@ -1179,35 +1179,6 @@ class ScarSIMPP(QgsProcessingAlgorithm):
 
             <i>If the Bundle algorithm failed for you, this propagation output is the most likely cause...</i>"""
         )
-
-
-def get_scar_files(sample_file: Path) -> Tuple[list[Path], Path, str, str]:
-    """Get a list of files with the same name (+ any digit) and extension and the directory and name of the sample file
-    sample_file = Path('/home/fdo/source/C2F-W/data/Vilopriu_2013/firesim_231001_145657/results/Grids/Grids1/ForestGrid00.csv')
-    """
-    retval = 0
-    ext = sample_file.suffix
-    if match := search("(\\d+)$", sample_file.stem):
-        num = match.group()
-    else:
-        return False, f"sample_file: {sample_file} does not contain a number at the end", [], None, None, None
-    file_name = sample_file.stem[: -len(num)]
-    parent1 = sample_file.absolute().parent
-    parent2 = sample_file.absolute().parent.parent
-    if match := search("(\\d+)$", parent1.name):
-        num = match.group()
-    else:
-        return False, f"sample_file parent: {sample_file} does not contain a number at the end", [], None, None, None
-    parent1name = parent1.name[: -len(num)]
-    file_gen = parent2.rglob(parent1name + "[0-9]*" + sep + file_name + "[0-9]*" + ext)
-    files = []
-    for afile in sorted(file_gen):
-        if afile.is_file() and afile.stat().st_size > 0:
-            files += [afile.relative_to(parent2)]
-    # QgsMessageLog.logMessage(f"files: {files}, adir: {adir}, aname: {aname}, ext: {ext}", "fire2a", Qgis.Info)
-
-    return True, "", files, parent2, file_name, ext
-
 
 def run_alg_styler_propagation():
     """Create a New Post Processor class and returns it"""
