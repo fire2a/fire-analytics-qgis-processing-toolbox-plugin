@@ -1,165 +1,62 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugins ml-update="aware" ml-stage="preload" ml-view="top">
-	<pyqgis_plugin name="Rick roller name" version="0.2" plugin_id="1029384756">
-		<description>Rick roll description</description>
-		<about>We're no strangers to love
-You know the rules and so do I (do I)
-A full commitment's what I'm thinking of
-You wouldn't get this from any other guy
-I just wanna tell you how I'm feeling
-Gotta make you understand
-Never gonna give you up
-Never gonna let you down
-Never gonna run around and desert you
-Never gonna make you cry
-Never gonna say goodbye
-Never gonna tell a lie and hurt you</about>
-		<version>0.2</version>
-		<qgis_minimum_version>3.1</qgis_minimum_version>
-		<qgis_maximum_version>6.66</qgis_maximum_version>
-		<homepage>https://github.com/fdobad/qgis-minimal-plugin</homepage>
-		<file_name>rickrollmodule.zip</file_name>
-		<icon>https://github.com/fdobad/qgis-minimal-plugin/blob/main/rickrollmodule/icon.png</icon>
-		<author_name>fdobad</author_name>
-		<download_url>https://github.com/fdobad/qgis-minimal-plugin/releases/download/v0.2/rickrollmodule.zip</download_url>
-		<uploaded_by>fdobad</uploaded_by>
-		<create_date>"2006-06-06"</create_date>
-		<update_date>"2020-04-20"</update_date>
-		<experimental>False</experimental>
-		<deprecated>False</deprecated>
-		<tracker>https://github.com/fdobad/qgis-minimal-plugin/issues</tracker>
-		<repository>https://github.com/fdobad/qgis-minimal-plugin</repository>
-		<tags>"pluginbuilder, template, minimal, never gonna give you up"</tags>
-		<external_dependencies/>
-		<server/>
-	</pyqgis_plugin>
-	<pyqgis_plugin name="Fire Analytics Processing-Toolbox" version="0.1.25" plugin_id="1029384756">
-		<description>A collection of wild/forest fires insights related algorithms. Including a fire simulator and prescriptive analytics via mathematical programming optimization to generate management recommendations</description>
-		<about>This Processing-ToolBox-Plugin gathers and implements multiple algorithms needed by landscape planners, fire risk managers, biologists, geographers, and so on; Looking for decision support and insights into large forest fires in a data-oriented pipelined way. One of the main goals is being interoperable with other tools, and being able to be used in various ways and contexts. Developed by the Fire2a(.com) research group, under the GNU GPL v3 license. We are eager to help! Contact Us!
-WARNING: Before installing follow the python dependencies installation instructions in https://fire2a.github.io/docs/docs/qgis-cookbook/README.html
-tl;dr requirements.txt: 
-- https://raw.githubusercontent.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/main/fireanalyticstoolbox/requirements.txt
-NOTICE: Must restart QGIS for the plugin to appear in the processing toolbox panel.</about>
-		<version>0.1.25</version>
-		<qgis_minimum_version>3.34</qgis_minimum_version>
-		<qgis_maximum_version>6.66</qgis_maximum_version>
-		<homepage>https://fire2a.github.io/docs</homepage>
-		<file_name>fireanalyticstoolbox</file_name>
-		<icon>https://raw.githubusercontent.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/main/fireanalyticstoolbox/assets/forestfire.svg</icon>
-		<author_name>fdobad</author_name>
-		<download_url>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases/download/v0.1.25/fireanalyticstoolbox_v0.1.25.zip</download_url>
-		<uploaded_by>fdobad</uploaded_by>
-		<create_date>"2006-06-06"</create_date>
-		<update_date>"2024-05-22"</update_date>
-		<experimental>False</experimental>
-		<deprecated>False</deprecated>
-		<tracker>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/issues</tracker>
-		<repository>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/</repository>
-		<tags>python,fire,forest fires,wildfires,fire simulator,prescriptive analytics</tags>
-		<external_dependencies/>
-		<server/>
-	</pyqgis_plugin>
-	<pyqgis_plugin name="Fire Analytics Processing-Toolbox" version="0.2.0" plugin_id="1029384756">
-		<description>A collection of wild/forest fires insights related algorithms. Including a fire simulator and prescriptive analytics via mathematical programming optimization to generate management recommendations</description>
-		<about>This Processing-ToolBox-Plugin gathers and implements multiple algorithms needed by landscape planners, fire risk managers, biologists, geographers, and so on; Looking for decision support and insights into large forest fires in a data-oriented pipelined way. One of the main goals is being interoperable with other tools, and being able to be used in various ways and contexts. Developed by the Fire2a(.com) research group, under the GNU GPL v3 license. We are eager to help! Contact Us!
-WARNING: Before installing follow the python dependencies installation instructions in https://fire2a.github.io/docs/docs/qgis-cookbook/README.html
-tl;dr requirements.txt: 
-- https://raw.githubusercontent.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/main/fireanalyticstoolbox/requirements.txt
-NOTICE: Must restart QGIS for the plugin to appear in the processing toolbox panel.</about>
-		<version>0.2.0</version>
-		<qgis_minimum_version>3.34</qgis_minimum_version>
-		<qgis_maximum_version>6.66</qgis_maximum_version>
-		<homepage>https://fire2a.github.io/docs</homepage>
-		<file_name>fireanalyticstoolbox</file_name>
-		<icon>https://raw.githubusercontent.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/main/fireanalyticstoolbox/assets/forestfire.svg</icon>
-		<author_name>fdobad</author_name>
-		<download_url>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases/download/v0.2.0/fireanalyticstoolbox_v0.2.0.zip</download_url>
-		<uploaded_by>fdobad</uploaded_by>
-		<create_date>"2006-06-06"</create_date>
-		<update_date>"2024-06-05"</update_date>
-		<experimental>False</experimental>
-		<deprecated>False</deprecated>
-		<tracker>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/issues</tracker>
-		<repository>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/</repository>
-		<tags>python,fire,forest fires,wildfires,fire simulator,prescriptive analytics</tags>
-		<external_dependencies/>
-		<server/>
-	</pyqgis_plugin>
-	<pyqgis_plugin name="Fire Analytics Processing-Toolbox" version="0.2.1" plugin_id="1029384756">
-		<description>A collection of wild/forest fires insights related algorithms. Including a fire simulator and prescriptive analytics via mathematical programming optimization to generate management recommendations</description>
-		<about>This Processing-ToolBox-Plugin gathers and implements multiple algorithms needed by landscape planners, fire risk managers, biologists, geographers, and so on; Looking for decision support and insights into large forest fires in a data-oriented pipelined way. One of the main goals is being interoperable with other tools, and being able to be used in various ways and contexts. Developed by the Fire2a(.com) research group, under the GNU GPL v3 license. We are eager to help! Contact Us!
-WARNING: Before installing follow the python dependencies installation instructions in https://fire2a.github.io/docs/docs/qgis-cookbook/README.html
-tl;dr requirements.txt: 
-- https://raw.githubusercontent.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/main/fireanalyticstoolbox/requirements.txt
-NOTICE: Must restart QGIS for the plugin to appear in the processing toolbox panel.</about>
-		<version>0.2.1</version>
-		<qgis_minimum_version>3.34</qgis_minimum_version>
-		<qgis_maximum_version>6.66</qgis_maximum_version>
-		<homepage>https://fire2a.github.io/docs</homepage>
-		<file_name>fireanalyticstoolbox</file_name>
-		<icon>https://raw.githubusercontent.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/main/fireanalyticstoolbox/assets/forestfire.svg</icon>
-		<author_name>fdobad</author_name>
-		<download_url>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases/download/v0.2.1/fireanalyticstoolbox_v0.2.1.zip</download_url>
-		<uploaded_by>fdobad</uploaded_by>
-		<create_date>"2006-06-06"</create_date>
-		<update_date>"2024-06-10"</update_date>
-		<experimental>False</experimental>
-		<deprecated>False</deprecated>
-		<tracker>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/issues</tracker>
-		<repository>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/</repository>
-		<tags>python,fire,forest fires,wildfires,fire simulator,prescriptive analytics</tags>
-		<external_dependencies/>
-		<server/>
-	</pyqgis_plugin>
-	<pyqgis_plugin name="Fire Analytics Processing-Toolbox" version="0.2.3" plugin_id="1029384756">
-		<description>A collection of wild/forest fires insights related algorithms. Including a fire simulator and prescriptive analytics via mathematical programming optimization to generate management recommendations</description>
-		<about>This Processing-ToolBox-Plugin gathers and implements multiple algorithms needed by landscape planners, fire risk managers, biologists, geographers, and so on; Looking for decision support and insights into large forest fires in a data-oriented pipelined way. One of the main goals is being interoperable with other tools, and being able to be used in various ways and contexts. Developed by the Fire2a(.com) research group, under the GNU GPL v3 license. We are eager to help! Contact Us!
-WARNING: Before installing follow the python dependencies installation instructions in https://fire2a.github.io/docs/docs/qgis-cookbook/README.html
-tl;dr requirements.txt: 
-- https://raw.githubusercontent.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/main/fireanalyticstoolbox/requirements.txt
-NOTICE: Must restart QGIS for the plugin to appear in the processing toolbox panel.</about>
-		<version>0.2.3</version>
-		<qgis_minimum_version>3.34</qgis_minimum_version>
-		<qgis_maximum_version>6.66</qgis_maximum_version>
-		<homepage>https://fire2a.github.io/docs</homepage>
-		<file_name>fireanalyticstoolbox</file_name>
-		<icon>https://raw.githubusercontent.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/main/fireanalyticstoolbox/assets/forestfire.svg</icon>
-		<author_name>fdobad</author_name>
-		<download_url>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases/download/v0.2.3/fireanalyticstoolbox_v0.2.3.zip</download_url>
-		<uploaded_by>fdobad</uploaded_by>
-		<create_date>"2006-06-06"</create_date>
-		<update_date>"2024-07-03"</update_date>
-		<experimental>False</experimental>
-		<deprecated>False</deprecated>
-		<tracker>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/issues</tracker>
-		<repository>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/</repository>
-		<tags>python,fire,forest fires,wildfires,fire simulator,prescriptive analytics</tags>
-		<external_dependencies/>
-		<server/>
-	</pyqgis_plugin>
 	<pyqgis_plugin name="Fire Analytics Processing-Toolbox" version="0.2.4" plugin_id="1029384756">
-		<description>A collection of wild/forest fires insights related algorithms. Including a fire simulator and prescriptive analytics via mathematical programming optimization to generate management recommendations</description>
-		<about>This Processing-ToolBox-Plugin gathers and implements multiple algorithms needed by landscape planners, fire risk managers, biologists, geographers, and so on; Looking for decision support and insights into large forest fires in a data-oriented pipelined way. One of the main goals is being interoperable with other tools, and being able to be used in various ways and contexts. Developed by the Fire2a(.com) research group, under the GNU GPL v3 license. We are eager to help! Contact Us!
-WARNING: Before installing follow the python dependencies installation instructions in https://fire2a.github.io/docs/docs/qgis-cookbook/README.html
-tl;dr requirements.txt: 
-- https://raw.githubusercontent.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/main/fireanalyticstoolbox/requirements.txt
-NOTICE: Must restart QGIS for the plugin to appear in the processing toolbox panel.</about>
+		<description><![CDATA[Wild & Forest fires simulation, prevention and insights related algorithms. Including a fire simulator, user valued risk metrics and prescriptive analytics via mathematical programming optimization to generate management recommendations]]></description>
+		<about><![CDATA[This Processing-ToolBox-Plugin gathers and implements multiple algorithms needed by landscape planners, fire risk managers, biologists, geographers, and so on; Looking for optimized decision support and insights into large forest fires in a friendly dialog or graphical-model data-oriented pipelined way (also CLI and scripting). Based around Cell2FireW simulator. Developed by the Fire Adv.Analytics research group, under GNU GPLv3 license. Contact Us fire2a.com
+			DOCUMENTATION: github.com/fire2a/docs
+			ALL VERSIONS: github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases
+			BEFORE INSTALLING ENTER: !pip install fire2a-lib in your QGIS python console, restart QGIS (toggle plugin's checkbox if hidden)]]></about>
 		<version>0.2.4</version>
-		<qgis_minimum_version>3.34</qgis_minimum_version>
-		<qgis_maximum_version>6.66</qgis_maximum_version>
-		<homepage>https://fire2a.github.io/docs</homepage>
+		<trusted>True</trusted>
+		<qgis_minimum_version>3.0.0</qgis_minimum_version>
+		<qgis_maximum_version>4.0.0</qgis_maximum_version>
+		<homepage><![CDATA[https://fire2a.github.io/docs]]></homepage>
 		<file_name>fireanalyticstoolbox</file_name>
 		<icon>https://raw.githubusercontent.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/main/fireanalyticstoolbox/assets/forestfire.svg</icon>
 		<author_name>fdobad</author_name>
 		<download_url>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases/download/v0.2.4/fireanalyticstoolbox_v0.2.4.zip</download_url>
 		<uploaded_by>fdobad</uploaded_by>
-		<create_date>"2006-06-06"</create_date>
-		<update_date>"2024-07-03"</update_date>
+		<create_date>2006-06-06T06:06:06.066666+06:00</create_date>
+		<update_date>2024-07-03T06:06:06.066666+06:00</update_date>
 		<experimental>False</experimental>
 		<deprecated>False</deprecated>
 		<tracker>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/issues</tracker>
 		<repository>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/</repository>
 		<tags>python,fire,forest fires,wildfires,fire simulator,prescriptive analytics</tags>
+		<external_dependencies/>
+		<server/>
+	</pyqgis_plugin>
+	<pyqgis_plugin name="Rick Roll" version="0.2" plugin_id="1029384757">
+		<description><![CDATA[Get Rick Rolled to the rythm]]></description>
+		<about><![CDATA[We're no strangers to love
+			You know the rules and so do I (do I)
+			A full commitment's what I'm thinking of
+			You wouldn't get this from any other guy
+			I just wanna tell you how I'm feeling
+			Gotta make you understand
+			Never gonna give you up
+			Never gonna let you down
+			Never gonna run around and desert you
+			Never gonna make you cry
+			Never gonna say goodbye
+			Never gonna tell a lie and hurt you]]></about>
+		<version>0.2</version>
+		<trusted>True</trusted>
+		<qgis_minimum_version>3.0.0</qgis_minimum_version>
+		<qgis_maximum_version>4.0.0</qgis_maximum_version>
+		<homepage><![CDATA[https://github.com/fdobad/qgis-minimal-plugin]]></homepage>
+		<file_name>rickrollmodule.zip</file_name>
+		<icon>https://github.com/fdobad/qgis-minimal-plugin/blob/main/rickrollmodule/icon.png</icon>
+		<author_name>fdobad</author_name>
+		<download_url>https://github.com/fdobad/qgis-minimal-plugin/releases/download/v0.2/rickrollmodule.zip</download_url>
+		<uploaded_by>fdobad</uploaded_by>
+		<create_date>2006-06-06T06:06:06.066666+06:00</create_date>
+		<update_date>2020-04-20T04:20:00.000000+00:00</update_date>
+		<experimental>False</experimental>
+		<deprecated>False</deprecated>
+		<tracker>https://github.com/fdobad/qgis-minimal-plugin/issues</tracker>
+		<repository>https://github.com/fdobad/qgis-minimal-plugin</repository>
+		<tags>pluginbuilder,template,minimal,never gonna give you up</tags>
 		<external_dependencies/>
 		<server/>
 	</pyqgis_plugin>
