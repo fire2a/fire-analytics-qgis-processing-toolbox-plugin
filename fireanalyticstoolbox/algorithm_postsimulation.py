@@ -946,6 +946,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
 
     def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
         from fire2a.cell2fire import get_scars_files
+
         retval, msg, root, parent_dirs, parent_ids, files, children_ids = get_scars_files(
             Path(self.parameterAsString(parameters, self.IN_SCAR, context))
         )
@@ -1182,6 +1183,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
 
             <i>If the Bundle algorithm failed for you, this propagation output is the most likely cause...</i>"""
         )
+
 
 def run_alg_styler_propagation():
     """Create a New Post Processor class and returns it"""

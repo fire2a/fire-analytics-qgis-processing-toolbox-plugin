@@ -52,7 +52,7 @@ class MatchAIIGrid(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.IN_MODIFY,
-                description=self.tr(f"Raster to modify"),
+                description=self.tr("Raster to modify"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -60,7 +60,7 @@ class MatchAIIGrid(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.IN_MATCHTO,
-                description=self.tr(f"Raster to match to"),
+                description=self.tr("Raster to match to"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -69,7 +69,7 @@ class MatchAIIGrid(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterString(
                 name=self.IN_CLI_ARGS,
-                description=self.tr(f"CLI arguments"),
+                description=self.tr("CLI arguments"),
                 defaultValue="",
                 optional=True,
             )

@@ -32,12 +32,13 @@ __revision__ = "$Format:%H$"
 from datetime import datetime
 from pathlib import Path
 
-from qgis.core import (QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterDefinition,
-                       QgsProcessingException, QgsProcessingParameterDateTime, QgsProcessingParameterFolderDestination,
-                       QgsProcessingParameterNumber, QgsProcessingParameterVectorLayer, QgsProject)
+from qgis.core import (QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsProcessing, QgsProcessingAlgorithm,
+                       QgsProcessingException, QgsProcessingParameterDateTime, QgsProcessingParameterDefinition,
+                       QgsProcessingParameterFolderDestination, QgsProcessingParameterNumber,
+                       QgsProcessingParameterVectorLayer, QgsProject)
 from qgis.PyQt.QtCore import QCoreApplication
-from qgis.utils import iface
 from qgis.PyQt.QtGui import QIcon
+from qgis.utils import iface
 
 from .algorithm_utils import write_log
 
@@ -63,21 +64,21 @@ class MeteoAlgo(QgsProcessingAlgorithm):
             )
         )
         qppdt = QgsProcessingParameterDateTime(
-                self.IN_DATE,
-                self.tr("Start timestamp"),
-                defaultValue=self.now,
-                optional=False,
-            )
+            self.IN_DATE,
+            self.tr("Start timestamp"),
+            defaultValue=self.now,
+            optional=False,
+        )
         qppdt.setFlags(qppdt.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(qppdt)
         qppn = QgsProcessingParameterNumber(
-                self.IN_ROWRES,
-                self.tr("Step resolution in minutes (time between rows)"),
-                type=QgsProcessingParameterNumber.Integer,
-                defaultValue=60,
-                minValue=1,
-                optional=False,
-            )
+            self.IN_ROWRES,
+            self.tr("Step resolution in minutes (time between rows)"),
+            type=QgsProcessingParameterNumber.Integer,
+            defaultValue=60,
+            minValue=1,
+            optional=False,
+        )
         qppn.setFlags(qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(qppn)
         self.addParameter(
@@ -164,6 +165,7 @@ class MeteoAlgo(QgsProcessingAlgorithm):
         # from fire2a import meteo
         # reload(meteo)
         from fire2a.meteo import generate as generater_weather
+
         # FIXME REMOVE IN PRODUCTION 1
         retval, output_dict = generater_weather(**instance)
 
