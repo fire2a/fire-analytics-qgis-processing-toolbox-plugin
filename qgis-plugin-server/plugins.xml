@@ -5,7 +5,7 @@
 		<about><![CDATA[This Processing-ToolBox-Plugin gathers and implements multiple algorithms needed by landscape planners, fire risk managers, biologists, geographers, and so on; Looking for optimized decision support and insights into large forest fires in a friendly dialog or graphical-model data-oriented pipelined way (also CLI and scripting). Based around Cell2FireW simulator. Developed by the Fire Adv.Analytics research group, under GNU GPLv3 license. Contact Us fire2a.com
 			DOCUMENTATION: github.com/fire2a/docs
 			ALL VERSIONS: github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases
-			BEFORE INSTALLING ENTER: !pip install fire2a-lib in your QGIS python console, restart QGIS (toggle plugin's checkbox if hidden)]]></about>
+			BEWARE: A dialog asking permission to (pip) install python dependencies (fire2a-lib==0.2.7) will appear]]></about>
 		<version>0.3.0</version>
 		<trusted>True</trusted>
 		<qgis_minimum_version>3.0.0</qgis_minimum_version>
