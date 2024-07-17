@@ -22,6 +22,7 @@ repository=https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plug
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
 changelog=
+	v0.3.0: Feature: Install python dependencies dialog (details @ github.com/fdobad/qgis-easy-dependencies-plugin )
 	v0.2.5: IBM-CPLEX compatibility using QGIS 3.36.1, meteo algorithm improvements
 	v0.2.4: NEOS Solver hook & Improvement firescar and statistics efficiency and into fire2a-lib
 	v0.2.3: Fixes in dependencies, Pyomo fails compatibility with numpy 2.0.0
