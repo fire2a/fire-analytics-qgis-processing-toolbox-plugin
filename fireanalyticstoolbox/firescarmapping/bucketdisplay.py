@@ -41,7 +41,7 @@ class S3SelectionDialog(QDialog):
         self.aws_secret_access_key = aws_secret_access_key
         self.prefix = prefix
         
-        self.setWindowTitle("Select S3 Folder or File")
+        self.setWindowTitle(self.display_title(prefix))
         
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
@@ -81,6 +81,21 @@ class S3SelectionDialog(QDialog):
         self.loader_thread.wait()
         QMessageBox.critical(self, "Error", message)
         self.reject()
+
+    def display_title(self, prefix):
+        if prefix.count("/") == 1:
+            return "Select a Location"
+        elif prefix.count("/") == 2:
+            return "Select a year"
+        elif prefix.count("/") == 3:
+            return "Select a month"
+        elif prefix.count("/") == 4:
+            return "Select a day"
+        elif prefix.count("/") == 5:
+            return "Select a folder"
+        
+    
+
 
     def select_clicked(self):
         selected_items = self.list_widget.selectedItems()
