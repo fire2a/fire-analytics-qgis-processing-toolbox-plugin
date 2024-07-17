@@ -22,19 +22,20 @@
  ***************************************************************************/
 """
 
-__author__ = 'Fernando Badilla Veliz - Fire2a.com'
-__date__ = '2023-08-30'
-__copyright__ = '(C) 2023 by Fernando Badilla Veliz - Fire2a.com'
+__author__ = "Fernando Badilla Veliz - Fire2a.com"
+__date__ = "2023-08-30"
+__copyright__ = "(C) 2023 by Fernando Badilla Veliz - Fire2a.com"
 
 # This will get replaced with a git SHA1 when you do a git archive
 
-__revision__ = '$Format:%H$'
+__revision__ = "$Format:%H$"
 
+import inspect
 import os
 import sys
-import inspect
 
-from qgis.core import QgsProcessingAlgorithm, QgsApplication
+from qgis.core import QgsApplication, QgsProcessingAlgorithm
+
 from .fireanalyticstoolbox_provider import FireToolboxProvider
 
 cmd_folder = os.path.split(inspect.getfile(inspect.currentframe()))[0]
@@ -47,6 +48,9 @@ class FireToolboxPlugin(object):
 
     def __init__(self):
         self.provider = None
+        from . import dependencies_handler
+
+        dependencies_handler.run()
 
     def initProcessing(self):
         """Init Processing provider for QGIS >= 3.8."""
