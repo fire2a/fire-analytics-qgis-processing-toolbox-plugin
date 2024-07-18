@@ -22,9 +22,9 @@
  This script initializes the plugin, making it known to QGIS.
 """
 
-__author__ = 'Fernando Badilla Veliz - Fire2a.com'
-__date__ = '2023-08-30'
-__copyright__ = '(C) 2023 by Fernando Badilla Veliz - Fire2a.com'
+__author__ = "Fernando Badilla Veliz - Fire2a.com"
+__date__ = "2023-08-30"
+__copyright__ = "(C) 2023 by Fernando Badilla Veliz - Fire2a.com"
 
 
 # noinspection PyPep8Naming
@@ -34,6 +34,10 @@ def classFactory(iface):  # pylint: disable=invalid-name
     :param iface: A QGIS interface instance.
     :type iface: QgsInterface
     """
+    from . import dependencies_handler
+
+    dependencies_handler.run()
     #
     from .fireanalyticstoolbox import FireToolboxPlugin
+
     return FireToolboxPlugin()

@@ -48,9 +48,6 @@ class FireToolboxPlugin(object):
 
     def __init__(self):
         self.provider = None
-        from . import dependencies_handler
-
-        dependencies_handler.run()
 
     def initProcessing(self):
         """Init Processing provider for QGIS >= 3.8."""
