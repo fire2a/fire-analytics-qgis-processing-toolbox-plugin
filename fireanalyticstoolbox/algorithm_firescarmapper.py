@@ -32,9 +32,9 @@ TODO:
 
 from fire2a.raster import get_rlayer_data
 import os
-from qgis.core import (QgsProcessingAlgorithm, QgsProject, QgsRasterLayer, QgsProcessingException, QgsLayerTreeLayer)
+from qgis.core import (QgsProcessingAlgorithm, QgsProject, QgsRasterLayer, QgsProcessingException, QgsLayerTreeLayer, QgsGradientColorRamp, QgsSingleBandPseudoColorRenderer)
 from qgis.PyQt.QtCore import QCoreApplication
-
+from qgis.PyQt.QtGui import QColor
 import boto3
 from .firescarmapping.model_u_net import model, device  # Importar el modelo y dispositivo necesarios
 from .firescarmapping.as_dataset import create_datasetAS
@@ -50,7 +50,6 @@ class FireScarMapper(QgsProcessingAlgorithm):
     AWS_ACCESS_KEY_ID = "<AWS_ACCESS_KEY_ID>"
     AWS_SECRET_ACCESS_KEY = "<AWS_SECRET_ACCESS_KEY>"
     
-
     def download_file_from_s3(self, bucket_name, file_name, local_path):
         s3 = boto3.client(
             's3',
@@ -71,6 +70,7 @@ class FireScarMapper(QgsProcessingAlgorithm):
         dialog_locality = S3SelectionDialog(self.S3_BUCKET, self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, prefix="Images/")
         if dialog_locality.exec_():
             selected_locality = dialog_locality.get_selected_item()  
+            feedback.pushDebugInfo(f"selected_year: {selected_locality}")
 
             dialog_year = S3SelectionDialog(self.S3_BUCKET, self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, prefix=selected_locality)
             if dialog_year.exec_():
@@ -217,15 +217,17 @@ class FireScarMapper(QgsProcessingAlgorithm):
                                 group = root.findGroup(group_name)
                                 if not group:
                                     group = root.addGroup(group_name)
-                                self.addRasterLayer(local_path_before, f"{selected_pair_folder.split('/')[1]}-{selected_pair_folder.split('/')[5]}-ImgPre", group, context)
-                                self.addRasterLayer(local_path_burnt, f"{selected_pair_folder.split('/')[1]}-{selected_pair_folder.split('/')[5]}-ImgPosF", group, context)
-                                self.addRasterLayer(output_path, f"{selected_pair_folder.split('/')[1]}-{selected_pair_folder.split('/')[5]}-Firescar", group, context)
+                                self.addRasterLayer(local_path_before, f"ImgPre-{selected_pair_folder.split('/')[1]}-{selected_pair_folder.split('/')[5]}", group, context)
+                                self.addRasterLayer(local_path_burnt, f"ImgPosF-{selected_pair_folder.split('/')[1]}-{selected_pair_folder.split('/')[5]}", group, context)
+                                self.addRasterLayer(output_path, f"Firescar-{selected_pair_folder.split('/')[1]}-{selected_pair_folder.split('/')[5]}", group, context)
                                 self.add_openstreetmap_layer_if_needed(feedback)  
                             return {}
 
         raise QgsProcessingException("No se seleccionó una localidad o par de fotos válidos.")
     
+
     def writeRaster(self, matrix, file_path, before_layer, feedback):
+
         # Obtener las dimensiones del raster antes del incendio
         width = before_layer.width()
         height = before_layer.height()
@@ -248,7 +250,6 @@ class FireScarMapper(QgsProcessingAlgorithm):
         band = raster.GetRasterBand(1)
 
         # Calcular el offset y el tamaño de la región de la cicatriz para ajustar al raster
-        # Asegurar que la cicatriz no se recorte más allá de las dimensiones del raster
         start_row = 0
         start_col = 0
         matrix_height, matrix_width = matrix.shape
@@ -269,8 +270,12 @@ class FireScarMapper(QgsProcessingAlgorithm):
         except ValueError as e:
             raise QgsProcessingException(f"Failed to write array to raster: {str(e)}")
 
-        # Establecer el valor NoData si es necesario
+        # Establecer el valor NoData
         band.SetNoDataValue(0)
+        
+        # Asegurar que los valores mínimos y máximos están actualizados
+        band.ComputeStatistics(False)
+        band.SetStatistics(0, 1, 0.5, 0.5)
 
         # Limpiar caché y cerrar el raster
         band.FlushCache()
@@ -279,7 +284,6 @@ class FireScarMapper(QgsProcessingAlgorithm):
 
         feedback.pushInfo(f"Raster written to {file_path}")
 
-
     def addRasterLayer(self, file_path, layer_name, group, context):
         layer = QgsRasterLayer(file_path, layer_name, "gdal")
         if not layer.isValid():
@@ -287,6 +291,12 @@ class FireScarMapper(QgsProcessingAlgorithm):
 
         QgsProject.instance().addMapLayer(layer, False)
         group.insertChildNode(0, QgsLayerTreeLayer(layer))
+        if "Firescar" in layer_name:
+            renderer = layer.renderer()
+            if isinstance(renderer, QgsSingleBandPseudoColorRenderer):
+                color_ramp = QgsGradientColorRamp(QColor(255, 255, 255), QColor(0, 0, 0))
+                renderer.updateColorRamp(color_ramp)
+                layer.triggerRepaint()
 
     # Verificar si el archivo de la cicatriz ya está en S3
     def file_exists_in_s3(self, bucket, key):
