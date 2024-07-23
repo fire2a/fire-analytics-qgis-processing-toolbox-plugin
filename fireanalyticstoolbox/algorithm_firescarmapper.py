@@ -34,12 +34,11 @@ from fire2a.raster import get_rlayer_data
 import os
 from qgis.core import (QgsProcessingAlgorithm, QgsProject, QgsRasterLayer, QgsProcessingException, QgsLayerTreeLayer, QgsGradientColorRamp, QgsSingleBandPseudoColorRenderer)
 from qgis.PyQt.QtCore import QCoreApplication
-from qgis.PyQt.QtWidgets import QDialog
 from qgis.PyQt.QtGui import QColor
 import boto3
 from .firescarmapping.model_u_net import model, device  # Importar el modelo y dispositivo necesarios
 from .firescarmapping.as_dataset import create_datasetAS
-from .firescarmapping.bucketdisplay import S3SelectionDialog, AWSCredentialsDialog
+from .firescarmapping.bucketdisplay import S3SelectionDialog, AWSCredentialsDialog, get_aws_credentials
 import numpy as np
 from torch.utils.data import DataLoader
 from osgeo import gdal, gdal_array
@@ -67,10 +66,7 @@ class FireScarMapper(QgsProcessingAlgorithm):
             raise QgsProcessingException(f"Failed to download {file_name} from S3: {str(e)}")
         
     def processAlgorithm(self, parameters, context, feedback):
-        credentials_dialog = AWSCredentialsDialog()
-        if credentials_dialog.exec_() != QDialog.Accepted:
-            return
-        aws_access_key_id, aws_secret_access_key = credentials_dialog.get_credentials()
+        aws_access_key_id, aws_secret_access_key = get_aws_credentials()
         # Abrir el diálogo de selección de S3 para localidades
         dialog_locality = S3SelectionDialog(self.S3_BUCKET, aws_access_key_id, aws_secret_access_key, prefix="Images/")
         if dialog_locality.exec_():
