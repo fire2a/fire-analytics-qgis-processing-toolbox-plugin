@@ -1,6 +1,6 @@
 import boto3
 from qgis.PyQt.QtCore import QObject, QThread, pyqtSignal
-from qgis.PyQt.QtWidgets import QDialog, QVBoxLayout, QListWidget, QPushButton, QMessageBox, QLabel
+from qgis.PyQt.QtWidgets import QDialog, QVBoxLayout, QListWidget, QPushButton, QMessageBox, QLabel, QLineEdit, QFormLayout
 
 class S3Loader(QObject):
     finished = pyqtSignal(list)
@@ -85,7 +85,6 @@ class S3SelectionDialog(QDialog):
         QMessageBox.critical(self, "Error", message)
         self.reject()
 
-        
     def display_title_and_description(self, prefix):
         parts = prefix.strip('/').split('/')
         if len(parts) == 1:
@@ -119,3 +118,24 @@ class S3SelectionDialog(QDialog):
 
     def get_selected_item(self):
         return self.selected_item
+
+class AWSCredentialsDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Enter AWS Credentials")
+        self.layout = QFormLayout()
+        self.setLayout(self.layout)
+
+        self.aws_access_key_id_input = QLineEdit()
+        self.aws_secret_access_key_input = QLineEdit()
+        self.aws_secret_access_key_input.setEchoMode(QLineEdit.Password)
+
+        self.layout.addRow("AWS Access Key ID:", self.aws_access_key_id_input)
+        self.layout.addRow("AWS Secret Access Key:", self.aws_secret_access_key_input)
+
+        self.ok_button = QPushButton("OK")
+        self.ok_button.clicked.connect(self.accept)
+        self.layout.addWidget(self.ok_button)
+
+    def get_credentials(self):
+        return self.aws_access_key_id_input.text(), self.aws_secret_access_key_input.text()
