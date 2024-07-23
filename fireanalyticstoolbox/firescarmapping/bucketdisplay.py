@@ -2,6 +2,10 @@ import boto3
 from qgis.PyQt.QtCore import QObject, QThread, pyqtSignal
 from qgis.PyQt.QtWidgets import QDialog, QVBoxLayout, QListWidget, QPushButton, QMessageBox, QLabel, QLineEdit, QFormLayout
 
+class AWSCredentials:
+    aws_access_key_id = None
+    aws_secret_access_key = None
+
 class S3Loader(QObject):
     finished = pyqtSignal(list)
     error = pyqtSignal(str)
@@ -40,24 +44,23 @@ class S3SelectionDialog(QDialog):
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
         self.prefix = prefix
-        
-        title, description = self.display_title_and_description(prefix)
-        self.setWindowTitle(title)
+
+        self.setWindowTitle("AWS Credentials and S3 Selection")
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
         
-        self.description_label = QLabel(description)
+        self.description_label = QLabel("Loading S3 folders...")
         self.layout.addWidget(self.description_label)
 
         self.list_widget = QListWidget()
         self.layout.addWidget(self.list_widget)
-        
+
         self.select_button = QPushButton("Select")
         self.select_button.clicked.connect(self.select_clicked)
         self.layout.addWidget(self.select_button)
         
         self.selected_item = None
-        
+
         self.loader_thread = QThread()
         self.loader = S3Loader(bucket_name, aws_access_key_id, aws_secret_access_key, prefix)
         self.loader.moveToThread(self.loader_thread)
@@ -76,6 +79,7 @@ class S3SelectionDialog(QDialog):
     def load_finished(self, folders):
         display_folders = [folder.split('/')[-2] + '/' for folder in folders]  # Obtener solo los nombres de las carpetas
         self.list_widget.addItems(display_folders)
+        self.description_label.setText("Select a folder from the list.")
         self.loader_thread.quit()
         self.loader_thread.wait()
         
@@ -85,28 +89,6 @@ class S3SelectionDialog(QDialog):
         QMessageBox.critical(self, "Error", message)
         self.reject()
 
-    def display_title_and_description(self, prefix):
-        parts = prefix.strip('/').split('/')
-        if len(parts) == 1:
-            title = "Select a Location"
-            description = ""
-        elif len(parts) == 2:
-            title = "Select a year"
-            description = f"Location: {parts[1]}"
-        elif len(parts) == 3:
-            title = "Select a month"
-            description = f"Location: {parts[1]}, Year: {parts[2]}"
-        elif len(parts) == 4:
-            title = "Select a day"
-            description = f"Location: {parts[1]}, Year: {parts[2]}, Month: {parts[3]}"
-        elif len(parts) == 5:
-            title = "Select a folder"
-            description = f"Location: {parts[1]}, Year: {parts[2]}, Month: {parts[3]}, Day: {parts[4]}"
-        else:
-            title = ""
-            description = ""
-        return title, description 
-        
     def select_clicked(self):
         selected_items = self.list_widget.selectedItems()
         if selected_items:
@@ -139,3 +121,10 @@ class AWSCredentialsDialog(QDialog):
 
     def get_credentials(self):
         return self.aws_access_key_id_input.text(), self.aws_secret_access_key_input.text()
+
+def get_aws_credentials():
+    if AWSCredentials.aws_access_key_id is None or AWSCredentials.aws_secret_access_key is None:
+        dialog = AWSCredentialsDialog()
+        if dialog.exec_() == QDialog.Accepted:
+            AWSCredentials.aws_access_key_id, AWSCredentials.aws_secret_access_key = dialog.get_credentials()
+    return AWSCredentials.aws_access_key_id, AWSCredentials.aws_secret_access_key
