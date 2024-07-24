@@ -45,11 +45,12 @@ class S3SelectionDialog(QDialog):
         self.aws_secret_access_key = aws_secret_access_key
         self.prefix = prefix
 
-        self.setWindowTitle("AWS Credentials and S3 Selection")
+        title, description = self.display_title_and_description(prefix)
+        self.setWindowTitle(title)
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
         
-        self.description_label = QLabel("Loading S3 folders...")
+        self.description_label = QLabel(description)
         self.layout.addWidget(self.description_label)
 
         self.list_widget = QListWidget()
@@ -79,7 +80,7 @@ class S3SelectionDialog(QDialog):
     def load_finished(self, folders):
         display_folders = [folder.split('/')[-2] + '/' for folder in folders]  # Obtener solo los nombres de las carpetas
         self.list_widget.addItems(display_folders)
-        self.description_label.setText("Select a folder from the list.")
+        #self.description_label.setText("Select a folder from the list.")
         self.loader_thread.quit()
         self.loader_thread.wait()
         
@@ -89,6 +90,28 @@ class S3SelectionDialog(QDialog):
         QMessageBox.critical(self, "Error", message)
         self.reject()
 
+    def display_title_and_description(self, prefix):
+        parts = prefix.strip('/').split('/')
+        if len(parts) == 1:
+            title = "Select a Location"
+            description = ""
+        elif len(parts) == 2:
+            title = "Select a year"
+            description = f"Location: {parts[1]}"
+        elif len(parts) == 3:
+            title = "Select a month"
+            description = f"Location: {parts[1]}, Year: {parts[2]}"
+        elif len(parts) == 4:
+            title = "Select a day"
+            description = f"Location: {parts[1]}, Year: {parts[2]}, Month: {parts[3]}"
+        elif len(parts) == 5:
+            title = "Select a wildfire incident"
+            description = f"Location: {parts[1]}, Year: {parts[2]}, Month: {parts[3]}, Day: {parts[4]}"
+        else:
+            title = "AWS Credentials"
+            description = ""
+        return title, description 
+    
     def select_clicked(self):
         selected_items = self.list_widget.selectedItems()
         if selected_items:
