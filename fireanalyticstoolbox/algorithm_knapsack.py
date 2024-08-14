@@ -457,8 +457,11 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             feedback.pushWarning(f"Rasters have different nodata values: {value_nodata=}, {weight_nodata=}")
         feedback.pushDebugInfo(f"Using {self.NODATA=}\n")
 
-        no_indexes = np.union1d(np.where(value_data == value_nodata)[0], np.where(weight_data == weight_nodata)[0])
+        no_indexes = np.where(
+            (value_data == value_nodata) | (weight_data == weight_nodata) | np.isnan(value_data) | np.isnan(weight_data)
+        )[0]
         feedback.pushInfo(f"discarded pixels (no_indexes): {len(no_indexes)/N:.2%}\n")
+
         mask = np.ones(N, dtype=bool)
         mask[no_indexes] = False
 
