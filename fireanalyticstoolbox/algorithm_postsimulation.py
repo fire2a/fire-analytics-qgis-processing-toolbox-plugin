@@ -1184,6 +1184,113 @@ class ScarSIMPP(QgsProcessingAlgorithm):
             <i>If the Bundle algorithm failed for you, this propagation output is the most likely cause...</i>"""
         )
 
+class BurnProbabilityMetric(QgsProcessingAlgorithm):
+    """Cell2Fire results post processing bundle"""
+
+    BASE_LAYER = "BaseLayer"
+    IN_SCAR = "SampleScarFile"
+    OUT_BP = "BurnProbability"
+
+    def initAlgorithm(self, config):
+        """inputs and output of the algorithm"""
+        self.addParameter(
+            QgsProcessingParameterRasterLayer(
+                name=self.BASE_LAYER,
+                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform"),
+                defaultValue=[QgsProcessing.TypeRaster],
+                optional=False,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterFile(
+                name=self.IN_SCAR,
+                description=(
+                    "Sample Fire Scar file (normally"
+                    " firesim_yymmdd_HHMMSS/results/Grids/Grids[0-9]*/ForestGrid[0-9]*.csv)"
+                ),
+                behavior=QgsProcessingParameterFile.File,
+                extension="csv",
+                defaultValue=None,
+                optional=False,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterRasterDestination(
+                name=self.OUT_BP,
+                description=self.tr("Output burn probability raster"),
+                optional=True,
+                createByDefault=True,
+            )
+        )
+
+    def processAlgorithm(self, parameters, context, feedback):
+        """Here is where the processing itself takes place."""
+        # feedback.pushDebugInfo("processAlgorithm start")
+        # feedback.pushDebugInfo(f"context args: {context.asQgisProcessArguments()}")
+        # feedback.pushDebugInfo(f"parameters {parameters}")
+        output_dict = {}
+        
+        scar_out = processing.run(
+            "fire2a:scar",
+            {
+                "BaseLayer": self.parameterAsRasterLayer(parameters, self.BASE_LAYER, context),
+                "SampleScarFile": self.parameterAsString(parameters, self.IN_SCAR, context),
+                "BurnProbability": self.parameterAsOutputLayer(parameters, self.OUT_BP, context),
+            },
+            context=context,
+            feedback=feedback,
+            is_child_algorithm=True,
+        )
+        # burnprob
+        if bplayer := scar_out.get("BurnProbability"):
+            # layer_details = context.layerToLoadOnCompletionDetails(bplayer)
+            layer_details = context.LayerDetails(
+                "BurnProbability",
+                context.project(),
+                "BurnProbability",
+                QgsProcessingUtils.LayerHint.Raster,
+            )
+            layer_details.setPostProcessor(run_alg_styler("Burn Probability"))
+            layer_details.forceName = True
+            layer_details.groupName = NAME["layer_group"]
+            layer_details.layerSortKey = 3
+            context.addLayerToLoadOnCompletion(bplayer, layer_details)
+            output_dict["BurnProbability"] = bplayer
+
+        write_log(feedback, name=self.name())
+        return output_dict
+
+    def tr(self, string):
+        return QCoreApplication.translate("Processing", string)
+
+    def group(self):
+        return self.tr(NAME["simm"])
+
+    def groupId(self):
+        return jolo(NAME["simm"])
+
+    def name(self):
+        return jolo(NAME["bp"])
+
+    def displayName(self):
+        return self.tr(NAME["bp"])
+
+    def createInstance(self):
+        return BurnProbabilityMetric()
+
+    def helpString(self):
+        return self.shortHelpString()
+
+    def shortHelpString(self):
+        return self.tr(
+            """Burn probabilty raster is the mean of all simulations<br>
+            It's the same as using the 'Fire Scar' algorithm, skipping output for scars and polygons, leaving only the 'Burn Probability' output enabled<br>
+            From a simulation results directory, select the 'Grids' directory and choose any of the 'ForestGrid' files
+            """
+        )
+
+    def icon(self):
+        return QIcon(":/plugins/fireanalyticstoolbox/assets/bodyscar.svg")
 
 def run_alg_styler_propagation():
     """Create a New Post Processor class and returns it"""

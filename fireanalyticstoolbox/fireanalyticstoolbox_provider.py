@@ -39,7 +39,7 @@ from .algorithm_instance_downloader import InstanceDownloader
 from .algorithm_knapsack import PolygonKnapsackAlgorithm, RasterKnapsackAlgorithm
 from .algorithm_match_aiigrids import MatchAIIGrid
 from .algorithm_meteo import MeteoAlgo
-from .algorithm_postsimulation import (BetweennessCentralityMetric, DownStreamProtectionValueMetric,
+from .algorithm_postsimulation import (BetweennessCentralityMetric, BurnProbabilityMetric, DownStreamProtectionValueMetric,
                                        IgnitionPointsSIMPP, MessagesSIMPP, PostSimulationAlgorithm, ScarSIMPP,
                                        StatisticSIMPP)
 from .algorithm_raster_tutorial import RasterTutorial
@@ -81,6 +81,7 @@ class FireToolboxProvider(QgsProcessingProvider):
         self.addAlgorithm(ScarSIMPP())
         self.addAlgorithm(BetweennessCentralityMetric())
         self.addAlgorithm(DownStreamProtectionValueMetric())
+        self.addAlgorithm(BurnProbabilityMetric())
         self.addAlgorithm(RasterTutorial())
         self.addAlgorithm(InstanceDownloader())
         self.addAlgorithm(PolyTreatmentAlgorithm())
