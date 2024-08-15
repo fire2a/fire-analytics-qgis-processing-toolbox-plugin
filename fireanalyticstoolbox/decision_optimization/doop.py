@@ -199,7 +199,7 @@ def pyomo_init_algorithm(self, config):
     qpps = QgsProcessingParameterString(
         name="SOLVER",
         description="LOCAL SOLVER\nName: recommended options string [and executable STATUS]",
-        optional=True,
+        # optional=True,
     )
     qpps.setMetadata(
         {
