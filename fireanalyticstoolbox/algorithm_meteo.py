@@ -36,7 +36,7 @@ from qgis.core import (QgsCoordinateReferenceSystem, QgsCoordinateTransform, Qgs
                        QgsProcessingException, QgsProcessingParameterDateTime, QgsProcessingParameterDefinition,
                        QgsProcessingParameterFolderDestination, QgsProcessingParameterNumber,
                        QgsProcessingParameterVectorLayer, QgsProject)
-from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication, QDateTime
 from qgis.PyQt.QtGui import QIcon
 from qgis.utils import iface
 
@@ -51,7 +51,6 @@ class MeteoAlgo(QgsProcessingAlgorithm):
     IN_NUMROWS = "time_lenght"
     IN_NUMSIMS = "number_of_scenarios"
     OUT = "output_directory"
-    now = datetime.now()
 
     def initAlgorithm(self, config):
         self.addParameter(
@@ -65,15 +64,16 @@ class MeteoAlgo(QgsProcessingAlgorithm):
         )
         qppdt = QgsProcessingParameterDateTime(
             self.IN_DATE,
-            self.tr("Start timestamp"),
-            defaultValue=self.now,
+            self.tr("Start Hour"),
+            type=QgsProcessingParameterDateTime.Time,
+            defaultValue=QDateTime(datetime.now().replace(hour=12, minute=0, second=0, microsecond=0)),
             optional=False,
         )
-        qppdt.setFlags(qppdt.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        # qppdt.setFlags(qppdt.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(qppdt)
         qppn = QgsProcessingParameterNumber(
             self.IN_ROWRES,
-            self.tr("Step resolution in minutes (time between rows)"),
+            self.tr("Step resolution in minutes (time between rows) - Not implemented yet"),
             type=QgsProcessingParameterNumber.Integer,
             defaultValue=60,
             minValue=1,
@@ -84,7 +84,7 @@ class MeteoAlgo(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterNumber(
                 self.IN_NUMROWS,
-                self.tr("Lenght of each scenario (number of rows)"),
+                self.tr("Lenght of each scenario (number of rows) - Implementing hourly weather scenarios only."),
                 type=QgsProcessingParameterNumber.Integer,
                 defaultValue=12,
                 minValue=1,
@@ -188,7 +188,7 @@ class MeteoAlgo(QgsProcessingAlgorithm):
         Returns the translated algorithm name, which should be used for any
         user-visible display of the algorithm name.
         """
-        return self.tr("Meteo")
+        return self.tr("Meteo Kitral")
 
     def group(self):
         return self.tr("Simulator Preparation Help")
@@ -208,15 +208,15 @@ class MeteoAlgo(QgsProcessingAlgorithm):
     def shortDescription(self):
         return self.tr(
             """<b>Meteo</b> generates weather scenarios files for (Cell2)Fire(W) Simulator using the Kitral fuel model standard.<br>
-            Real Chilean weather station data from the Valparaíso to the Araucanía region is used; Defining the target area (32S to 40S)<br>
+            Using real Chilean weather station data from the Valparaíso to the Araucanía region in summer; Defining the target area (32S to 40S)<br>
             <br>
             - Selecting a <b>location</b> will pick the three nearest weather stations for sampling<br>
+            - <b>Start hour</b>: Time of day from where to start picking station data<br>
             - <b>Length of each scenario </b>: Indicates the duration, in hours, of each scenario<br>
-            - <b>number_of_simulations</b>: files to generate<br>
+            - <b>Number_of_simulations</b>: files to generate<br>
             - <b>output_directory</b>: folder where the files are written containing Weather(+digit).csv numbered files with each weather scenario<br>
             <br>
             Future Roadmap:<br>
-            - <b>start timestamp</b>: 1. Label the generated scenarios with the start date and time. 2. Generate according to the time of day<br>
             - <b>step resolution</b>: Do other than hourly weather scenarios, to be used with the --Weather-Period-Length option (that defaults to 60)<br>
             - Draw an animated vector layer representing the weather scenarios as arrows<br>
             """
