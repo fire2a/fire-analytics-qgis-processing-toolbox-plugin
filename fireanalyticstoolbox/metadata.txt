@@ -24,6 +24,7 @@ repository=https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plug
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
 changelog=
+	v0.3.2: Meteo Kitral docs and update fire2a-lib, Knapsack Raster filter indexes, Burn Probability isolation as new algo 
 	v0.3.1: SubSection: 'Simulator Preparation Help', Fixes in metadata: plugin dependencies
 	v0.3.0: Feature: Install python dependencies dialog (details @ github.com/fdobad/qgis-easy-dependencies-plugin )
 	v0.2.5: IBM-CPLEX compatibility using QGIS 3.36.1, meteo algorithm improvements
