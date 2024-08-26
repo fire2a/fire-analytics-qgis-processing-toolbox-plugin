@@ -446,14 +446,14 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         fuels = rasters.pop("fuels")
         fuels_props = get_qgs_raster_properties(fuels)
         fuel_driver = get_gdal_driver_shortname(fuels)
-        if fuel_driver != "AAIGrid":
-            return False, f"fuel raster is not AAIGrid, got {fuel_driver}"
+        if fuel_driver not in ["AAIGrid", "GTiff"]:
+            return False, f"fuel raster is not AAIGrid nor GTiff, got {fuel_driver}"
         for k, v in rasters.items():
             if v is None:
                 continue
             driver = get_gdal_driver_shortname(v)
-            if driver != "AAIGrid":
-                return False, f'{k} is not AAIGrid, "{v.name()}" is {driver}'
+            if driver not in ["AAIGrid", "GTiff"]:
+                return False, f'{k} is not AAIGrid nor GTiff, "{v.name()}" is {driver}'
             raster_props = get_qgs_raster_properties(v)
             if raster_props["units"] != QgsUnitTypes.DistanceMeters:
                 unit_name = Qgis.DistanceUnit(raster_props["units"]).name
@@ -589,7 +589,15 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 or (k == "py" and ignition_mode == 1)
             ):
                 feedback.pushDebugInfo(f"copy: {k}:{v}")
-                copy(v.publicSource(), Path(instance_dir, f"{k}.asc"))
+                driver = get_gdal_driver_shortname(v)
+                if driver == "GTiff":
+                    ext = ".tif"
+                elif driver == "AAIGrid":
+                    ext = ".asc"
+                else:
+                    # TODO create tif
+                    feedback.reportError(f"unsupported raster format: {k}, {v}, {driver}")
+                copy(v.publicSource(), Path(instance_dir, f"{k}.{ext}"))
             else:
                 feedback.pushDebugInfo(f"NO copy: {k}:{v}")
         feedback.pushDebugInfo("\n")
