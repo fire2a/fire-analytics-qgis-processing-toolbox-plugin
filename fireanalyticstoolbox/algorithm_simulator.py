@@ -591,9 +591,9 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 feedback.pushDebugInfo(f"copy: {k}:{v}")
                 driver = get_gdal_driver_shortname(v)
                 if driver == "GTiff":
-                    ext = ".tif"
+                    ext = "tif"
                 elif driver == "AAIGrid":
-                    ext = ".asc"
+                    ext = "asc"
                 else:
                     # TODO create tif
                     feedback.reportError(f"unsupported raster format: {k}, {v}, {driver}")
