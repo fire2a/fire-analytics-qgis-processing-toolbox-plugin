@@ -310,7 +310,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterNumber(
                 name=self.FMC,
-                description="Foliar Moisture Content [40%...200%]",
+                description="Foliar Moisture Content [40%...200%] (requires Crown fire; Scott & Burgan or Kitral Fuel Model)",
                 type=QgsProcessingParameterNumber.Integer,
                 defaultValue=66,
                 optional=False,
