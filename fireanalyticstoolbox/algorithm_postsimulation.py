@@ -1184,6 +1184,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
             <i>If the Bundle algorithm failed for you, this propagation output is the most likely cause...</i>"""
         )
 
+
 class BurnProbabilityMetric(QgsProcessingAlgorithm):
     """Cell2Fire results post processing bundle"""
 
@@ -1229,7 +1230,7 @@ class BurnProbabilityMetric(QgsProcessingAlgorithm):
         # feedback.pushDebugInfo(f"context args: {context.asQgisProcessArguments()}")
         # feedback.pushDebugInfo(f"parameters {parameters}")
         output_dict = {}
-        
+
         scar_out = processing.run(
             "fire2a:scar",
             {
@@ -1291,6 +1292,7 @@ class BurnProbabilityMetric(QgsProcessingAlgorithm):
 
     def icon(self):
         return QIcon(":/plugins/fireanalyticstoolbox/assets/bodyscar.svg")
+
 
 def run_alg_styler_propagation():
     """Create a New Post Processor class and returns it"""
@@ -1715,6 +1717,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         GT = raster_props["Transform"]
         W = raster_props["RasterXSize"]
         H = raster_props["RasterYSize"]
+        nodata = raster_props["NoDataValue"]
 
         data_file = Path(self.parameterAsString(parameters, self.IN, context))
         with open(data_file, "rb") as f:
@@ -1723,6 +1726,8 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         nsim = len(data_list)
 
         pv = pv.ravel()
+        if nodata:
+            pv[pv == nodata] = 0
         dpv = zeros(pv.shape, dtype=pv.dtype)
 
         if platform_system() == "Windows":
