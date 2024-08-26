@@ -218,6 +218,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
     OUTPUT_DIR = "OutputDirectory"
     RESULTS_DIR = "ResultsDirectory"
     MSGS = "EnablePropagationDiGraph"
+    POLYSCARS = "EnablePropagationScars"
 
     def initAlgorithm(self, config):
         """inputs and output of the algorithm"""
@@ -233,6 +234,14 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterBoolean(
                 name=self.MSGS,
                 description=("Enable propagation directed graph"),
+                defaultValue=False,
+                optional=True,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterBoolean(
+                name=self.POLYSCARS,
+                description=("Enable propagation scars polygons"),
                 defaultValue=False,
                 optional=True,
             )
@@ -382,15 +391,17 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         # grids
         grids = [item for item in SIM_OUTPUTS if item["name"] == "Propagation Fire Scars"][0]
         if sample_file:= next(Path(results_dir).glob(grids["dir"] + "*" + sep + grids["file"] + "*" + grids["ext"]), None):  # fmt: skip
+            scar_in_dict = {
+                "BaseLayer": base_raster,
+                "SampleScarFile": str(sample_file),
+                "ScarRaster": QgsProcessing.TEMPORARY_OUTPUT,
+                "BurnProbability": QgsProcessing.TEMPORARY_OUTPUT,
+            }
+            if self.parameterAsBool(parameters, self.POLYSCARS, context):
+                scar_in_dict["ScarPolygon"] = QgsProcessing.TEMPORARY_OUTPUT
             scar_out = processing.run(
                 "fire2a:scar",
-                {
-                    "BaseLayer": base_raster,
-                    "SampleScarFile": str(sample_file),
-                    "ScarRaster": QgsProcessing.TEMPORARY_OUTPUT,
-                    "ScarPolygon": QgsProcessing.TEMPORARY_OUTPUT,
-                    "BurnProbability": QgsProcessing.TEMPORARY_OUTPUT,
-                },
+                scar_in_dict,
                 context=context,
                 feedback=feedback,
                 is_child_algorithm=True,
