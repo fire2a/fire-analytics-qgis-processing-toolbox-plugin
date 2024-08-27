@@ -78,9 +78,8 @@ class S3SelectionDialog(QDialog):
         event.accept()
 
     def load_finished(self, folders):
-        display_folders = [folder.split('/')[-2] + '/' for folder in folders]  # Obtener solo los nombres de las carpetas
+        display_folders = [folder.split('/')[-2] + '/' for folder in folders]  # Obtain only folder names
         self.list_widget.addItems(display_folders)
-        #self.description_label.setText("Select a folder from the list.")
         self.loader_thread.quit()
         self.loader_thread.wait()
         
@@ -116,7 +115,7 @@ class S3SelectionDialog(QDialog):
         selected_items = self.list_widget.selectedItems()
         if selected_items:
             selected_folder_name = selected_items[0].text()
-            self.selected_item = self.prefix + selected_folder_name  # Concatenar el prefijo completo
+            self.selected_item = self.prefix + selected_folder_name  # Concatenate the full prefix
             self.accept()
         else:
             QMessageBox.warning(self, "Warning", "Please select a folder.")
