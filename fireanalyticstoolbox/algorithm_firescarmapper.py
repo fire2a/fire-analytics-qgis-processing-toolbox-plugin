@@ -64,273 +64,190 @@ class FireScarMapper(QgsProcessingAlgorithm):
             s3.download_file(bucket_name, file_name, local_path)
         except Exception as e:
             raise QgsProcessingException(f"Failed to download {file_name} from S3: {str(e)}")
-        
-    def processAlgorithm(self, parameters, context, feedback):
-        aws_access_key_id, aws_secret_access_key = get_aws_credentials()
-        # Abrir el diálogo de selección de S3 para localidades
-        dialog_locality = S3SelectionDialog(self.S3_BUCKET, aws_access_key_id, aws_secret_access_key, prefix="Images/")
+    
+    def firescarselector(self, access_key_id, secret_access_key, feedback):
+        dialog_locality = S3SelectionDialog(self.S3_BUCKET, access_key_id, secret_access_key, prefix="Images/")
         if dialog_locality.exec_():
             selected_locality = dialog_locality.get_selected_item()  
-            feedback.pushDebugInfo(f"selected_year: {selected_locality}")
+            feedback.pushDebugInfo(f"selected_locality: {selected_locality}")
 
-            dialog_year = S3SelectionDialog(self.S3_BUCKET, aws_access_key_id, aws_secret_access_key, prefix=selected_locality)
+            dialog_year = S3SelectionDialog(self.S3_BUCKET, access_key_id, secret_access_key, prefix=selected_locality)
             if dialog_year.exec_():
                 selected_year = dialog_year.get_selected_item()  
                 feedback.pushDebugInfo(f"selected_year: {selected_year}")
 
-                dialog_month = S3SelectionDialog(self.S3_BUCKET, aws_access_key_id, aws_secret_access_key, prefix=selected_year)
+                dialog_month = S3SelectionDialog(self.S3_BUCKET, access_key_id, secret_access_key, prefix=selected_year)
                 if dialog_month.exec_():
                     selected_month = dialog_month.get_selected_item()  
                     feedback.pushDebugInfo(f"selected_month: {selected_month}")
 
-                    dialog_day = S3SelectionDialog(self.S3_BUCKET, aws_access_key_id, aws_secret_access_key, prefix=selected_month)
+                    dialog_day = S3SelectionDialog(self.S3_BUCKET, access_key_id, secret_access_key, prefix=selected_month)
                     if dialog_day.exec_():
                         selected_day = dialog_day.get_selected_item()  
                         feedback.pushDebugInfo(f"selected_day: {selected_day}")
 
-                        dialog_pairs = S3SelectionDialog(self.S3_BUCKET, aws_access_key_id, aws_secret_access_key, prefix=selected_day)
+                        dialog_pairs = S3SelectionDialog(self.S3_BUCKET, access_key_id, secret_access_key, prefix=selected_day)
                         if dialog_pairs.exec_():
-                            selected_pair_folder = dialog_pairs.get_selected_item()  # Debería contener la ruta del par de fotos seleccionado en S3
-                            feedback.pushDebugInfo(f"selected_pair_folder: {selected_pair_folder}")                           
-                            
-                            # Listar los archivos dentro de la carpeta
-                            s3 = boto3.client(
-                                's3',
-                                aws_access_key_id=aws_access_key_id,
-                                aws_secret_access_key=aws_secret_access_key,
-                                region_name="us-east-1"
-                            )
-                            paginator = s3.get_paginator('list_objects_v2')
-                            try:
-                                files = []
-                                for result in paginator.paginate(Bucket=self.S3_BUCKET, Prefix=selected_pair_folder):
-                                    if 'Contents' in result:
-                                        files.extend([obj['Key'] for obj in result['Contents'] if obj['Key'].endswith('.tif')])
-                                
-                                # Extraer los componentes del path
-                                path_components = selected_pair_folder.split('/')[1:]  # Omite el primer componente "Images"
-
-                                # Crear el path completo
-                                local_base_path = os.path.join(os.path.dirname(__file__), "results", *path_components[:-1])
-                                os.makedirs(local_base_path, exist_ok=True)
-                                exists_RdNBR = False
-                                exists_Severity = False
-                                for file in files:
-                                    if 'ImgPreF' in file: 
-                                        imgpre_filename = file.split('/')[-1]
-                                        local_path_before = os.path.join(local_base_path, imgpre_filename)
-                                        feedback.pushDebugInfo(f"{local_path_before=}")
-
-                                        if not os.path.exists(local_path_before):
-                                            feedback.pushDebugInfo(f"Downloading file: {file} to {local_path_before}")
-                                            self.download_file_from_s3(self.S3_BUCKET, file, local_path_before, aws_access_key_id, aws_secret_access_key)
-                                            feedback.pushDebugInfo(f"before layer  file.split('/')[2][:-23]= {file.split('/')[2][:-23]}")
-                                        before_layer = QgsRasterLayer(local_path_before, f"{file.split('/')[2][:-23]}")
-
-                                    elif 'ImgPosF' in file:
-                                        imgpost_filename = file.split('/')[-1]
-                                        local_path_burnt = os.path.join(local_base_path, imgpost_filename)
-                                        feedback.pushDebugInfo(f"{local_path_burnt=}")
-
-                                        if not os.path.exists(local_path_burnt):
-                                            feedback.pushDebugInfo(f"Downloading file: {file} to {local_path_burnt}")
-                                            self.download_file_from_s3(self.S3_BUCKET, file, local_path_burnt, aws_access_key_id, aws_secret_access_key)
-                                        burnt_layer = QgsRasterLayer(local_path_burnt, f"{file.split('/')[2][:-23]}")
-                                    
-                                    elif 'RdNBR' in file:
-                                        exists_RdNBR = True
-                                        rdnbr_filename = file.split('/')[-1]
-                                        local_path_rdnbr = os.path.join(local_base_path, rdnbr_filename)
-                                        feedback.pushDebugInfo(f"{local_path_rdnbr=}")
-
-                                        if not os.path.exists(local_path_rdnbr):
-                                            feedback.pushDebugInfo(f"Downloading file: {file} to {local_path_rdnbr}")
-                                            self.download_file_from_s3(self.S3_BUCKET, file, local_path_rdnbr, aws_access_key_id, aws_secret_access_key)
-
-                                    elif 'Severity' in file:
-                                        exists_Severity = True
-                                        severity_filename = file.split('/')[-1]
-                                        local_path_severity = os.path.join(local_base_path, severity_filename)
-                                        feedback.pushDebugInfo(f"{local_path_severity=}")
-
-                                        if not os.path.exists(local_path_severity):
-                                            feedback.pushDebugInfo(f"Downloading file: {file} to {local_path_severity}")
-                                            self.download_file_from_s3(self.S3_BUCKET, file, local_path_severity, aws_access_key_id, aws_secret_access_key)
-                                    
-
-                                firescar_filename = imgpre_filename.replace('ImgPreF', 'FireScar')
-                                output_path = os.path.join(local_base_path, firescar_filename)
-                                firescar_s3_path = selected_pair_folder + firescar_filename
-                                feedback.pushDebugInfo(f"{firescar_s3_path=}")  
-                                feedback.pushDebugInfo(f"output path: {output_path}")  
-
-                                local_firescar = True
-                                firescar_in_s3 = True
-                                if not os.path.exists(output_path): #si no está localmente
-                                    local_firescar = False
-                                    feedback.pushDebugInfo(f"la cicatriz no está local")
-                                    if self.file_exists_in_s3(self.S3_BUCKET, firescar_s3_path, aws_access_key_id, aws_secret_access_key): #si está en s3
-                                        feedback.pushDebugInfo(f"Downloading file: {firescar_s3_path} to {output_path}")
-                                        self.download_file_from_s3(self.S3_BUCKET, firescar_s3_path, output_path, aws_access_key_id, aws_secret_access_key)
-                                    else:
-                                        feedback.pushDebugInfo(f"la cicatriz no está en s3")
-                                        firescar_in_s3 = False                                
-                                             
-                            except Exception as e:
-                                raise QgsProcessingException(f"Failed to list or download files from S3: {str(e)}")
+                            selected_pair_folder = dialog_pairs.get_selected_item()  
+                            feedback.pushDebugInfo(f"selected_pair_folder: {selected_pair_folder}")
+                            return selected_pair_folder, selected_locality
                             
                         
-                            if not local_firescar and not firescar_in_s3:
-                                # Descargar modelo si no está presente localmente
-                                model_path = os.path.join(os.path.dirname(__file__), 'firescarmapping', 'ep25_lr1e-04_bs16_021__as_std_adam_f01_13_07_x3.model')
-                                if not os.path.exists(model_path):
-                                    self.download_file_from_s3(self.S3_BUCKET, "Model/ep25_lr1e-04_bs16_021__as_std_adam_f01_13_07_x3.model", model_path, aws_access_key_id, aws_secret_access_key)
-                                else:
-                                    feedback.pushDebugInfo(f"Model already exists at {model_path}")
-
-                                # Preparar los datos para la evaluación del modelo
-                                rasters = [
-                                    {"type": "before", "id": 0, "qid": before_layer.id(), "name": before_layer.name(), "data": get_rlayer_data(before_layer), "layer": before_layer},
-                                    {"type": "burnt", "id": 1, "qid": burnt_layer.id(), "name": burnt_layer.name(), "data": get_rlayer_data(burnt_layer), "layer": burnt_layer}
-                                ]
-
-                                before_files_data = [rasters[0]['data']]
-                                after_files_data = [rasters[1]['data']]
-
-                                # Cargar el modelo y evaluar las cicatrices generadas
-                                device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-                                model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
-                                np.random.seed(3)
-                                torch.manual_seed(3)
-                                data_eval = create_datasetAS(before_files_data, after_files_data, mult=1)
-                                batch_size = 1  # 1 para crear imágenes de diagnóstico, cualquier valor de lo contrario
-                                all_dl = DataLoader(data_eval, batch_size=batch_size)
-
-                                model.eval()
-                                for i, batch in enumerate(all_dl):
-                                    feedback.pushDebugInfo(f"Processing batch {i}")
-                                    feedback.pushDebugInfo(f"{batch=}")
-                                    x = batch['img'].float().to(device)
-                                    feedback.pushDebugInfo(f"Input shape: {x.shape}")
-                                    output = model(x).cpu()
-                                    feedback.pushDebugInfo(f"Output shape: {output.shape}")
-
-                                    # Obtener el mapa de predicción binaria
-                                    pred = np.zeros(output.shape)
-                                    pred[output >= 0] = 1
-
-                                    generated_matrix = pred[0][0]
-
-                            if output_path:
-                                if not local_firescar and not firescar_in_s3:
-                                    feedback.pushDebugInfo(f"Writing raster to: {output_path}")
-                                    # Llamar a la función para escribir el raster georreferenciado
-                                    self.writeRaster(generated_matrix, output_path, before_layer, feedback)
-                                    feedback.pushDebugInfo(f"Adding raster layer: {output_path}")
-
-                                #verificar si la cicatriz está en el bucket
-                                if not self.file_exists_in_s3(self.S3_BUCKET, firescar_s3_path, aws_access_key_id, aws_secret_access_key):
-                                    feedback.pushDebugInfo(f"Uploading file: {firescar_filename} to {selected_pair_folder}")
-                                    s3.upload_file(output_path, self.S3_BUCKET, firescar_s3_path)
-
-                                # Verificar si el grupo ya existe, si no, crearlo
-                                group_name = f"{selected_locality.split('/')[1]} - {selected_pair_folder.split('/')[5]}"
-                                root = QgsProject.instance().layerTreeRoot()
-                                group = root.findGroup(group_name)
-                                if not group:
-                                    group = root.addGroup(group_name)
-                                self.addRasterLayer(local_path_before, f"ImgPreF-{selected_pair_folder.split('/')[1]}-{selected_pair_folder.split('/')[5]}", group, context)
-                                self.addRasterLayer(local_path_burnt, f"ImgPosF-{selected_pair_folder.split('/')[1]}-{selected_pair_folder.split('/')[5]}", group, context)
-                                self.addRasterLayer(output_path, f"FireScar-{selected_pair_folder.split('/')[1]}-{selected_pair_folder.split('/')[5]}", group, context)
-                                if exists_RdNBR:
-                                    self.addRasterLayer(local_path_rdnbr, f"RdNBR-{selected_pair_folder.split('/')[1]}-{selected_pair_folder.split('/')[5]}", group, context)
-                                if exists_Severity:
-                                    self.addRasterLayer(local_path_severity, f"Severity-{selected_pair_folder.split('/')[1]}-{selected_pair_folder.split('/')[5]}", group, context)
-                                self.add_openstreetmap_layer_if_needed(feedback)  
-                            return {}
-
-        raise QgsProcessingException("No se seleccionó una localidad o par de fotos válidos.")
+                        raise QgsProcessingException("Invalid wildfire incident folder or not selected")    
+                    raise QgsProcessingException("Invalid day or not selected")
+                raise QgsProcessingException("Invalid month or not selected")                
+            raise QgsProcessingException("Invalid year or not selected")
+        raise QgsProcessingException("Invalid locality or not selected")
     
-
-    def writeRaster(self, matrix, file_path, before_layer, feedback):
-
-        # Obtener las dimensiones del raster antes del incendio
-        width = before_layer.width()
-        height = before_layer.height()
-
-        # Crear el archivo raster de salida
-        driver = gdal.GetDriverByName('GTiff')
-        raster = driver.Create(file_path, width, height, 1, gdal.GDT_Byte)
-
-        if raster is None:
-            raise QgsProcessingException("Failed to create raster file.")
-
-        # Configurar la geotransformación y proyección
-        extent = before_layer.extent()
-        pixel_width = extent.width() / width
-        pixel_height = extent.height() / height
-        raster.SetGeoTransform((extent.xMinimum(), pixel_width, 0, extent.yMaximum(), 0, -pixel_height))
-        raster.SetProjection(before_layer.crs().toWkt())
-
-        # Obtener la banda del raster
-        band = raster.GetRasterBand(1)
-
-        # Calcular el offset y el tamaño de la región de la cicatriz para ajustar al raster
-        start_row = 0
-        start_col = 0
-        matrix_height, matrix_width = matrix.shape
-
-        if matrix_height > height:
-            start_row = (matrix_height - height) // 2
-            matrix_height = height
-        if matrix_width > width:
-            start_col = (matrix_width - width) // 2
-            matrix_width = width
-
-        # Recortar la matriz para que coincida con las dimensiones del raster
-        resized_matrix = matrix[start_row:start_row + matrix_height, start_col:start_col + matrix_width]
-
-        # Escribir la matriz en la banda del raster de salida
+    def processAlgorithm(self, parameters, context, feedback):
+        aws_access_key_id, aws_secret_access_key = get_aws_credentials()
+        selected_pair_folder, selected_locality = self.firescarselector(aws_access_key_id, aws_secret_access_key, feedback)
+                                                           
+        # List files inside the folder
+        s3 = boto3.client(
+            's3',
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            region_name="us-east-1"
+        )
+        paginator = s3.get_paginator('list_objects_v2')
         try:
-            gdal_array.BandWriteArray(band, resized_matrix, 0, 0)
-        except ValueError as e:
-            raise QgsProcessingException(f"Failed to write array to raster: {str(e)}")
+            files = []
+            for result in paginator.paginate(Bucket=self.S3_BUCKET, Prefix=selected_pair_folder):
+                if 'Contents' in result:
+                    files.extend([obj['Key'] for obj in result['Contents'] if obj['Key'].endswith('.tif')])
+            
+            # Exctract components of the path
+            path_components = selected_pair_folder.split('/')[1:]  # Ignore first component "Images"
 
-        # Establecer el valor NoData
-        band.SetNoDataValue(0)
+            # Create complete path
+            local_base_path = os.path.join(os.path.dirname(__file__), "results", *path_components[:-1])
+            os.makedirs(local_base_path, exist_ok=True)
+            exists_RdNBR = False
+            exists_Severity = False
+            for file in files:
+                if 'ImgPreF' in file: 
+                    imgpre_filename = file.split('/')[-1]
+                    local_path_before = os.path.join(local_base_path, imgpre_filename)
+                    feedback.pushDebugInfo(f"{local_path_before=}")
+
+                    if not os.path.exists(local_path_before):
+                        feedback.pushDebugInfo(f"Downloading file: {file} to {local_path_before}")
+                        self.download_file_from_s3(self.S3_BUCKET, file, local_path_before, aws_access_key_id, aws_secret_access_key)
+                        feedback.pushDebugInfo(f"before layer  file.split('/')[2][:-23]= {file.split('/')[2][:-23]}")
+                    before_layer = QgsRasterLayer(local_path_before, f"{file.split('/')[2][:-23]}")
+
+                elif 'ImgPosF' in file:
+                    imgpost_filename = file.split('/')[-1]
+                    local_path_burnt = os.path.join(local_base_path, imgpost_filename)
+                    feedback.pushDebugInfo(f"{local_path_burnt=}")
+
+                    if not os.path.exists(local_path_burnt):
+                        feedback.pushDebugInfo(f"Downloading file: {file} to {local_path_burnt}")
+                        self.download_file_from_s3(self.S3_BUCKET, file, local_path_burnt, aws_access_key_id, aws_secret_access_key)
+                    burnt_layer = QgsRasterLayer(local_path_burnt, f"{file.split('/')[2][:-23]}")
+                
+                elif 'RdNBR' in file:
+                    exists_RdNBR = True
+                    rdnbr_filename = file.split('/')[-1]
+                    local_path_rdnbr = os.path.join(local_base_path, rdnbr_filename)
+                    feedback.pushDebugInfo(f"{local_path_rdnbr=}")
+
+                    if not os.path.exists(local_path_rdnbr):
+                        feedback.pushDebugInfo(f"Downloading file: {file} to {local_path_rdnbr}")
+                        self.download_file_from_s3(self.S3_BUCKET, file, local_path_rdnbr, aws_access_key_id, aws_secret_access_key)
+                
+            firescar_filename = imgpre_filename.replace('ImgPreF', 'FireScar')
+            output_path = os.path.join(local_base_path, firescar_filename)
+            firescar_s3_path = selected_pair_folder + firescar_filename
+            feedback.pushDebugInfo(f"{firescar_s3_path=}")  
+            feedback.pushDebugInfo(f"output path: {output_path}")  
+
+            local_firescar = True
+            firescar_in_s3 = True
+            if not os.path.exists(output_path): #if it's not locally
+                local_firescar = False
+                feedback.pushDebugInfo(f"the firescar is not locally")
+                if self.file_exists_in_s3(self.S3_BUCKET, firescar_s3_path, aws_access_key_id, aws_secret_access_key): #if it is in s3
+                    feedback.pushDebugInfo(f"Downloading file: {firescar_s3_path} to {output_path}")
+                    self.download_file_from_s3(self.S3_BUCKET, firescar_s3_path, output_path, aws_access_key_id, aws_secret_access_key)
+                else:
+                    feedback.pushDebugInfo(f"the firescar is not in s3")
+                    firescar_in_s3 = False                                
+                            
+        except Exception as e:
+            raise QgsProcessingException(f"Failed to list or download files from S3: {str(e)}")
         
-        # Asegurar que los valores mínimos y máximos están actualizados
-        band.ComputeStatistics(False)
-        band.SetStatistics(0, 1, 0.5, 0.5)
+    
+        if not local_firescar and not firescar_in_s3:
+            # Download model if it's not locally
+            model_path = os.path.join(os.path.dirname(__file__), 'firescarmapping', 'ep25_lr1e-04_bs16_021__as_std_adam_f01_13_07_x3.model')
+            if not os.path.exists(model_path):
+                self.download_file_from_s3(self.S3_BUCKET, "Model/ep25_lr1e-04_bs16_021__as_std_adam_f01_13_07_x3.model", model_path, aws_access_key_id, aws_secret_access_key)
+            else:
+                feedback.pushDebugInfo(f"Model already exists at {model_path}")
 
-        # Limpiar caché y cerrar el raster
-        band.FlushCache()
-        raster.FlushCache()
-        raster = None
+            # Prepare data fot  the evaluation of the model
+            rasters = [
+                {"type": "before", "id": 0, "qid": before_layer.id(), "name": before_layer.name(), "data": get_rlayer_data(before_layer), "layer": before_layer},
+                {"type": "burnt", "id": 1, "qid": burnt_layer.id(), "name": burnt_layer.name(), "data": get_rlayer_data(burnt_layer), "layer": burnt_layer}
+            ]
 
-        feedback.pushInfo(f"Raster written to {file_path}")
+            before_files_data = [rasters[0]['data']]
+            after_files_data = [rasters[1]['data']]
 
-    def addRasterLayer(self, file_path, layer_name, group, context):
-        layer = QgsRasterLayer(file_path, layer_name, "gdal")
-        if not layer.isValid():
-            raise QgsProcessingException(f"Failed to load raster layer from {file_path}")
+            # Load model and evaluate the generated firescar
+            device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+            model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+            np.random.seed(3)
+            torch.manual_seed(3)
+            data_eval = create_datasetAS(before_files_data, after_files_data, mult=1)
+            batch_size = 1 
+            all_dl = DataLoader(data_eval, batch_size=batch_size)
+
+            model.eval()
+            for i, batch in enumerate(all_dl):
+                feedback.pushDebugInfo(f"Processing batch {i}")
+                x = batch['img'].float().to(device)
+                feedback.pushDebugInfo(f"Input shape: {x.shape}")
+                output = model(x).cpu()
+                feedback.pushDebugInfo(f"Output shape: {output.shape}")
+
+                # Obtain the map of binary prediction
+                pred = np.zeros(output.shape)
+                pred[output >= 0] = 1
+
+                generated_matrix = pred[0][0]
+
+        if output_path:
+            if not local_firescar and not firescar_in_s3:
+                feedback.pushDebugInfo(f"Writing raster to: {output_path}")
+                # Call function to write georeferenced raster
+                self.writeRaster(generated_matrix, output_path, before_layer, feedback)
+                feedback.pushDebugInfo(f"Adding raster layer: {output_path}")
+
+            #verify if the firescar is in s3
+            if not self.file_exists_in_s3(self.S3_BUCKET, firescar_s3_path, aws_access_key_id, aws_secret_access_key):
+                feedback.pushDebugInfo(f"Uploading file: {firescar_filename} to {selected_pair_folder}")
+                s3.upload_file(output_path, self.S3_BUCKET, firescar_s3_path)
+
+            # verify if the group already exists, if not, creates it
+            group_name = f"{selected_locality.split('/')[1]} - {selected_pair_folder.split('/')[5]}"
+            root = QgsProject.instance().layerTreeRoot()
+            group = root.findGroup(group_name)
+            if not group:
+                group = root.addGroup(group_name)
+            self.addRasterLayer(local_path_before, f"ImgPreF-{selected_pair_folder.split('/')[1]}-{selected_pair_folder.split('/')[5]}", group, context)
+            self.addRasterLayer(local_path_burnt, f"ImgPosF-{selected_pair_folder.split('/')[1]}-{selected_pair_folder.split('/')[5]}", group, context)
+            self.addRasterLayer(output_path, f"FireScar-{selected_pair_folder.split('/')[1]}-{selected_pair_folder.split('/')[5]}", group, context)
+            if exists_RdNBR:
+                self.addRasterLayer(local_path_rdnbr, f"RdNBR-{selected_pair_folder.split('/')[1]}-{selected_pair_folder.split('/')[5]}", group, context)
+            if exists_Severity:
+                self.addRasterLayer(local_path_severity, f"Severity-{selected_pair_folder.split('/')[1]}-{selected_pair_folder.split('/')[5]}", group, context)
+            self.add_openstreetmap_layer_if_needed(feedback)  
+        return {}
+
         
-        provider = layer.dataProvider()
-        if provider:
-            for band in range(1, layer.bandCount() + 1):
-                provider.setNoDataValue(band, 0)
-            layer.triggerRepaint()
-
-        QgsProject.instance().addMapLayer(layer, False)
-        group.insertChildNode(0, QgsLayerTreeLayer(layer))
-        if "Firescar" in layer_name:
-            renderer = layer.renderer()
-            if isinstance(renderer, QgsSingleBandPseudoColorRenderer):
-                color_ramp = QgsGradientColorRamp(QColor(255, 255, 255), QColor(0, 0, 0))
-                renderer.updateColorRamp(color_ramp)
-                layer.triggerRepaint()
-
-    # Verificar si el archivo de la cicatriz ya está en S3
     def file_exists_in_s3(self, bucket, key, access_key_id, secret_access_key):
         s3 = boto3.client(
             's3',
@@ -367,7 +284,84 @@ class FireScarMapper(QgsProcessingAlgorithm):
         # Agregar la capa al proyecto
         project.addMapLayer(layer)
         feedback.pushDebugInfo(f"OpenStreetMap layer added.")
+        
+    def addRasterLayer(self, file_path, layer_name, group, context):
+        layer = QgsRasterLayer(file_path, layer_name, "gdal")
+        if not layer.isValid():
+            raise QgsProcessingException(f"Failed to load raster layer from {file_path}")
+        
+        provider = layer.dataProvider()
+        if provider:
+            for band in range(1, layer.bandCount() + 1):
+                provider.setNoDataValue(band, 0)
+            layer.triggerRepaint()
 
+        QgsProject.instance().addMapLayer(layer, False)
+        group.insertChildNode(0, QgsLayerTreeLayer(layer))
+        if "Firescar" in layer_name:
+            renderer = layer.renderer()
+            if isinstance(renderer, QgsSingleBandPseudoColorRenderer):
+                color_ramp = QgsGradientColorRamp(QColor(255, 255, 255), QColor(0, 0, 0))
+                renderer.updateColorRamp(color_ramp)
+                layer.triggerRepaint()
+
+    def writeRaster(self, matrix, file_path, before_layer, feedback):
+
+        # Get the dimensions of the raster before the fire
+        width = before_layer.width()
+        height = before_layer.height()
+
+        # Create the output raster file
+        driver = gdal.GetDriverByName('GTiff')
+        raster = driver.Create(file_path, width, height, 1, gdal.GDT_Byte)
+
+        if raster is None:
+            raise QgsProcessingException("Failed to create raster file.")
+
+        # Set the geotransformation and projection
+        extent = before_layer.extent()
+        pixel_width = extent.width() / width
+        pixel_height = extent.height() / height
+        raster.SetGeoTransform((extent.xMinimum(), pixel_width, 0, extent.yMaximum(), 0, -pixel_height))
+        raster.SetProjection(before_layer.crs().toWkt())
+
+        # Get the raster band
+        band = raster.GetRasterBand(1)
+
+        # Calculate the offset and size of the burn scar region to fit the raster
+        start_row = 0
+        start_col = 0
+        matrix_height, matrix_width = matrix.shape
+
+        if matrix_height > height:
+            start_row = (matrix_height - height) // 2
+            matrix_height = height
+        if matrix_width > width:
+            start_col = (matrix_width - width) // 2
+            matrix_width = width
+
+        # Crop the matrix to match the raster dimensions
+        resized_matrix = matrix[start_row:start_row + matrix_height, start_col:start_col + matrix_width]
+
+        # Write the matrix to the raster band
+        try:
+            gdal_array.BandWriteArray(band, resized_matrix, 0, 0)
+        except ValueError as e:
+            raise QgsProcessingException(f"Failed to write array to raster: {str(e)}")
+
+        # Set the NoData value
+        band.SetNoDataValue(0)
+        
+        # Ensure that the minimum and maximum values are updated
+        band.ComputeStatistics(False)
+        band.SetStatistics(0, 1, 0.5, 0.5)
+
+        # Flush cache and close the raster
+        band.FlushCache()
+        raster.FlushCache()
+        raster = None
+
+        feedback.pushInfo(f"Raster written to {file_path}")
 
     def name(self):
         return "firescarmapper"
