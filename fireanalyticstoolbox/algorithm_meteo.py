@@ -50,6 +50,7 @@ class MeteoAlgo(QgsProcessingAlgorithm):
     IN_ROWRES = "time_resolution"
     IN_NUMROWS = "time_lenght"
     IN_NUMSIMS = "number_of_scenarios"
+    IN_PERCENTILE = "percentile"
     OUT = "output_directory"
 
     def initAlgorithm(self, config):
@@ -59,6 +60,17 @@ class MeteoAlgo(QgsProcessingAlgorithm):
                 description="Where? Single point vector layer, else the center of the current map will be used.",
                 types=[QgsProcessing.TypeVectorPoint],
                 defaultValue=None,
+                optional=True,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterNumber(
+                self.IN_PERCENTILE,
+                self.tr("Carolina's Percentile"),
+                type=QgsProcessingParameterNumber.Double,
+                defaultValue=0.5,
+                minValue=0,
+                maxValue=1,
                 optional=True,
             )
         )
@@ -129,6 +141,7 @@ class MeteoAlgo(QgsProcessingAlgorithm):
         """
         instance = {
             "start_datetime": self.parameterAsDateTime(parameters, self.IN_DATE, context).toPyDateTime(),
+            "percentile": self.parameterAsInt(parameters, self.IN_PERCENTILE, context),
             "rowres": self.parameterAsInt(parameters, self.IN_ROWRES, context),
             "numrows": self.parameterAsInt(parameters, self.IN_NUMROWS, context),
             "numsims": self.parameterAsInt(parameters, self.IN_NUMSIMS, context),
@@ -212,6 +225,7 @@ class MeteoAlgo(QgsProcessingAlgorithm):
             <br>
             - Selecting a <b>location</b> will pick the three nearest weather stations for sampling<br>
             - <b>Start hour</b>: Time of day from where to start picking station data<br>
+            - <b>Carolina's Percentile</b>: 0 for minimum, 1 for maximum<br>	
             - <b>Length of each scenario </b>: Indicates the duration, in hours, of each scenario<br>
             - <b>Number_of_simulations</b>: files to generate<br>
             - <b>output_directory</b>: folder where the files are written containing Weather(+digit).csv numbered files with each weather scenario<br>
