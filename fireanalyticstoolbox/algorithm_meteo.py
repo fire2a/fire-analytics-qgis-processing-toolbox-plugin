@@ -141,7 +141,7 @@ class MeteoAlgo(QgsProcessingAlgorithm):
         """
         instance = {
             "start_datetime": self.parameterAsDateTime(parameters, self.IN_DATE, context).toPyDateTime(),
-            "percentile": self.parameterAsReal(parameters, self.IN_PERCENTILE, context),
+            "percentile": self.parameterAsDouble(parameters, self.IN_PERCENTILE, context),
             "rowres": self.parameterAsInt(parameters, self.IN_ROWRES, context),
             "numrows": self.parameterAsInt(parameters, self.IN_NUMROWS, context),
             "numsims": self.parameterAsInt(parameters, self.IN_NUMSIMS, context),
