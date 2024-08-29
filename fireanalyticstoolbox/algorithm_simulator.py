@@ -33,7 +33,7 @@ __revision__ = "$Format:%H$"
 from datetime import datetime
 from math import isclose
 from multiprocessing import cpu_count
-from os import chmod, kill, sep
+from os import chmod, kill, popen, sep
 from pathlib import Path
 from platform import machine as platform_machine
 from platform import system as platform_system
@@ -947,12 +947,21 @@ def get_ext() -> str:
     ext = ""
     if platform_system() == "Windows":
         ext = ".exe"
+    elif platform_system() == "Linux":
+        ext = ""
+        # ext = (
+        #     "."
+        #     + popen("lsb_release --short --id 2>/dev/null").read().strip()
+        #     + "."
+        #     + popen("lsb_release --short --codename 2>/dev/null").read().strip()
+        #     + "."
+        #     + popen("uname --machine 2>/dev/null").read().strip()
+        # )
+    elif platform_system() == "Darwin":
+        if platform_machine() == "arm64":
+            ext = ".Darwin.arm64"
+        elif platform_machine() == "x86_64":
+            ext = ".Darwin.x86_64"
     else:
-        ext = f".{platform_system()}.{platform_machine()}"
-
-    if ext not in [".exe", ".Linux.x86_64", ".Darwin.arm64", ".Darwin.x86_64"]:
-        QgsMessageLog.logMessage(f"Untested platform: {ext}", tag=TAG, level=Qgis.Warning)
-    if ext == ".Darwin.arm64":
-        QgsMessageLog.logMessage(f"Build not automated, probably using old binary: {ext}", tag=TAG, level=Qgis.Warning)
-
+        raise QgsProcessingException(f"Unsupported platform: {platform_system()}")
     return ext
