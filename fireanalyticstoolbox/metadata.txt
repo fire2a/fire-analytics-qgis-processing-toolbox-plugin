@@ -24,6 +24,7 @@ repository=https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plug
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
 changelog=
+	v0.4.2: Manylinux support, propagation polygon disabled by default, DPV nodata handle
 	v0.4.1: Bug fix when copying input rasters
 	v0.4.0: Tif files supported in Fire Simulator inputs
 	v0.3.2: Meteo Kitral docs and update fire2a-lib, Knapsack Raster filter indexes, Burn Probability isolation as new algo 
