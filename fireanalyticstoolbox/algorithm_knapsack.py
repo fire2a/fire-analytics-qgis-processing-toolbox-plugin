@@ -66,7 +66,7 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
     solver_exception_msg = ""
 
     if platform_system() == "Windows":
-        add_cbc_to_path()
+        add_cbc_to_path(QgsMessageLog)
 
     def initAlgorithm(self, config):
         """The form reads a vector layer and two fields, one for the value and one for the weight; also configures the weight ratio and the solver"""
@@ -337,7 +337,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
     solver_exception_msg = ""
 
     if platform_system() == "Windows":
-        add_cbc_to_path()
+        add_cbc_to_path(QgsMessageLog)
 
     def initAlgorithm(self, config):
         """The form reads two raster layers one for the value and one for the weight; also configures the weight ratio and the solver"""
