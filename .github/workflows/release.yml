@@ -48,6 +48,7 @@ jobs:
 
     - name: git archive
       run: |
+        rm -f fireanalyticstoolbox/cbc/*w64-msvc17*.zip
         rm -rf fireanalyticstoolbox/cbc/include 
         rm -rf fireanalyticstoolbox/cbc/share
         rm -f fireanalyticstoolbox/simulator/C2F/Cell2Fire/*.h
