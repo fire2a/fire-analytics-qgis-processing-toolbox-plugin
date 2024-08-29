@@ -14,20 +14,25 @@ from shutil import which
 
 from pyomo.common.errors import ApplicationError
 from pyomo.opt import SolverFactory, SolverManagerFactory, SolverStatus, TerminationCondition
-from qgis.core import QgsProcessingException
 
 from ..config import TAG
 
 one_or_more_newlines = re_compile(r"\n+")
 
-SOLVER = {
-    "cbc": f"ratioGap=0.005 seconds=300 threads={cpu_count() - 1}",
-    "glpk": "mipgap=0.005 tmlim=300",
-    "ipopt": "",
-    "gurobi": "MIPGap=0.005 TimeLimit=300",
-    "cplex_direct": "mipgap=0.005 timelimit=300",
-    # "cplex_persistent": "mipgap=0.005 timelimit=300", needs tweak opt.set_ to work
-}
+if platform_system() == "Windows":
+    SOLVER = {"cbc": "ratioGap=0.005 seconds=300"}
+else:
+    SOLVER = {"cbc": f"ratioGap=0.005 seconds=300 threads={cpu_count() - 1}"}
+
+SOLVER.update(
+    {
+        "glpk": "mipgap=0.005 tmlim=300",
+        "ipopt": "",
+        "gurobi": "MIPGap=0.005 TimeLimit=300",
+        "cplex_direct": "mipgap=0.005 timelimit=300",
+        # "cplex_persistent": "mipgap=0.005 timelimit=300", needs tweak opt.set_ to work
+    }
+)
 NEOS_SOLVER = [
     "bonmin",
     "cbc",
@@ -112,11 +117,18 @@ def check_solver_availabilityBASED():
     return pyomo_solvers_list
 
 
+def qml_print(msg, qgs_message_log=None):
+    # qml_print = lambda x, y: y.logMessage(x, TAG) if qgs_message_log else print(x)
+    if qgs_message_log:
+        # from qgis.core import QgsMessageLog
+        # QgsMessageLog().logMessage(msg, TAG)
+        qgs_message_log().logMessage(msg, TAG)
+    else:
+        print(msg)
+
+
 def add_cbc_to_path(qgs_message_log=None):
     """Add cbc to path if it is not already there"""
-    from qgis.core import QgsMessageLog
-
-    qml_print = lambda x, y: QgsMessageLog.logMessage(x, TAG) if qgs_message_log else print(x)
 
     if which_cbc := which("cbc.exe"):
         qml_print(f"cbc.exe already in {which_cbc=}", qgs_message_log)
@@ -362,6 +374,8 @@ def printf(msg, feedback=None, level=-1):
         elif level >= 2:
             feedback.reportError(msg)
         if feedback.isCanceled():
+            from qgis.core import QgsProcessingException
+
             raise QgsProcessingException("Algorithm cancelled by user")
     else:
         print(msg)
