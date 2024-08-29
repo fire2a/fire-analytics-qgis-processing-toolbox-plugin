@@ -225,7 +225,8 @@ class MeteoAlgo(QgsProcessingAlgorithm):
             <br>
             - Selecting a <b>location</b> will pick the three nearest weather stations for sampling<br>
             - <b>Start hour</b>: Time of day from where to start picking station data<br>
-            - <b>Carolina's Percentile</b>: 0 for minimum, 1 for maximum<br>	
+            - <b>Temperature quantile</b>: A number greater than or equal to 0 and less than 1. It takes the daily maximum temperature values that are above the desired proportion. <br> 
+            Example: quantile 0.75 takes the days when the daily maximum temperature is above the 75 &#37; <br>	
             - <b>Length of each scenario </b>: Indicates the duration, in hours, of each scenario<br>
             - <b>Number_of_simulations</b>: files to generate<br>
             - <b>output_directory</b>: folder where the files are written containing Weather(+digit).csv numbered files with each weather scenario<br>
