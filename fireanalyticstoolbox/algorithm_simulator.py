@@ -37,7 +37,7 @@ from os import chmod, kill, popen, sep
 from pathlib import Path
 from platform import machine as platform_machine
 from platform import system as platform_system
-from shutil import copy
+from shutil import copy, which
 from signal import SIGTERM
 from stat import S_IXGRP, S_IXOTH, S_IXUSR
 from typing import Any
@@ -70,8 +70,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     results_dir = None
     plugin_dir = Path(__file__).parent
     c2f_path = Path(plugin_dir, "simulator", "C2F", "Cell2Fire")
-    # c2f_path = Path(plugin_dir, "simulator", "C2F")
-    # c2f_path = Path("/home/fdo/source/C2F-W")
+    suffix = ""
 
     fuel_models = NAME["fuel_models"]
     fuel_tables = NAME["fuel_tables"]
@@ -113,22 +112,60 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
 
     def canExecute(self):
         """checks if cell2fire binary is available"""
-        c2f_bin = Path(self.c2f_path, f"Cell2Fire{get_ext()}")
-        if c2f_bin.is_file():
-            st = c2f_bin.stat()
-            chmod(c2f_bin, st.st_mode | S_IXUSR | S_IXGRP | S_IXOTH)
+        if platform_system() == "Windows":
+            suffix = ".exe"
+
+        elif platform_system() == "Linux":
+            if which("lsb_release") is None:
+                return False, "lsb_release command not found! (apt install lsb-release)"
+            if which("uname") is None:
+                return False, "uname command not found! (apt install uname)"
+            distribution = popen("lsb_release --short --id 2>/dev/null").read().strip()
+            codename = popen("lsb_release --short --codename 2>/dev/null").read().strip()
+            machine = popen("uname --machine 2>/dev/null").read().strip()
+            suffix = "." + distribution + "." + codename + "." + machine
+            c2f_bin = Path(self.c2f_path, f"Cell2Fire{suffix}")
+            if not c2f_bin.is_file():
+                QgsMessageLog.logMessage(
+                    f"{self.name()}, Cell2Fire binary not available for {distribution=} {codename=} {machine=}",
+                    tag=TAG,
+                    level=Qgis.Warning,
+                )
+                QgsMessageLog.logMessage(f"{self.name()}, Not a file! {c2f_bin}", tag=TAG, level=Qgis.Warning)
+                QgsMessageLog.logMessage(f"{self.name()}, Falling back to manylinux", tag=TAG, level=Qgis.Critical)
+                suffix = ""
+                c2f_bin = Path(self.c2f_path, f"Cell2Fire{suffix}")
+            if which("ldd"):
+                ldd = popen("ldd " + str(c2f_bin)).read()
+                QgsMessageLog.logMessage(f"{self.name()}, Binary dependencies:\n{ldd}", tag=TAG, level=Qgis.Info)
+                if "not found" in ldd:
+                    QgsMessageLog.logMessage(
+                        f"{self.name()}, Missing dependencies! Falling back to manylinux", tag=TAG, level=Qgis.Critical
+                    )
+                    suffix = ""
+
+        elif platform_system() == "Darwin":
+            if platform_machine() == "arm64":
+                suffix = ".Darwin.arm64"
+            elif platform_machine() == "x86_64":
+                suffix = ".Darwin.x86_64"
+            if which("otool -L"):
+                ldd = popen("otool -L " + str(c2f_bin)).read()
+                QgsMessageLog.logMessage(f"{self.name()}, Binary dependencies:\n{ldd}", tag=TAG, level=Qgis.Info)
+                if "not found" in ldd:
+                    return False, "Missing dependencies! (brew install libomp?)"
         else:
-            return False, "Cell2Fire binary not found! Check fire2a documentation for compiling"
-        #
-        if platform_system() in ["Linux", "Windows"] and platform_machine() in ["x86_64", "AMD64"]:
-            return True, ""
-        elif platform_system() == "Darwin" and platform_machine() == "x86_64":
-            return True, ""
-        elif platform_system() == "Darwin" and platform_machine() == "arm64":
-            QgsMessageLog.logMessage("Using a very old binary!!", tag=TAG, level=Qgis.Warning)
-            return True, ""
-        else:
-            return False, f"OS {platform_system()} {platform_machine()} not supported yet"
+            return False, f"OS {platform_system()} not supported yet"
+
+        c2f_bin = Path(self.c2f_path, f"Cell2Fire{suffix}")
+        if not c2f_bin.is_file():
+            return False, "Cell2Fire binary not found!"
+        st = c2f_bin.stat()
+        # TODO check if chmod is needed or failed!
+        chmod(c2f_bin, st.st_mode | S_IXUSR | S_IXGRP | S_IXOTH)
+        self.suffix = suffix
+        QgsMessageLog.logMessage(f"{self.name()}, Using Binary {c2f_bin}", tag=TAG, level=Qgis.Success)
+        return True, ""
 
     def initAlgorithm(self, config):
         """
@@ -678,7 +715,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         args["output-folder"] = '"' + str(results_dir) + '"'
         feedback.pushDebugInfo(f"args: {args}\n")
 
-        cmd = f"./Cell2Fire{get_ext()}"
+        cmd = f"./Cell2Fire{self.suffix}"
         # cmd alternative (remove powershell below)
         # if platform_system() == "Windows":
         #     cmd.replace("./", "")
@@ -940,28 +977,3 @@ def compare_raster_properties(base: dict, incumbent: dict):
                 f"raster '{incumbent['name']}' {key} not close enough!\n| {base[key]} - {incumbent[key]} | > {ruppy}",
             )
     return True, "all ok"
-
-
-def get_ext() -> str:
-    """Get the extension for the executable file based on the platform system and machine"""
-    ext = ""
-    if platform_system() == "Windows":
-        ext = ".exe"
-    elif platform_system() == "Linux":
-        ext = ""
-        # ext = (
-        #     "."
-        #     + popen("lsb_release --short --id 2>/dev/null").read().strip()
-        #     + "."
-        #     + popen("lsb_release --short --codename 2>/dev/null").read().strip()
-        #     + "."
-        #     + popen("uname --machine 2>/dev/null").read().strip()
-        # )
-    elif platform_system() == "Darwin":
-        if platform_machine() == "arm64":
-            ext = ".Darwin.arm64"
-        elif platform_machine() == "x86_64":
-            ext = ".Darwin.x86_64"
-    else:
-        raise QgsProcessingException(f"Unsupported platform: {platform_system()}")
-    return ext
