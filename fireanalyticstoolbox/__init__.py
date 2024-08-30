@@ -25,6 +25,7 @@
 __author__ = "Fernando Badilla Veliz - Fire2a.com"
 __date__ = "2023-08-30"
 __copyright__ = "(C) 2023 by Fernando Badilla Veliz - Fire2a.com"
+__revision__ = "$Format:%H$"
 
 
 # noinspection PyPep8Naming
