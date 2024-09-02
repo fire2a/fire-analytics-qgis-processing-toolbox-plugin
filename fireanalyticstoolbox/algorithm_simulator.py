@@ -149,7 +149,15 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             os = popen("uname -s 2>/dev/null").read().strip()
             pname = popen("sw_vers -productName 2>/dev/null").read().strip()
             pmayorvers = popen("sw_vers -productVersion 2>/dev/null | cut -d '.' -f 1 2>/dev/null").read().strip()
-            arch = popen("arch 2>/dev/null").read().strip()
+            arch = int(popen("arch 2>/dev/null").read().strip())
+            if pmayorvers < 12:
+                pmayorvers = 12
+            if pmayorvers > 14:
+                pmayorvers = 14
+            if arch == 'i386' and pmayorvers > 13:
+                pmayorvers = 13
+            if arch == 'arm64' and pmayorvers < 13:
+                pmayorvers = 14
             suffix = f"_{os}.{pname}-{pmayorvers}.{arch}-static"
             if which("otool -L"):
                 c2f_bin = Path(self.c2f_path, f"Cell2Fire{suffix}")
