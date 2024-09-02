@@ -145,15 +145,25 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                     suffix = ""
 
         elif platform_system() == "Darwin":
-            if platform_machine() == "arm64":
-                suffix = ".Darwin.arm64"
-            elif platform_machine() == "x86_64":
-                suffix = ".Darwin.x86_64"
+            # echo "suffix="$(uname -s).${{ matrix.runner }}.$(arch)"" >> $GITHUB_ENV
+            os = popen("uname -s 2>/dev/null").read().strip()
+            pname = popen("sw_vers -productName 2>/dev/null").read().strip()
+            pmayorvers = popen("sw_vers -productVersion 2>/dev/null | cut -d '.' -f 1 2>/dev/null").read().strip()
+            arch = popen("arch 2>/dev/null").read().strip()
+            suffix = f"_{os}.{pname}-{pmayorvers}.{arch}-static"
             if which("otool -L"):
-                ldd = popen("otool -L " + str(c2f_bin)).read()
-                QgsMessageLog.logMessage(f"{self.name()}, Binary dependencies:\n{ldd}", tag=TAG, level=Qgis.Info)
-                if "not found" in ldd:
-                    return False, "Missing dependencies! (brew install libomp?)"
+                c2f_bin = Path(self.c2f_path, f"Cell2Fire{suffix}")
+                if c2f_bin.is_file():
+                    ldd = popen("otool -L " + str(c2f_bin) + " 2>&1 ").read()
+                    QgsMessageLog.logMessage(f"{self.name()}, Dependencies of {c2f_bin.name}:\n{ldd}", tag=TAG, level=Qgis.Info)
+                else:
+                    suffix = suffix.replace("-static", "")
+                    c2f_bin = Path(self.c2f_path, f"Cell2Fire{suffix}")
+                    if c2f_bin.is_file():
+                        ldd = popen("otool -L " + str(c2f_bin) + " 2>&1 ").read()
+                        QgsMessageLog.logMessage(f"{self.name()}, Dependencies of {c2f_bin.name}:\n{ldd}", tag=TAG, level=Qgis.Info)
+            #     if "not found" in ldd:
+            #         return False, "Missing dependencies! (brew install libomp?)"
         else:
             return False, f"OS {platform_system()} not supported yet"
 
