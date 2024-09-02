@@ -271,7 +271,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 name=self.NSIM,
                 description="\nIGNITION SECTION\nNumber of simulations",
                 type=QgsProcessingParameterNumber.Integer,
-                defaultValue=2,
+                defaultValue=3,
                 optional=False,
                 minValue=1,
                 maxValue=66642069,
