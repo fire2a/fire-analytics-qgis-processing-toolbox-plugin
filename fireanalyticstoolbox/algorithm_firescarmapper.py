@@ -22,15 +22,16 @@
 
 from fire2a.raster import get_rlayer_data, get_rlayer_info
 from qgis.core import (QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterMultipleLayers,
-                       QgsProcessingParameterRasterDestination, QgsProcessingParameterFile, QgsProject, QgsRasterLayer, QgsProcessingException)
+                       QgsProcessingParameterRasterDestination, QgsLayerTreeLayer, QgsProject, QgsRasterLayer, QgsProcessingException, QgsSingleBandPseudoColorRenderer, QgsGradientColorRamp)
 from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtGui import QColor
 import torch
 from .firescarmapping.model_u_net import model, device
 from .firescarmapping.as_dataset import create_datasetAS
 import numpy as np
 from torch.utils.data import DataLoader
 import os
-from osgeo import gdal, osr 
+from osgeo import gdal, gdal_array
 
 
 class FireScarMapper(QgsProcessingAlgorithm):
@@ -88,7 +89,9 @@ class FireScarMapper(QgsProcessingAlgorithm):
             }
             adict.update(get_rlayer_info(layer))
             rasters += [adict]
-
+        #feedback.pushDebugInfo(f"{[r['data'].shape for r in rasters[0]]}")
+        #feedback.pushDebugInfo(f"{rasters=}, {len(rasters)=} {[r['data'].shape for r in rasters]}")
+        feedback.pushDebugInfo(f"{rasters[0]=}")
         before_files = []
         after_files = []
         before_files_data = []
@@ -126,56 +129,99 @@ class FireScarMapper(QgsProcessingAlgorithm):
 
             generated_matrix = pred[0][0]
             
-            if output_path:
+            if output_path:                
+                group_name = before_files[i]['name'].split("_")[0] + "_" + before_files[i]['name'].split("_")[1]
+                root = QgsProject.instance().layerTreeRoot()
+                group = root.findGroup(group_name)
+                if not group:
+                    group = root.addGroup(group_name)
                 # Adjust the name of the output path to be unique for each firescar
                 output_path_with_index = output_path[:-4] + f"_{i+1}.tif"
-                self.writeRaster(generated_matrix, output_path_with_index, context)
-                self.addRasterLayer(output_path_with_index,before_files[i]['name'], context)
+                self.writeRaster(generated_matrix, output_path_with_index, before_files[i], feedback)
+                #self.addRasterLayer(output_path, before_files[i]['name'], group, context)
+                feedback.pushDebugInfo(f"{before_files[i]['name']}")
+                self.addRasterLayer(output_path_with_index,f"Firescar_{before_files[i]['name']}", group, context)
 
         return {}
 
 
-    def writeRaster(self, matrix, file_path, context):
-        """
-        Guarda una matriz como un archivo raster en formato TIF utilizando GDAL.
+    def writeRaster(self, matrix, file_path, before_layer, feedback):
 
-        :param matrix: Matriz de datos a guardar.
-        :param file_path: Ruta del archivo TIF de salida.
-        :param context: Contexto de procesamiento.
-        """
-        height, width = matrix.shape
+        # Get the dimensions of the raster before the fire
+        width = before_layer["width"]
+        height = before_layer["height"]
 
+        # Create the output raster file
         driver = gdal.GetDriverByName('GTiff')
-        raster = driver.Create(file_path, width, height, 1, gdal.GDT_Int16)
+        raster = driver.Create(file_path, width, height, 1, gdal.GDT_Byte)
 
-        originX = 0
-        originY = 0
-        pixelWidth = 1
-        pixelHeight = 1
+        if raster is None:
+            raise QgsProcessingException("Failed to create raster file.")
 
-        raster.SetGeoTransform((originX, pixelWidth, 0, originY, 0, -pixelHeight))
+        # Set the geotransformation and projection
+        extent = before_layer["extent"]
+        pixel_width = extent.width() / width
+        pixel_height = extent.height() / height
+        raster.SetGeoTransform((extent.xMinimum(), pixel_width, 0, extent.yMaximum(), 0, -pixel_height))
+        raster.SetProjection(before_layer["crs"].toWkt())
 
-        spatialReference = osr.SpatialReference()
-        spatialReference.ImportFromEPSG(4326)
-        raster.SetProjection(spatialReference.ExportToWkt())
-
+        # Get the raster band
         band = raster.GetRasterBand(1)
-        band.WriteArray(matrix)
 
+        # Calculate the offset and size of the burn scar region to fit the raster
+        start_row = 0
+        start_col = 0
+        matrix_height, matrix_width = matrix.shape
+
+        if matrix_height > height:
+            start_row = (matrix_height - height) // 2
+            matrix_height = height
+        if matrix_width > width:
+            start_col = (matrix_width - width) // 2
+            matrix_width = width
+
+        # Crop the matrix to match the raster dimensions
+        resized_matrix = matrix[start_row:start_row + matrix_height, start_col:start_col + matrix_width]
+
+        # Write the matrix to the raster band
+        try:
+            gdal_array.BandWriteArray(band, resized_matrix, 0, 0)
+        except ValueError as e:
+            raise QgsProcessingException(f"Failed to write array to raster: {str(e)}")
+
+        # Set the NoData value
+        band.SetNoDataValue(0)
+        
+        # Ensure that the minimum and maximum values are updated
+        band.ComputeStatistics(False)
+        band.SetStatistics(0, 1, 0.5, 0.5)
+
+        # Flush cache and close the raster
         band.FlushCache()
         raster.FlushCache()
         raster = None
 
-    def addRasterLayer(self, file_path, layer_name, context):
-        """
-        :param file_path: Ruta del archivo raster.
-        :param context: Contexto de procesamiento.
-        """
+        feedback.pushInfo(f"Raster written to {file_path}")
+
+    def addRasterLayer(self, file_path, layer_name, group, context):
         layer = QgsRasterLayer(file_path, layer_name, "gdal")
         if not layer.isValid():
             raise QgsProcessingException(f"Failed to load raster layer from {file_path}")
+        
+        provider = layer.dataProvider()
+        if provider:
+            for band in range(1, layer.bandCount() + 1):
+                provider.setNoDataValue(band, 0)
+            layer.triggerRepaint()
 
-        QgsProject.instance().addMapLayer(layer)
+        QgsProject.instance().addMapLayer(layer, False)
+        group.insertChildNode(0, QgsLayerTreeLayer(layer))
+        if "Firescar" in layer_name:
+            renderer = layer.renderer()
+            if isinstance(renderer, QgsSingleBandPseudoColorRenderer):
+                color_ramp = QgsGradientColorRamp(QColor(0, 0, 0), QColor(255, 255, 255))
+                renderer.updateColorRamp(color_ramp)
+                layer.triggerRepaint()
 
     def name(self):
         return "firescarmapper"
