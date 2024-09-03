@@ -47,7 +47,7 @@
   </renderer-v2>
   <labeling type="simple">
     <settings calloutType="simple">
-      <text-style fontSizeUnit="Point" textOpacity="1" fieldName="simulation" useSubstitutions="0" fontUnderline="0" textColor="235,25,25,255" forcedItalic="0" fontFamily="Cantarell" fontSize="10" previewBkgrdColor="255,255,255,255" namedStyle="Regular" isExpression="0" blendMode="0" fontSizeMapUnitScale="3x:0,0,0,0,0,0" multilineHeight="1" multilineHeightUnit="Percentage" fontWeight="50" fontKerning="1" fontWordSpacing="0" legendString="Aa" fontStrikeout="0" fontItalic="0" fontLetterSpacing="0" forcedBold="0" allowHtml="0" capitalization="0" textOrientation="horizontal">
+      <text-style fontSizeUnit="Point" textOpacity="1" fieldName="simulation" useSubstitutions="0" fontUnderline="0" textColor="235,25,25,255" forcedItalic="0" fontFamily="Sans" fontSize="10" previewBkgrdColor="255,255,255,255" namedStyle="Regular" isExpression="0" blendMode="0" fontSizeMapUnitScale="3x:0,0,0,0,0,0" multilineHeight="1" multilineHeightUnit="Percentage" fontWeight="50" fontKerning="1" fontWordSpacing="0" legendString="Aa" fontStrikeout="0" fontItalic="0" fontLetterSpacing="0" forcedBold="0" allowHtml="0" capitalization="0" textOrientation="horizontal">
         <families/>
         <text-buffer bufferSizeMapUnitScale="3x:0,0,0,0,0,0" bufferOpacity="1" bufferColor="255,255,255,255" bufferJoinStyle="128" bufferNoFill="1" bufferBlendMode="0" bufferDraw="0" bufferSize="1" bufferSizeUnits="MM"/>
         <text-mask maskType="0" maskSize="0" maskJoinStyle="128" maskEnabled="0" maskSizeMapUnitScale="3x:0,0,0,0,0,0" maskOpacity="1" maskedSymbolLayers="" maskSizeUnits="MM"/>

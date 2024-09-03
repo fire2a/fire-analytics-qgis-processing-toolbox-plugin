@@ -63,14 +63,14 @@ output_args = [item["arg"] for item in SIM_OUTPUTS]
 output_names = [item["name"] for item in SIM_OUTPUTS]
 
 
+plugin_dir = Path(__file__).parent
+c2f_path = Path(plugin_dir, "simulator", "C2F", "Cell2Fire")
+
 class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     """Cell2Fire"""
 
     output_dict = None
     results_dir = None
-    plugin_dir = Path(__file__).parent
-    c2f_path = Path(plugin_dir, "simulator", "C2F", "Cell2Fire")
-    suffix = ""
 
     fuel_models = NAME["fuel_models"]
     fuel_tables = NAME["fuel_tables"]
@@ -124,7 +124,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             codename = popen("lsb_release --short --codename 2>/dev/null").read().strip()
             machine = popen("uname --machine 2>/dev/null").read().strip()
             suffix = "." + distribution + "." + codename + "." + machine
-            c2f_bin = Path(self.c2f_path, f"Cell2Fire{suffix}")
+            c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
             if not c2f_bin.is_file():
                 QgsMessageLog.logMessage(
                     f"{self.name()}, Cell2Fire binary not available for {distribution=} {codename=} {machine=}",
@@ -134,7 +134,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 QgsMessageLog.logMessage(f"{self.name()}, Not a file! {c2f_bin}", tag=TAG, level=Qgis.Warning)
                 QgsMessageLog.logMessage(f"{self.name()}, Falling back to manylinux", tag=TAG, level=Qgis.Critical)
                 suffix = ""
-                c2f_bin = Path(self.c2f_path, f"Cell2Fire{suffix}")
+                c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
             if which("ldd"):
                 ldd = popen("ldd " + str(c2f_bin)).read()
                 QgsMessageLog.logMessage(f"{self.name()}, Binary dependencies:\n{ldd}", tag=TAG, level=Qgis.Info)
@@ -145,25 +145,43 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                     suffix = ""
 
         elif platform_system() == "Darwin":
-            if platform_machine() == "arm64":
-                suffix = ".Darwin.arm64"
-            elif platform_machine() == "x86_64":
-                suffix = ".Darwin.x86_64"
+            # echo "suffix="$(uname -s).${{ matrix.runner }}.$(arch)"" >> $GITHUB_ENV
+            os = popen("uname -s 2>/dev/null").read().strip()
+            pname = popen("sw_vers -productName 2>/dev/null").read().strip()
+            pmayorvers = int(popen("sw_vers -productVersion 2>/dev/null | cut -d '.' -f 1 2>/dev/null").read().strip())
+            arch = popen("arch 2>/dev/null").read().strip()
+            if arch == "arm64" and pmayorvers != 14:
+                QgsMessageLog.logMessage(f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 14", tag=TAG, level=Qgis.Critical)
+                pmayorvers = 14
+            if arch == "i386" and pmayorvers > 13:
+                QgsMessageLog.logMessage(f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 13", tag=TAG, level=Qgis.Critical)
+                pmayorvers = 13
+            if arch == "i386" and pmayorvers < 12:
+                QgsMessageLog.logMessage(f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 12", tag=TAG, level=Qgis.Critical)
+                pmayorvers = 12
+            suffix = f"_{os}.{pname}-{pmayorvers}.{arch}-static"
             if which("otool -L"):
-                ldd = popen("otool -L " + str(c2f_bin)).read()
-                QgsMessageLog.logMessage(f"{self.name()}, Binary dependencies:\n{ldd}", tag=TAG, level=Qgis.Info)
-                if "not found" in ldd:
-                    return False, "Missing dependencies! (brew install libomp?)"
+                c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
+                if c2f_bin.is_file():
+                    ldd = popen("otool -L " + str(c2f_bin) + " 2>&1 ").read()
+                    QgsMessageLog.logMessage(f"{self.name()}, Dependencies of {c2f_bin.name}:\n{ldd}", tag=TAG, level=Qgis.Info)
+                else:
+                    suffix = suffix.replace("-static", "")
+                    c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
+                    if c2f_bin.is_file():
+                        ldd = popen("otool -L " + str(c2f_bin) + " 2>&1 ").read()
+                        QgsMessageLog.logMessage(f"{self.name()}, Dependencies of {c2f_bin.name}:\n{ldd}", tag=TAG, level=Qgis.Info)
+            #     if "not found" in ldd:
+            #         return False, "Missing dependencies! (brew install libomp?)"
         else:
             return False, f"OS {platform_system()} not supported yet"
 
-        c2f_bin = Path(self.c2f_path, f"Cell2Fire{suffix}")
+        c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
         if not c2f_bin.is_file():
             return False, "Cell2Fire binary not found!"
         st = c2f_bin.stat()
         # TODO check if chmod is needed or failed!
         chmod(c2f_bin, st.st_mode | S_IXUSR | S_IXGRP | S_IXOTH)
-        self.suffix = suffix
         QgsMessageLog.logMessage(f"{self.name()}, Using Binary {c2f_bin}", tag=TAG, level=Qgis.Success)
         return True, ""
 
@@ -261,7 +279,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 name=self.NSIM,
                 description="\nIGNITION SECTION\nNumber of simulations",
                 type=QgsProcessingParameterNumber.Integer,
-                defaultValue=2,
+                defaultValue=3,
                 optional=False,
                 minValue=1,
                 maxValue=66642069,
@@ -611,7 +629,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
 
         # COPY
         # fuel table
-        copy(Path(self.plugin_dir, "simulator", self.fuel_tables[fuel_model]), instance_dir)
+        copy(Path(plugin_dir, "simulator", self.fuel_tables[fuel_model]), instance_dir)
         # layers
         feedback.pushDebugInfo("\n")
         raster = get_rasters(self, parameters, context)
@@ -655,7 +673,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 "native:setlayerstyle",
                 {
                     "INPUT": raster["fuels"],
-                    "STYLE": str(Path(self.plugin_dir, "simulator", f"fuel_{fuel_model}_layerStyle.qml")),
+                    "STYLE": str(Path(plugin_dir, "simulator", f"fuel_{fuel_model}_layerStyle.qml")),
                 },
                 context=context,
                 feedback=feedback,
@@ -715,7 +733,8 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         args["output-folder"] = '"' + str(results_dir) + '"'
         feedback.pushDebugInfo(f"args: {args}\n")
 
-        cmd = f"./Cell2Fire{self.suffix}"
+        cmd = f"./Cell2Fire{get_ext()}"
+        feedback.pushDebugInfo(f"binary start cmd: {cmd}\n")
         # cmd alternative (remove powershell below)
         # if platform_system() == "Windows":
         #     cmd.replace("./", "")
@@ -730,20 +749,20 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
 
         if self.parameterAsBool(parameters, self.DRYRUN, context):
             feedback.pushWarning(
-                f"DRY RUN!\nOpen a terminal in this directory:\n{self.c2f_path}\nExecute this command:\n{cmd}\n"
+                f"DRY RUN!\nOpen a terminal in this directory:\n{c2f_path}\nExecute this command:\n{cmd}\n"
             )
             self.output_dict = {
                 self.INSTANCE_DIR: str(instance_dir),
                 self.RESULTS_DIR: str(results_dir),
                 self.OUTPUTS: selected_outputs,
                 self.DRYRUN: True,
-                "path": str(self.c2f_path),
+                "path": str(c2f_path),
                 "command": cmd,
             }
             return self.output_dict
 
         # RUN
-        c2f = C2F(proc_dir=self.c2f_path, feedback=feedback, log_file=results_dir / "LogFile.txt")
+        c2f = C2F(proc_dir=c2f_path, feedback=feedback, log_file=results_dir / "LogFile.txt")
         if platform_system() == "Windows":
             cmd = 'C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -Command "& {' + cmd + '}"'
         c2f.start(cmd)
@@ -977,3 +996,51 @@ def compare_raster_properties(base: dict, incumbent: dict):
                 f"raster '{incumbent['name']}' {key} not close enough!\n| {base[key]} - {incumbent[key]} | > {ruppy}",
             )
     return True, "all ok"
+
+def get_ext():
+    """checks if cell2fire binary is available"""
+    if platform_system() == "Windows":
+        suffix = ".exe"
+
+    elif platform_system() == "Linux":
+        distribution = popen("lsb_release --short --id 2>/dev/null").read().strip()
+        codename = popen("lsb_release --short --codename 2>/dev/null").read().strip()
+        machine = popen("uname --machine 2>/dev/null").read().strip()
+        suffix = "." + distribution + "." + codename + "." + machine
+        c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
+        if not c2f_bin.is_file():
+            suffix = ""
+            c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
+        if which("ldd"):
+            ldd = popen("ldd " + str(c2f_bin)).read()
+            if "not found" in ldd:
+                suffix = ""
+
+    elif platform_system() == "Darwin":
+        # echo "suffix="$(uname -s).${{ matrix.runner }}.$(arch)"" >> $GITHUB_ENV
+        os = popen("uname -s 2>/dev/null").read().strip()
+        pname = popen("sw_vers -productName 2>/dev/null").read().strip()
+        pmayorvers = int(popen("sw_vers -productVersion 2>/dev/null | cut -d '.' -f 1 2>/dev/null").read().strip())
+        arch = popen("arch 2>/dev/null").read().strip()
+        if arch == "arm64" and pmayorvers != 14:
+            pmayorvers = 14
+        if arch == "i386" and pmayorvers > 13:
+            pmayorvers = 13
+        if arch == "i386" and pmayorvers < 12:
+            pmayorvers = 12
+        suffix = f"_{os}.{pname}-{pmayorvers}.{arch}-static"
+        if which("otool -L"):
+            c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
+            if c2f_bin.is_file():
+                ldd = popen("otool -L " + str(c2f_bin) + " 2>&1 ").read()
+            else:
+                suffix = suffix.replace("-static", "")
+                c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
+                if c2f_bin.is_file():
+                    ldd = popen("otool -L " + str(c2f_bin) + " 2>&1 ").read()
+
+    c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
+    st = c2f_bin.stat()
+    # TODO check if chmod is needed or failed!
+    chmod(c2f_bin, st.st_mode | S_IXUSR | S_IXGRP | S_IXOTH)
+    return suffix

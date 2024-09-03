@@ -24,6 +24,7 @@ repository=https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plug
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
 changelog=
+	v0.4.4: Default number of simulations: 3, untested binaries for macOS 12(i386),13(i386),14(arm64)
 	v0.4.3: Better binaries support debian-bookworm & ubuntu-jammy, default solver cbc + bug
 	v0.4.2: Manylinux support, propagation polygon disabled by default, DPV nodata handle
 	v0.4.1: Bug fix when copying input rasters

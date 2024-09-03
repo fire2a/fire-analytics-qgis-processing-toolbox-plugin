@@ -822,7 +822,7 @@
   </renderer-v2>
   <labeling type="simple">
     <settings calloutType="simple">
-      <text-style fontFamily="Liberation Sans" fontSizeMapUnitScale="3x:0,0,0,0,0,0" forcedItalic="0" textOrientation="horizontal" allowHtml="0" fontSizeUnit="Point" fontKerning="1" fontWeight="50" textColor="50,50,50,255" fontSize="10" fontStrikeout="0" fontWordSpacing="0" legendString="Aa" fontLetterSpacing="0" fontUnderline="0" capitalization="0" isExpression="0" fieldName="time" textOpacity="1" useSubstitutions="0" previewBkgrdColor="255,255,255,255" fontItalic="0" forcedBold="0" blendMode="0" multilineHeightUnit="Percentage" namedStyle="Regular" multilineHeight="1">
+      <text-style fontFamily="Sans" fontSizeMapUnitScale="3x:0,0,0,0,0,0" forcedItalic="0" textOrientation="horizontal" allowHtml="0" fontSizeUnit="Point" fontKerning="1" fontWeight="50" textColor="50,50,50,255" fontSize="10" fontStrikeout="0" fontWordSpacing="0" legendString="Aa" fontLetterSpacing="0" fontUnderline="0" capitalization="0" isExpression="0" fieldName="time" textOpacity="1" useSubstitutions="0" previewBkgrdColor="255,255,255,255" fontItalic="0" forcedBold="0" blendMode="0" multilineHeightUnit="Percentage" namedStyle="Regular" multilineHeight="1">
         <families/>
         <text-buffer bufferSizeMapUnitScale="3x:0,0,0,0,0,0" bufferColor="250,250,250,255" bufferBlendMode="0" bufferDraw="0" bufferNoFill="1" bufferOpacity="1" bufferJoinStyle="128" bufferSizeUnits="MM" bufferSize="1"/>
         <text-mask maskType="0" maskSizeMapUnitScale="3x:0,0,0,0,0,0" maskEnabled="0" maskJoinStyle="128" maskSize="0" maskSizeUnits="MM" maskedSymbolLayers="" maskOpacity="1"/>
