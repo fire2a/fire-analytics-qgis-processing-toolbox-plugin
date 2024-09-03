@@ -3,11 +3,11 @@ metadata.txt
 
     changelog
 
-	SAVE BEFORE INSTALL/UPDATE: A dialog asking permission to (pip) install python dependencies (fire2a-lib==0.2.8) will appear
+	SAVE BEFORE INSTALL/UPDATE: A dialog asking permission to (pip) install python dependencies (fire2a-lib==0.2.14) will appear
 
 dependencies_handler.txt
 
-	plugin_dependencies = fire2a-lib==0.2.13
+	plugin_dependencies = fire2a-lib==0.2.14
 
 plugins.xml
 
