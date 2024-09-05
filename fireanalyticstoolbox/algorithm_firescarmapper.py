@@ -72,9 +72,8 @@ class FireScarMapper(QgsProcessingAlgorithm):
         burnt = self.parameterAsLayerList(parameters, self.IN_AFTER, context)
         feedback.pushDebugInfo(f"Input rasters:\n names: {[ r.name() for r in burnt]}\ntypes: {[ r.rasterType() for r in burnt]}")
         model_path = os.path.join(os.path.dirname(__file__), 'firescarmapping', 'ep25_lr1e-04_bs16_021__as_std_adam_f01_13_07_x3.model')
-
         output_path = self.parameterAsOutputLayer(parameters, self.OUT_SCARS, context)
-
+        all_parameters = parameters['BeforeRasters'] + parameters['AfterRasters']
         if len(before) != len(burnt):
             raise QgsProcessingException("The number of before and burnt rasters must be the same")
         rasters = []
@@ -86,12 +85,11 @@ class FireScarMapper(QgsProcessingAlgorithm):
                 "name": layer.name()[8:],
                 "data": get_rlayer_data(layer),
                 "layer": layer,
+                "path": all_parameters[i]
             }
             adict.update(get_rlayer_info(layer))
             rasters += [adict]
-        #feedback.pushDebugInfo(f"{[r['data'].shape for r in rasters[0]]}")
-        #feedback.pushDebugInfo(f"{rasters=}, {len(rasters)=} {[r['data'].shape for r in rasters]}")
-        feedback.pushDebugInfo(f"{rasters[0]=}")
+    
         before_files = []
         after_files = []
         before_files_data = []
@@ -105,6 +103,10 @@ class FireScarMapper(QgsProcessingAlgorithm):
                 if rasters[i]['name'] == rasters[j + (len(rasters)//2)]['name']:
                     after_files.append(rasters[j + (len(rasters)//2)])
                     after_files_data.append(after_files[i]['data'])
+
+        feedback.pushDebugInfo(f"{before_files=}")
+        feedback.pushDebugInfo(f"{after_files=}")
+
 
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
@@ -136,17 +138,16 @@ class FireScarMapper(QgsProcessingAlgorithm):
                 if not group:
                     group = root.addGroup(group_name)
                 # Adjust the name of the output path to be unique for each firescar
-                output_path_with_index = output_path[:-4] + f"_{i+1}.tif"
-                self.writeRaster(generated_matrix, output_path_with_index, before_files[i], feedback)
-                #self.addRasterLayer(output_path, before_files[i]['name'], group, context)
-                feedback.pushDebugInfo(f"{before_files[i]['name']}")
-                self.addRasterLayer(output_path_with_index,f"Firescar_{before_files[i]['name']}", group, context)
+                output_path_with_name= output_path.replace('OutputScars.tif', f"FireScar_{before_files[i]['name']}.tif")
+                self.writeRaster(generated_matrix, output_path_with_name, before_files[i], feedback)
+                self.addRasterLayer(before_files[i]['path'],f"ImgPreF_{before_files[i]['name']}", group, context)
+                self.addRasterLayer(after_files[i]['path'],f"ImgPosF_{before_files[i]['name']}", group, context)
+                self.addRasterLayer(output_path_with_name,f"FireScar_{before_files[i]['name']}", group, context)
 
         return {}
 
 
     def writeRaster(self, matrix, file_path, before_layer, feedback):
-
         # Get the dimensions of the raster before the fire
         width = before_layer["width"]
         height = before_layer["height"]
@@ -216,12 +217,14 @@ class FireScarMapper(QgsProcessingAlgorithm):
 
         QgsProject.instance().addMapLayer(layer, False)
         group.insertChildNode(0, QgsLayerTreeLayer(layer))
+        
         if "Firescar" in layer_name:
             renderer = layer.renderer()
             if isinstance(renderer, QgsSingleBandPseudoColorRenderer):
                 color_ramp = QgsGradientColorRamp(QColor(0, 0, 0), QColor(255, 255, 255))
                 renderer.updateColorRamp(color_ramp)
                 layer.triggerRepaint()
+        
 
     def name(self):
         return "firescarmapper"
@@ -234,3 +237,4 @@ class FireScarMapper(QgsProcessingAlgorithm):
 
     def createInstance(self):
         return FireScarMapper()
+
