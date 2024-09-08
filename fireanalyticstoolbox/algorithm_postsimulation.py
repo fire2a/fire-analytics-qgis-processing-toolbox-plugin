@@ -1792,6 +1792,8 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
                 # feedback.pushDebugInfo(f"accumulated dpv sum -per simulation {sid}: {dpv.sum()}")
             pool.close()
             pool.join()
+        # fill places where no fire was recorded
+        dpv[(dpv == 0) & (pv != 0)] = pv[(dpv == 0) & (pv != 0)]
         # scale
         dpv = dpv / nsim
         # descriptive statistics
