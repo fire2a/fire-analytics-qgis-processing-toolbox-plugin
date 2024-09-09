@@ -1796,7 +1796,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
 
         feedback.pushDebugInfo(f"End parallel part")
         # fill places where no fire was recorded
-        mask = (dpv == 0) & (pv != 0)
+        mask = (dpv == 0) & (pv != 0) & (pv != nodata)
         perc = mask.sum() / len(mask)
         feedback.pushDebugInfo(f"Completing {perc:.2f} % of landscape that never burned")
         dpv[mask] = pv[mask]
