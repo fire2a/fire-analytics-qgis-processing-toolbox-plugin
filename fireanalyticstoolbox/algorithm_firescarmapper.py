@@ -22,7 +22,7 @@
 
 from fire2a.raster import get_rlayer_data, get_rlayer_info
 from qgis.core import (QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterMultipleLayers,
-                       QgsProcessingParameterRasterDestination, QgsLayerTreeLayer, QgsProject, QgsRasterLayer, QgsProcessingException, QgsSingleBandPseudoColorRenderer, QgsGradientColorRamp)
+                       QgsProcessingParameterRasterDestination, QgsLayerTreeLayer, QgsProject, QgsRasterLayer, QgsProcessingException, QgsSingleBandPseudoColorRenderer, QgsGradientColorRamp, QgsMultiBandColorRenderer)
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QColor
 import torch
@@ -37,10 +37,10 @@ import requests
 class FireScarMapper(QgsProcessingAlgorithm):
     IN_BEFORE = "BeforeRasters"
     IN_AFTER = "AfterRasters"
-    OUT_SCARS = "OutputScars"    
+    OUT_SCARS = "OutputScars"
     model_download_url = "https://fire2a-firescar-as-model.s3.amazonaws.com/ep25_lr1e-04_bs16_021__as_std_adam_f01_13_07_x3.model"
     model_path = os.path.join(os.path.dirname(__file__), 'firescarmapping', 'ep25_lr1e-04_bs16_021__as_std_adam_f01_13_07_x3.model')
-    
+
     def initAlgorithm(self, config):
         self.addParameter(
             QgsProcessingParameterMultipleLayers(
@@ -51,7 +51,6 @@ class FireScarMapper(QgsProcessingAlgorithm):
                 optional=False,
             )
         )
-        
         self.addParameter(
             QgsProcessingParameterMultipleLayers(
                 name=self.IN_AFTER,
@@ -69,7 +68,6 @@ class FireScarMapper(QgsProcessingAlgorithm):
             )
         )
 
-
     def processAlgorithm(self, parameters, context, feedback):
         if not os.path.exists(self.model_path):
             feedback.pushInfo("Model not found. Initializing download...")
@@ -79,12 +77,14 @@ class FireScarMapper(QgsProcessingAlgorithm):
         feedback.pushDebugInfo(f"Input rasters:\n names: {[ r.name() for r in before]}\ntypes: {[ r.rasterType() for r in before]}")
         burnt = self.parameterAsLayerList(parameters, self.IN_AFTER, context)
         feedback.pushDebugInfo(f"Input rasters:\n names: {[ r.name() for r in burnt]}\ntypes: {[ r.rasterType() for r in burnt]}")
+        model_path = os.path.join(os.path.dirname(__file__), 'firescarmapping', 'ep25_lr1e-04_bs16_021__as_std_adam_f01_13_07_x3.model')
 
         output_path = self.parameterAsOutputLayer(parameters, self.OUT_SCARS, context)
         all_parameters = parameters['BeforeRasters'] + parameters['AfterRasters']
-
+        
         if len(before) != len(burnt):
             raise QgsProcessingException("The number of before and burnt rasters must be the same")
+        
         rasters = []
         for i, layer in enumerate(before + burnt):
             adict = {
@@ -94,13 +94,11 @@ class FireScarMapper(QgsProcessingAlgorithm):
                 "name": layer.name()[8:],
                 "data": get_rlayer_data(layer),
                 "layer": layer,
-                "path": all_parameters[i],
+                "path": layer.dataProvider().dataSourceUri(),
             }
             adict.update(get_rlayer_info(layer))
             rasters += [adict]
-        #feedback.pushDebugInfo(f"{[r['data'].shape for r in rasters[0]]}")
-        #feedback.pushDebugInfo(f"{rasters=}, {len(rasters)=} {[r['data'].shape for r in rasters]}")
-        feedback.pushDebugInfo(f"{rasters[0]=}")
+
         before_files = []
         after_files = []
         before_files_data = []
@@ -116,7 +114,7 @@ class FireScarMapper(QgsProcessingAlgorithm):
                     after_files_data.append(after_files[i]['data'])
 
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-        model.load_state_dict(torch.load(self.model_path, map_location=torch.device('cpu')))
+        model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
 
         np.random.seed(3)
         torch.manual_seed(3)    
@@ -138,22 +136,22 @@ class FireScarMapper(QgsProcessingAlgorithm):
 
             generated_matrix = pred[0][0]
             
-            if output_path:                
+            if output_path:
+                
                 group_name = before_files[i]['name'].split("_")[0] + "_" + before_files[i]['name'].split("_")[1]
                 root = QgsProject.instance().layerTreeRoot()
                 group = root.findGroup(group_name)
                 if not group:
                     group = root.addGroup(group_name)
+                
                 # Adjust the name of the output path to be unique for each firescar
                 output_path_with_name= output_path.replace('OutputScars.tif', f"FireScar_{before_files[i]['name']}.tif")
-                self.writeRaster(generated_matrix, output_path_with_name, before_files[i], feedback)
-                feedback.pushDebugInfo(f"{before_files[i]['path']=}")
-                self.addRasterLayer(before_files[i]['path'],f"ImgPreF_{before_files[i]['name']}", group, context)
-                feedback.pushDebugInfo(f"{after_files[i]['path']=}")
-                self.addRasterLayer(after_files[i]['path'],f"ImgPosF_{after_files[i]['name']}", group, context)
-                self.addRasterLayer(output_path_with_name,f"FireScar_{before_files[i]['name']}", group, context)
-        return {}
 
+                self.writeRaster(generated_matrix, output_path_with_name, before_files[i], feedback)
+                self.addRasterLayer(output_path_with_name,f"FireScar_{before_files[i]['name']}", group, context)
+                self.addRasterLayer(after_files[i]['path'],f"ImgPosF_{after_files[i]['name']}", group, context)
+                self.addRasterLayer(before_files[i]['path'],f"ImgPreF_{before_files[i]['name']}", group, context)
+        return {}
 
     def download_model(self, feedback):
         """Download the model from Amazon S3."""
@@ -170,7 +168,6 @@ class FireScarMapper(QgsProcessingAlgorithm):
         feedback.pushInfo(f"Downloading model to {self.model_path}")
         save_response_content(response, self.model_path)
         feedback.pushInfo(f"Model successfully downloaded and saved at {self.model_path}")
-
 
     def writeRaster(self, matrix, file_path, before_layer, feedback):
 
@@ -230,27 +227,17 @@ class FireScarMapper(QgsProcessingAlgorithm):
 
         feedback.pushInfo(f"Raster written to {file_path}")
 
-
     def addRasterLayer(self, file_path, layer_name, group, context):
+        """Añadir la capa raster al grupo en el proyecto."""
         layer = QgsRasterLayer(file_path, layer_name, "gdal")
         if not layer.isValid():
             raise QgsProcessingException(f"Failed to load raster layer from {file_path}")
-        
-        provider = layer.dataProvider()
-        if provider:
-            for band in range(1, layer.bandCount() + 1):
-                provider.setNoDataValue(band, 0)
-            layer.triggerRepaint()
 
         QgsProject.instance().addMapLayer(layer, False)
-        group.insertChildNode(0, QgsLayerTreeLayer(layer))
-        if "Firescar" in layer_name:
-            renderer = layer.renderer()
-            if isinstance(renderer, QgsSingleBandPseudoColorRenderer):
-                color_ramp = QgsGradientColorRamp(QColor(0, 0, 0), QColor(255, 255, 255))
-                renderer.updateColorRamp(color_ramp)
-                layer.triggerRepaint()
-
+        
+        # Insertar la nueva capa al final del grupo
+        group.insertChildNode(len(group.children()), QgsLayerTreeLayer(layer))
+        
 
     def name(self):
         return "firescarmapper"
