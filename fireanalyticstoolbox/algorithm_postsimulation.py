@@ -1673,7 +1673,9 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
     BASE_LAYER = "ProtectionValueRaster"
     IN = "PickledMessages"
     OUT_R = "RasterOutput"
-    THREADS = "Threads"
+    IN_THREADS = "Threads"
+    IN_FILL = "NoBurnFill"
+    IN_SCALE = "Scaling"
 
     def initAlgorithm(self, config):
         self.addParameter(
@@ -1708,7 +1710,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         )
         # advanced
         qppn = QgsProcessingParameterNumber(
-            name=self.THREADS,
+            name=self.IN_THREADS,
             description=self.tr("Maximum number of threads to use simultaneously"),
             type=QgsProcessingParameterNumber.Integer,
             defaultValue=cpu_count() - 1,
@@ -1718,6 +1720,22 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         )
         qppn.setFlags(qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(qppn)
+        qppb = QgsProcessingParameterBoolean(
+            name=self.IN_FILL,
+            description=("Include original protection values where no fire was seen (default true)"),
+            defaultValue=True,
+            optional=True,
+        )
+        qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppb)
+        qppb1 = QgsProcessingParameterBoolean(
+            name=self.IN_SCALE,
+            description=("Scale every pixel by burn count (default true); or all pixels by number of simulations (false)"),
+            defaultValue=True,
+            optional=True,
+        )
+        qppb1.setFlags(qppb1.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppb1)
 
     def processAlgorithm(self, parameters, context, feedback):
         """Here is where the processing itself takes place."""
@@ -1767,7 +1785,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
                     break
         else:
             # multiprocessing
-            threads = self.parameterAsEnum(parameters, self.THREADS, context)
+            threads = self.parameterAsEnum(parameters, self.IN_THREADS, context)
             feedback.pushDebugInfo(f"Orchestrating {nsim} processes in a {threads}-lane parallel execution pool")
             pool = Pool(threads)
             results = [
@@ -1798,14 +1816,17 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
 
         feedback.pushDebugInfo("End parallel part")
         # fill places where no fire was recorded
-        mask = (dpv == 0) & (pv != 0)
-        perc = mask.sum() / len(mask) * 100
-        feedback.pushDebugInfo(f"Completing {perc:.2f} % of landscape that never burned")
-        dpv[mask] = pv[mask]
+        if self.parameterAsBool(parameters, self.IN_FILL, context):
+            mask = (dpv == 0) & (pv != 0)
+            perc = mask.sum() / len(mask) * 100
+            feedback.pushDebugInfo(f"Completing {perc:.2f} % of landscape that never burned")
+            dpv[mask] = pv[mask]
         # scale
-        # dpv = dpv / nsim
-        burned_mask = burn_count != 0
-        dpv[burned_mask] = dpv[burned_mask] / burn_count[burned_mask]
+        if self.parameterAsBool(parameters, self.IN_SCALE, context):
+            burned_mask = burn_count != 0
+            dpv[burned_mask] = dpv[burned_mask] / burn_count[burned_mask]
+        else:
+            dpv = dpv / nsim
         # descriptive statistics
         if np_any(dpv[dpv != 0]):
             dpv_stats = scipy_stats.describe(dpv[dpv != 0.0], axis=None)
