@@ -55,7 +55,6 @@ from fire2a.raster import id2xy, read_raster, transform_coords_to_georef
 from fire2a.utils import loadtxt_nodata
 from networkx import DiGraph, MultiDiGraph, betweenness_centrality, single_source_dijkstra_path
 from numpy import any as np_any
-from numpy import dot as np_dot
 from numpy import array, float32, int16, int32, loadtxt, ndarray, sqrt, vectorize, vstack, zeros
 from osgeo import gdal, osr
 from osgeo.gdal import GDT_Float32, GDT_Int16
@@ -1798,7 +1797,6 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
             pool.join()
 
         feedback.pushDebugInfo("End parallel part")
-        feedback.pushDebugInfo(f"{burn_count.shape=}")
         # fill places where no fire was recorded
         mask = (dpv == 0) & (pv != 0)
         perc = mask.sum() / len(mask) * 100
