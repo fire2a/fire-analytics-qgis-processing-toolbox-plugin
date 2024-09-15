@@ -1806,7 +1806,6 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         # dpv = dpv / nsim
         burned_mask = burn_count != 0
         dpv[burned_mask] = dpv[burned_mask] / burn_count[burned_mask]
-        # HELP FILL ANTES O DESPUES DE /NSIM?
         # descriptive statistics
         if np_any(dpv[dpv != 0]):
             dpv_stats = scipy_stats.describe(dpv[dpv != 0.0], axis=None)
