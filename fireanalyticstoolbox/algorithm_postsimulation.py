@@ -1673,7 +1673,9 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
     BASE_LAYER = "ProtectionValueRaster"
     IN = "PickledMessages"
     OUT_R = "RasterOutput"
-    THREADS = "Threads"
+    IN_THREADS = "Threads"
+    IN_FILL = "NoBurnFill"
+    IN_SCALE = "Scaling"
 
     def initAlgorithm(self, config):
         self.addParameter(
@@ -1708,7 +1710,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         )
         # advanced
         qppn = QgsProcessingParameterNumber(
-            name=self.THREADS,
+            name=self.IN_THREADS,
             description=self.tr("Maximum number of threads to use simultaneously"),
             type=QgsProcessingParameterNumber.Integer,
             defaultValue=cpu_count() - 1,
@@ -1718,6 +1720,22 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         )
         qppn.setFlags(qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(qppn)
+        qppb = QgsProcessingParameterBoolean(
+            name=self.IN_FILL,
+            description=("Include original protection values where no fire was seen (default true)"),
+            defaultValue=True,
+            optional=True,
+        )
+        qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppb)
+        qppb1 = QgsProcessingParameterBoolean(
+            name=self.IN_SCALE,
+            description=("Scale every pixel by burn count (default true); or all pixels by number of simulations (false)"),
+            defaultValue=True,
+            optional=True,
+        )
+        qppb1.setFlags(qppb1.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppb1)
 
     def processAlgorithm(self, parameters, context, feedback):
         """Here is where the processing itself takes place."""
@@ -1740,6 +1758,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         if nodata:
             pv[pv == nodata] = 0
         dpv = zeros(pv.shape, dtype=pv.dtype)
+        burn_count = zeros(pv.shape, dtype=pv.dtype)
 
         if platform_system() == "Windows":
             feedback.pushWarning("MsWindows detected! Using the serial DPV calculation, switch to Linux to parallelize")
@@ -1760,12 +1779,13 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
                 mdpv = pv[i2n]
                 recursion(treeG, root, mdpv, i2n)
                 dpv[i2n] += mdpv
+                burn_count[i2n] += 1
                 feedback.setProgress((count + 1) / nsim * 100)
                 if feedback.isCanceled():
                     break
         else:
             # multiprocessing
-            threads = self.parameterAsEnum(parameters, self.THREADS, context)
+            threads = self.parameterAsEnum(parameters, self.IN_THREADS, context)
             feedback.pushDebugInfo(f"Orchestrating {nsim} processes in a {threads}-lane parallel execution pool")
             pool = Pool(threads)
             results = [
@@ -1789,13 +1809,24 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
             for result in results:
                 sdpv, si2n, sid = result.get()
                 dpv[si2n] += sdpv
+                burn_count[si2n] += 1
                 # feedback.pushDebugInfo(f"accumulated dpv sum -per simulation {sid}: {dpv.sum()}")
             pool.close()
             pool.join()
+
+        feedback.pushDebugInfo("End parallel part")
         # fill places where no fire was recorded
-        dpv[(dpv == 0) & (pv != 0)] = pv[(dpv == 0) & (pv != 0)]
+        if self.parameterAsBool(parameters, self.IN_FILL, context):
+            mask = (dpv == 0) & (pv != 0)
+            perc = mask.sum() / len(mask) * 100
+            feedback.pushDebugInfo(f"Completing {perc:.2f} % of landscape that never burned")
+            dpv[mask] = pv[mask]
         # scale
-        dpv = dpv / nsim
+        if self.parameterAsBool(parameters, self.IN_SCALE, context):
+            burned_mask = burn_count != 0
+            dpv[burned_mask] = dpv[burned_mask] / burn_count[burned_mask]
+        else:
+            dpv = dpv / nsim
         # descriptive statistics
         if np_any(dpv[dpv != 0]):
             dpv_stats = scipy_stats.describe(dpv[dpv != 0.0], axis=None)
