@@ -1740,6 +1740,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         if nodata:
             pv[pv == nodata] = 0
         dpv = zeros(pv.shape, dtype=pv.dtype)
+        burn_count = zeros(pv.shape, dtype=pv.dtype)
 
         if platform_system() == "Windows":
             feedback.pushWarning("MsWindows detected! Using the serial DPV calculation, switch to Linux to parallelize")
@@ -1760,6 +1761,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
                 mdpv = pv[i2n]
                 recursion(treeG, root, mdpv, i2n)
                 dpv[i2n] += mdpv
+                burn_count[i2n] += 1
                 feedback.setProgress((count + 1) / nsim * 100)
                 if feedback.isCanceled():
                     break
@@ -1789,11 +1791,21 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
             for result in results:
                 sdpv, si2n, sid = result.get()
                 dpv[si2n] += sdpv
+                burn_count[si2n] += 1
                 # feedback.pushDebugInfo(f"accumulated dpv sum -per simulation {sid}: {dpv.sum()}")
             pool.close()
             pool.join()
+
+        feedback.pushDebugInfo("End parallel part")
+        # fill places where no fire was recorded
+        mask = (dpv == 0) & (pv != 0)
+        perc = mask.sum() / len(mask) * 100
+        feedback.pushDebugInfo(f"Completing {perc:.2f} % of landscape that never burned")
+        dpv[mask] = pv[mask]
         # scale
-        dpv = dpv / nsim
+        # dpv = dpv / nsim
+        burned_mask = burn_count != 0
+        dpv[burned_mask] = dpv[burned_mask] / burn_count[burned_mask]
         # descriptive statistics
         if np_any(dpv[dpv != 0]):
             dpv_stats = scipy_stats.describe(dpv[dpv != 0.0], axis=None)
