@@ -189,9 +189,14 @@ def run_alg_styler_bin(display_name, color0=(2, 2, 2), color1=(222, 222, 222), l
 def write_log(feedback, name="", file_name=None):
     if not file_name:
         file_name = Path(NamedTemporaryFile(prefix=f"algorithm_{name}_log_", suffix=".html", delete=False).name)
+    if not isinstance(file_name, Path):
+        file_name = Path(file_name)
     feedback.pushInfo(f"this output is written to: {file_name}")
     with open(file_name, "w") as f:
         f.write(feedback.htmlLog())
+    text_file_name = file_name.with_suffix(".txt")
+    with open(text_file_name, "w") as f:
+        f.write(feedback.textLog())
     QgsMessageLog.logMessage(name + " " + file_name.as_uri(), tag=TAG, level=Qgis.Info)
 
 
