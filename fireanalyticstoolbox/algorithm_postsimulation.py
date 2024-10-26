@@ -1730,7 +1730,9 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         self.addParameter(qppb)
         qppb1 = QgsProcessingParameterBoolean(
             name=self.IN_SCALE,
-            description=("Scale every pixel by burn count (default true); or all pixels by number of simulations (false)"),
+            description=(
+                "Scale every pixel by burn count (default true); or all pixels by number of simulations (false)"
+            ),
             defaultValue=True,
             optional=True,
         )
@@ -1890,6 +1892,29 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
 
     def displayName(self):
         return self.tr(NAME["dpv"])
+
+    def helpString(self):
+        return self.shortHelpString()
+
+    def shortHelpString(self):
+        return self.tr(
+            """This Metric mixes a user defined proteccion value raster with the fire spread history of each simulation (the Propagation Digraph). Using the fact that the value of a pixel should also include the values of downstream pixels (or succesors in its fire propagation tree); In the sense that protecting that pixel also protects where the fire would have gone if not protected<br>
+            <a href="https://doi.org/10.1016/j.cor.2021.105252">https://doi.org/10.1016/j.cor.2021.105252</a><br>
+            <b>To run:</b><br>
+            1. Select a protection value raster 
+                - Any number type works
+                - NODATA is mapped to 0 value
+                - In a relative sense, negative numbers mean you want them burned / unprotected
+            2. First generate the Propagation Digraph Algorithm that generates the messages.pickle file <i>(skip showing them if they are too many simulations and periods)</i> by default along side the original messages.csv files
+            3. Select the messages.pickle file
+            <b>Advanced options:</b><br>
+            - <b>Threads</b> Maximum number of threads to use simultaneously. Does not work on Windows! (use linux for serious parallelization)
+            For retaining <i>protection value compatibility</i> use:
+            - <b>No Burn Fill</b> Include original protection values where no fire was seen (default true)
+            - <b>Scaling</b> Scale every pixel by burn count (default true); or all pixels by number of simulations (false)
+            For <i>fraction of times pixels were burned</i> use the false options, even with burn probability as the protection value
+            """
+        )
 
     def icon(self):
         return QIcon(":/plugins/fireanalyticstoolbox/assets/dpv.svg")

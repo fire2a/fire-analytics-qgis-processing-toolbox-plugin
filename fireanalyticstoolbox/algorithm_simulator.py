@@ -66,6 +66,7 @@ output_names = [item["name"] for item in SIM_OUTPUTS]
 plugin_dir = Path(__file__).parent
 c2f_path = Path(plugin_dir, "simulator", "C2F", "Cell2Fire")
 
+
 class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     """Cell2Fire"""
 
@@ -151,26 +152,36 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             pmayorvers = int(popen("sw_vers -productVersion 2>/dev/null | cut -d '.' -f 1 2>/dev/null").read().strip())
             arch = popen("arch 2>/dev/null").read().strip()
             if arch == "arm64" and pmayorvers != 14:
-                QgsMessageLog.logMessage(f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 14", tag=TAG, level=Qgis.Critical)
+                QgsMessageLog.logMessage(
+                    f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 14", tag=TAG, level=Qgis.Critical
+                )
                 pmayorvers = 14
             if arch == "i386" and pmayorvers > 13:
-                QgsMessageLog.logMessage(f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 13", tag=TAG, level=Qgis.Critical)
+                QgsMessageLog.logMessage(
+                    f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 13", tag=TAG, level=Qgis.Critical
+                )
                 pmayorvers = 13
             if arch == "i386" and pmayorvers < 12:
-                QgsMessageLog.logMessage(f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 12", tag=TAG, level=Qgis.Critical)
+                QgsMessageLog.logMessage(
+                    f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 12", tag=TAG, level=Qgis.Critical
+                )
                 pmayorvers = 12
             suffix = f"_{os}.{pname}-{pmayorvers}.{arch}-static"
             if which("otool -L"):
                 c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
                 if c2f_bin.is_file():
                     ldd = popen("otool -L " + str(c2f_bin) + " 2>&1 ").read()
-                    QgsMessageLog.logMessage(f"{self.name()}, Dependencies of {c2f_bin.name}:\n{ldd}", tag=TAG, level=Qgis.Info)
+                    QgsMessageLog.logMessage(
+                        f"{self.name()}, Dependencies of {c2f_bin.name}:\n{ldd}", tag=TAG, level=Qgis.Info
+                    )
                 else:
                     suffix = suffix.replace("-static", "")
                     c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
                     if c2f_bin.is_file():
                         ldd = popen("otool -L " + str(c2f_bin) + " 2>&1 ").read()
-                        QgsMessageLog.logMessage(f"{self.name()}, Dependencies of {c2f_bin.name}:\n{ldd}", tag=TAG, level=Qgis.Info)
+                        QgsMessageLog.logMessage(
+                            f"{self.name()}, Dependencies of {c2f_bin.name}:\n{ldd}", tag=TAG, level=Qgis.Info
+                        )
             #     if "not found" in ldd:
             #         return False, "Missing dependencies! (brew install libomp?)"
         else:
@@ -618,6 +629,9 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             results_dir = Path(instance_dir, "results")
         else:
             results_dir = Path(self.parameterAsString(parameters, self.RESULTS_DIR, context))
+        if " " in str(results_dir):
+            feedback.reportError(f"results directory can't contain spaces: {results_dir}")
+            raise QgsProcessingException(f"results directory can't contain spaces: {results_dir}")
         self.results_dir = results_dir
         results_dir.mkdir(parents=True, exist_ok=True)
         feedback.pushDebugInfo(
@@ -996,6 +1010,7 @@ def compare_raster_properties(base: dict, incumbent: dict):
                 f"raster '{incumbent['name']}' {key} not close enough!\n| {base[key]} - {incumbent[key]} | > {ruppy}",
             )
     return True, "all ok"
+
 
 def get_ext():
     """checks if cell2fire binary is available"""
