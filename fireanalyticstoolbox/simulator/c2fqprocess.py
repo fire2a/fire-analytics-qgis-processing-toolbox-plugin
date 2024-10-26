@@ -1,5 +1,9 @@
+from re import findall as re_findall
+
 from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt.QtCore import QProcess
+
+match_this = "----------------------------- Results -----------------------------"
 
 # exitCode()
 ExitStatus = {
@@ -30,8 +34,10 @@ def nlog(*args, **kwargs):
 class C2F(QProcess):
     """fire simulation qprocess calls the c2fsb repo main.py"""
 
-    def __init__(self, parent=None, proc_dir=None, on_finished=None, feedback=None, log_file=None):
+    def __init__(self, total_sims=1, parent=None, proc_dir=None, on_finished=None, feedback=None, log_file=None):
         super().__init__(parent)
+        self.current_sim = 0
+        self.total_sims = total_sims
         self.setInputChannelMode(QProcess.ForwardedInputChannel)
         self.setProcessChannelMode(QProcess.SeparateChannels)
         self.readyReadStandardOutput.connect(self.read_standard_output)
@@ -76,6 +82,11 @@ class C2F(QProcess):
         else:
             self.feedback.pushConsoleInfo(msg)
         self.log_file.write(msg + "\n")
+        new_sim = len(re_findall(match_this, msg))
+        if new_sim > 0:
+            self.current_sim += new_sim
+            # self.feedback.setProgressText(f"Simulating: {self.current_sim}/{self.total_sim}")
+            self.feedback.setProgress(self.current_sim / self.total_sims * 100)
 
     def start(self, cmd, proc_dir=None):
         self.log_stat("start INI")

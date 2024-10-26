@@ -24,7 +24,7 @@ repository=https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plug
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
 changelog=
-	v0.4.7: text log
+	v0.4.7: fire simulation progress bar, algorithms logs in text files 
 	v0.4.6: fix DPV: checkboxes for optional compatibility, +fire2a-lib 0.2.16 bugfix, +results dir can't contain spaces exception
 	v0.4.5: fix DPV: better pv compatibility (nodata, no fires, reescale by num. of burns not num. of sims), fire2a-lib 0.2.15 fixes BurnProbability w/firebreaks issue
 	v0.4.4: Default number of simulations: 3, default font Sans, untested binaries for macOS 12(i386),13(i386),14(arm64), fire2a-lib 0.2.14

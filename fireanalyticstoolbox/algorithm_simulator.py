@@ -776,7 +776,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             return self.output_dict
 
         # RUN
-        c2f = C2F(proc_dir=c2f_path, feedback=feedback, log_file=results_dir / "LogFile.txt")
+        c2f = C2F(total_sims=args["nsims"], proc_dir=c2f_path, feedback=feedback, log_file=results_dir / "LogFile.txt")
         if platform_system() == "Windows":
             cmd = 'C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -Command "& {' + cmd + '}"'
         c2f.start(cmd)
