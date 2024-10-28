@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugins ml-update="aware" ml-stage="preload" ml-view="top">
-	<pyqgis_plugin name="Fire Analytics Processing-Toolbox" version="0.4.6" plugin_id="1029384756">
+	<pyqgis_plugin name="Fire Analytics Processing-Toolbox" version="0.4.7" plugin_id="1029384756">
 		<description><![CDATA[Wild & Forest fires simulation, prevention and insights related algorithms. Including a fire simulator, user valued risk metrics and prescriptive analytics via mathematical programming optimization to generate management recommendations]]></description>
 		<about><![CDATA[This Processing-ToolBox-Plugin gathers and implements multiple algorithms needed by landscape planners, fire risk managers, biologists, geographers, and so on; Looking for optimized decision support and insights into large forest fires in a friendly dialog or graphical-model data-oriented pipelined way (also CLI and scripting). Based around Cell2FireW simulator. Developed by the Fire Adv.Analytics research group, under GNU GPLv3 license. Contact Us fire2a.com
 			DOCUMENTATION: github.com/fire2a/docs
 			ALL VERSIONS: github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases
-			SAVE BEFORE INSTALL/UPDATE: A dialog asking permission to (pip) install python dependencies (fire2a-lib==0.2.16) will appear]]></about>
-		<version>0.4.6</version>
+			SAVE BEFORE INSTALL/UPDATE: A dialog asking permission to (pip) install python dependencies (fire2a-lib==0.3.0) will appear]]></about>
+		<version>0.4.7</version>
 		<trusted>True</trusted>
 		<qgis_minimum_version>3.0.0</qgis_minimum_version>
 		<qgis_maximum_version>4.0.0</qgis_maximum_version>
@@ -14,7 +14,7 @@
 		<file_name>fireanalyticstoolbox</file_name>
 		<icon>https://raw.githubusercontent.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/main/fireanalyticstoolbox/assets/forestfire.svg</icon>
 		<author_name>fdobad</author_name>
-		<download_url>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases/download/v0.4.6/fireanalyticstoolbox_v0.4.6.zip</download_url>
+		<download_url>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases/download/v0.4.7/fireanalyticstoolbox_v0.4.7.zip</download_url>
 		<uploaded_by>fdobad</uploaded_by>
 		<create_date>2006-06-06T06:06:06.066666+06:00</create_date>
 		<update_date>2024-09-15T20:00:06.066666-04:00</update_date>

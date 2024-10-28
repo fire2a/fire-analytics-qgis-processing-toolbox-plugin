@@ -33,19 +33,16 @@ __revision__ = "$Format:%H$"
 from pathlib import Path
 
 import processing
-from qgis.core import (QgsFeatureSink, QgsMessageLog, QgsProcessing,
-                       QgsProcessingAlgorithm,
-                       QgsProcessingParameterDefinition,
-                       QgsProcessingParameterEnum,
-                       QgsProcessingParameterFeatureSink,
-                       QgsProcessingParameterMultipleLayers,
-                       QgsProcessingParameterNumber,
+from fire2a.raster import get_rlayer_data, get_rlayer_info
+from qgis.core import (QgsFeatureSink, QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm,
+                       QgsProcessingParameterDefinition, QgsProcessingParameterEnum, QgsProcessingParameterFeatureSink,
+                       QgsProcessingParameterMatrix, QgsProcessingParameterMultipleLayers, QgsProcessingParameterNumber,
                        QgsProcessingParameterRasterLayer, QgsVectorLayer)
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 
-from .assets.resources import *
 from .algorithm_utils import write_log
+from .assets.resources import *
 
 
 class ClusterizeAlgorithm(QgsProcessingAlgorithm):
@@ -66,13 +63,15 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
     # used when calling the algorithm from another algorithm, or when
     # calling from the QGIS console.
 
-    OUTPUT = "OUTPUT"
-    INPUT_RASTERS = "INPUT"
+    OUTPUT_RASTER = "OutputRaster"
+    OUTPUT_POLYGONS = "OutputPolygons"
+    INPUT_RASTERS = "InputRasters"
     MIN_SRFCE = "MinimumSurface"
-    MAX_SRFCE = "MaximumSurface"
+    # MAX_SRFCE = "MaximumSurface"
     DST_TRSHLD = "DistanceThreshold"
     TTL_CLSTRS = "TotalClusters"
-    NEIGHBORS = "NeighborConnectivity"
+    # NEIGHBORS = "NeighborConnectivity"
+    MATRIX = "Matrix"
 
     def initAlgorithm(self, config):
         """define the inputs and output"""
@@ -86,41 +85,17 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
-        min_qppn = QgsProcessingParameterNumber(
-            name=self.MIN_SRFCE,
-            description=self.tr("Minimum surface [ha]"),
-            type=QgsProcessingParameterNumber.Double,
-            defaultValue=6.9,
-            optional=False,
-            minValue=-1.2345,
-            maxValue=420.666,
-        )
-        min_qppn.setMetadata({"widget_wrapper": {"decimals": 1}})
-        self.addParameter(min_qppn)
-
-        max_qppn = QgsProcessingParameterNumber(
-            name=self.MAX_SRFCE,
-            description=self.tr("Maximum surface [ha]"),
-            type=QgsProcessingParameterNumber.Double,
-            defaultValue=11,
-            optional=False,
-            minValue=-1.2345,
-            maxValue=420.666,
-        )
-        max_qppn.setMetadata({"widget_wrapper": {"decimals": 1}})
-        self.addParameter(max_qppn)
-
         thr_qppn = QgsProcessingParameterNumber(
             name=self.DST_TRSHLD,
-            description=self.tr("Distance threshold [m]"),
-            type=QgsProcessingParameterNumber.Double,
-            defaultValue=0.69,
+            description=self.tr("Distance threshold [adjusted observations]"),
+            type=QgsProcessingParameterNumber.Double,  # ,Integer
+            defaultValue=10.0,
             optional=True,
-            minValue=-1.2345,
-            maxValue=420.666,
+            minValue=0.0,
+            # maxValue=420.666,
         )
-        thr_qppn.setMetadata({"widget_wrapper": {"decimals": 3}})
-        thr_qppn.setFlags(thr_qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        thr_qppn.setMetadata({"widget_wrapper": {"decimals": 2}})
+        # thr_qppn.setFlags(thr_qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(thr_qppn)
 
         # integer
@@ -130,36 +105,72 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
             type=QgsProcessingParameterNumber.Integer,
             # defaultValue = 0,
             optional=True,
-            minValue=-7,
-            maxValue=13,
+            minValue=2,
+            # maxValue=13,
         )
-        tcl_qppn.setFlags(tcl_qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        # tcl_qppn.setFlags(tcl_qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(tcl_qppn)
 
-        # enum
-        nbc_qppe = QgsProcessingParameterEnum(
-            name=self.NEIGHBORS,
-            description=self.tr("Neighbor connectivity"),
-            options=["4", "8"],
-            allowMultiple=False,
-            defaultValue="4",
-            optional=False,
-            usesStaticStrings=True,
+        # name: str, description: str = '', numberRows: int = 3, hasFixedNumberRows: bool = False, headers: Iterable[str] = [], defaultValue: Any = None, optional: bool = False
+        self.addParameter(
+            QgsProcessingParameterMatrix(
+                name=self.MATRIX,
+                description=self.tr("Raster Configuration Matrix (use same order than input rasters)"),
+                headers=["scaling_strategy", "no_data_strategy", "fill_value"],  # , "weight"
+            )
         )
-        nbc_qppe.setMetadata(
-            {
-                "widget_wrapper": {
-                    "icons": [
-                        QIcon(":/plugins/fireanalyticstoolbox/assets/4neighbors.svg"),
-                        QIcon(":/plugins/fireanalyticstoolbox/assets/8neighbors.svg"),
-                    ]
-                }
-            }
-        )
-        nbc_qppe.setFlags(nbc_qppe.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
-        self.addParameter(nbc_qppe)
 
-        self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUT, self.tr("Output vector layer")))
+        min_qppn = QgsProcessingParameterNumber(
+            name=self.MIN_SRFCE,
+            description=self.tr("Minimum surface [pixels]"),  # [ha]
+            type=QgsProcessingParameterNumber.Integer,
+            # defaultValue=1,
+            optional=True,
+            # minValue=0.0001,
+            minValue=1,
+            # maxValue=420.666,
+        )
+        # min_qppn.setMetadata({"widget_wrapper": {"decimals": 1}})
+        min_qppn.setFlags(min_qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(min_qppn)
+
+        # max_qppn = QgsProcessingParameterNumber(
+        #     name=self.MAX_SRFCE,
+        #     description=self.tr("Maximum surface [ha]"),
+        #     type=QgsProcessingParameterNumber.Double,
+        #     defaultValue=11,
+        #     optional=False,
+        #     minValue=-1.2345,
+        #     maxValue=420.666,
+        # )
+        # max_qppn.setMetadata({"widget_wrapper": {"decimals": 1}})
+        # self.addParameter(max_qppn)
+
+        # enum
+        # nbc_qppe = QgsProcessingParameterEnum(
+        #     name=self.NEIGHBORS,
+        #     description=self.tr("Neighbor connectivity"),
+        #     options=["4", "8"],
+        #     allowMultiple=False,
+        #     defaultValue="4",
+        #     optional=False,
+        #     usesStaticStrings=True,
+        # )
+        # nbc_qppe.setMetadata(
+        #     {
+        #         "widget_wrapper": {
+        #             "icons": [
+        #                 QIcon(":/plugins/fireanalyticstoolbox/assets/4neighbors.svg"),
+        #                 QIcon(":/plugins/fireanalyticstoolbox/assets/8neighbors.svg"),
+        #             ]
+        #         }
+        #     }
+        # )
+        # nbc_qppe.setFlags(nbc_qppe.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        # self.addParameter(nbc_qppe)
+
+        self.addParameter(QgsProcessingParameterRasterLayer(self.OUTPUT_RASTER, self.tr("Output raster")))
+        self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUT_POLYGONS, self.tr("Output vector layer")))
 
     def processAlgorithm(self, parameters, context, feedback):
         """
@@ -170,8 +181,37 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
             f"Input rasters:\n names: {[ r.name() for r in raster_list]}\ntypes:"
             f" {[ r.rasterType() for r in raster_list]}"
         )
-        neighbors = self.parameterAsEnum(parameters, self.NEIGHBORS, context)
-        feedback.pushDebugInfo(f"neighbor connectivity: {neighbors}")
+
+        data_list, info_list = [], []
+        for rlayer in raster_list:
+            feedback.pushDebugInfo(f"Raster: {rlayer.name()}")
+            data_list += [get_rlayer_data(rlayer)]
+            info_list += [get_rlayer_info(rlayer)]
+
+        matrix = self.parameterAsMatrix(parameters, self.MATRIX, context)
+        feedback.pushDebugInfo(f"Matrix: {matrix=} {len(matrix)=} {type(matrix)=}")
+
+        config_text = ""
+        # ["scaling_strategy", "no_data_strategy", "fill_value", "weight"]
+        for i, row in enumerate(matrix):
+
+            feedback.pushDebugInfo(f"{row=}")
+            config_text += '["' + info_list[i]["file"] + '"]\n'
+
+            for j, col in enumerate(row):
+                if col != "":
+                    if j == 0:
+                        config_text += "scaling_strategy = "
+                    elif j == 1:
+                        config_text += "no_data_strategy = "
+                    elif j == 2:
+                        config_text += "fill_value = "
+                    config_text += '"' + col + '"\n'
+
+        feedback.pushDebugInfo(f"Config text:\n{config_text}")
+
+        # neighbors = self.parameterAsEnum(parameters, self.NEIGHBORS, context)
+        # feedback.pushDebugInfo(f"neighbor connectivity: {neighbors}")
 
         total_clusters = self.parameterAsInt(parameters, self.TTL_CLSTRS, context)
         feedback.pushDebugInfo(f"total clusters: {total_clusters}")
@@ -179,51 +219,11 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
         distance_threshold = self.parameterAsDouble(parameters, self.DST_TRSHLD, context)
         feedback.pushDebugInfo(f"distance threshold: {distance_threshold}")
 
-        max_surface = self.parameterAsDouble(parameters, self.MAX_SRFCE, context)
-        feedback.pushDebugInfo(f"maximum surface: {max_surface}")
+        # max_surface = self.parameterAsDouble(parameters, self.MAX_SRFCE, context)
+        # feedback.pushDebugInfo(f"maximum surface: {max_surface}")
 
         min_surface = self.parameterAsDouble(parameters, self.MIN_SRFCE, context)
         feedback.pushDebugInfo(f"minimum surface: {min_surface}")
-
-        output = processing.run(
-            "gdal:polygonize",
-            {
-                "BAND": 1,
-                "EIGHT_CONNECTEDNESS": False,
-                "EXTRA": "",
-                "FIELD": "DN",
-                "INPUT": raster_list[0],
-                "OUTPUT": "TEMPORARY_OUTPUT",
-            },
-        )
-        vector_layer = QgsVectorLayer(output["OUTPUT"], "polygonized", "ogr")
-
-        feedback.pushInfo(
-            "Clusterize algorithm finished.\n"
-            f"name: {vector_layer.name()}\n"
-            f"CRS: {vector_layer.crs().authid()}\n"
-            f"geometry type: {vector_layer.geometryType()}\n"
-            f"wkbType: {vector_layer.wkbType()}\n"
-            f"feature count: {vector_layer.featureCount()}\n"
-            f"fields: {vector_layer.fields()}\n"
-        )
-        (sink, dest_id) = self.parameterAsSink(
-            parameters, self.OUTPUT, context, vector_layer.fields(), vector_layer.wkbType(), vector_layer.sourceCrs()
-        )
-
-        total = 100.0 / vector_layer.featureCount() if vector_layer.featureCount() else 0
-        features = vector_layer.getFeatures()
-
-        for current, feature in enumerate(features):
-            # Stop the algorithm if cancel button has been clicked
-            if feedback.isCanceled():
-                break
-
-            # Add a feature in the sink
-            sink.addFeature(feature, QgsFeatureSink.FastInsert)
-
-            # Update the progress bar
-            feedback.setProgress(int(current * total))
 
         write_log(feedback, name=self.name())
         return {self.OUTPUT: dest_id}

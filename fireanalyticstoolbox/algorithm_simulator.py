@@ -762,9 +762,37 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         cmd += " " + self.parameterAsString(parameters, self.ADD_ARGS, context)
 
         if self.parameterAsBool(parameters, self.DRYRUN, context):
-            feedback.pushWarning(
-                f"DRY RUN!\nOpen a terminal in this directory:\n{c2f_path}\nExecute this command:\n{cmd}\n"
+            # Determine platform-specific variables
+            if platform_system() == "Windows":
+                shell = "powershell"
+                var_prefix = "$"
+                log_command = "2>&1 | Tee-Object -FilePath ($of + '/LogFile.txt')"
+            else:
+                shell = "bash"
+                var_prefix = ""
+                log_command = "2>&1 | tee $of/LogFile.txt"
+            # Construct the dry run message
+            dry_msg = (
+                f"DRY RUN! Open a {shell} terminal, execute this:\n\n"
+                f"{var_prefix}c2f={c2f_path}/Cell2Fire{get_ext()}\n"
+                f"{var_prefix}of={args['output-folder']}\n"
+                f"{var_prefix}if={args['input-instance-folder']}\n"
+                f"$c2f "
             )
+            for k, v in args.items():
+                if v is False or v is None or k in ["input-instance-folder", "output-folder"]:
+                    continue
+                dry_msg += f" --{k} {v if v is not True else ''}"
+            dry_msg += (
+                " "
+                + self.parameterAsString(parameters, self.ADD_ARGS, context)
+                + " --input-instance-folder $if --output-folder $of "
+                + log_command
+                + "\n"
+            )
+            # print
+            feedback.pushWarning(dry_msg)
+            # return
             self.output_dict = {
                 self.INSTANCE_DIR: str(instance_dir),
                 self.RESULTS_DIR: str(results_dir),
@@ -776,7 +804,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             return self.output_dict
 
         # RUN
-        c2f = C2F(proc_dir=c2f_path, feedback=feedback, log_file=results_dir / "LogFile.txt")
+        c2f = C2F(total_sims=args["nsims"], proc_dir=c2f_path, feedback=feedback, log_file=results_dir / "LogFile.txt")
         if platform_system() == "Windows":
             cmd = 'C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -Command "& {' + cmd + '}"'
         c2f.start(cmd)
@@ -804,7 +832,16 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         # feedback.pushDebugInfo("postProcessAlgorithm start")
         output_dict = self.output_dict
         if output_dict.get(self.DRYRUN):
-            feedback.pushWarning("dryrun, no postprocessing")
+            feedback.pushWarning("\n DRY RUN! instructions ended (is up to the user to run this instance)")
+            if platform_system == "Windows":
+                tee = "| Tee-Object -FilePath"
+                follow = "Get-Content -Wait -Tail"
+            else:
+                tee = "| tee"
+                follow = "tail --follow"
+            feedback.pushConsoleInfo(
+                f"PRO TIP: To make it even faster replace '{tee}' with '>', and periodically check the log file with {follow} $of/LogFile.txt in another terminal"
+            )
             write_log(feedback, name=self.name())
             return output_dict
         instance_dir = output_dict[self.INSTANCE_DIR]
