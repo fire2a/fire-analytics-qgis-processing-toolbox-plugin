@@ -30,18 +30,26 @@ __copyright__ = "(C) 2023 by Fernando Badilla Veliz - Fire2a.com"
 
 __revision__ = "$Format:%H$"
 
+import itertools
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 import processing
-from fire2a.raster import get_rlayer_data, get_rlayer_info
-from qgis.core import (QgsFeatureSink, QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm,
-                       QgsProcessingParameterDefinition, QgsProcessingParameterEnum, QgsProcessingParameterFeatureSink,
-                       QgsProcessingParameterMatrix, QgsProcessingParameterMultipleLayers, QgsProcessingParameterNumber,
-                       QgsProcessingParameterRasterLayer, QgsVectorLayer)
-from qgis.PyQt.QtCore import QCoreApplication
+from osgeo import gdal
+from PyQt5.QtGui import QColor
+from qgis.core import (QgsCategorizedSymbolRenderer, QgsFeatureSink, QgsMessageLog, QgsProcessing,
+                       QgsProcessingAlgorithm, QgsProcessingContext, QgsProcessingException, QgsProcessingFeedback,
+                       QgsProcessingLayerPostProcessorInterface, QgsProcessingParameterDefinition,
+                       QgsProcessingParameterEnum, QgsProcessingParameterFeatureSink, QgsProcessingParameterMatrix,
+                       QgsProcessingParameterMultipleLayers, QgsProcessingParameterNumber,
+                       QgsProcessingParameterRasterDestination, QgsProcessingParameterRasterLayer,
+                       QgsProcessingParameterVectorDestination, QgsProcessingUtils, QgsRendererCategory, QgsSymbol,
+                       QgsVectorLayer)
+from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
+from toml import dump as toml_dump
 
-from .algorithm_utils import write_log
+from .algorithm_utils import colormap_to_hex_list, write_log
 from .assets.resources import *
 
 
@@ -72,6 +80,8 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
     TTL_CLSTRS = "TotalClusters"
     # NEIGHBORS = "NeighborConnectivity"
     MATRIX = "Matrix"
+    matrix_headers = ["scaling_strategy", "no_data_strategy", "fill_value"]
+    matrix_headers_types = [str, str, float]
 
     def initAlgorithm(self, config):
         """define the inputs and output"""
@@ -82,6 +92,16 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
                 layerType=QgsProcessing.TypeRaster,
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
+            )
+        )
+
+        # name: str, description: str = '', numberRows: int = 3, hasFixedNumberRows: bool = False, headers: Iterable[str] = [], defaultValue: Any = None, optional: bool = False
+        self.addParameter(
+            QgsProcessingParameterMatrix(
+                name=self.MATRIX,
+                description=self.tr("Raster Configuration Matrix (use same order than input rasters)"),
+                headers=self.matrix_headers,  # , "weight"
+                optional=True,
             )
         )
 
@@ -110,15 +130,6 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
         )
         # tcl_qppn.setFlags(tcl_qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(tcl_qppn)
-
-        # name: str, description: str = '', numberRows: int = 3, hasFixedNumberRows: bool = False, headers: Iterable[str] = [], defaultValue: Any = None, optional: bool = False
-        self.addParameter(
-            QgsProcessingParameterMatrix(
-                name=self.MATRIX,
-                description=self.tr("Raster Configuration Matrix (use same order than input rasters)"),
-                headers=["scaling_strategy", "no_data_strategy", "fill_value"],  # , "weight"
-            )
-        )
 
         min_qppn = QgsProcessingParameterNumber(
             name=self.MIN_SRFCE,
@@ -169,8 +180,19 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
         # nbc_qppe.setFlags(nbc_qppe.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         # self.addParameter(nbc_qppe)
 
-        self.addParameter(QgsProcessingParameterRasterLayer(self.OUTPUT_RASTER, self.tr("Output raster")))
-        self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUT_POLYGONS, self.tr("Output vector layer")))
+        self.addParameter(
+            QgsProcessingParameterRasterDestination(
+                name=self.OUTPUT_RASTER,
+                description=self.tr("Output raster"),
+                optional=True,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterVectorDestination(
+                name=self.OUTPUT_POLYGONS,
+                description=self.tr("Output polygons"),
+            )
+        )
 
     def processAlgorithm(self, parameters, context, feedback):
         """
@@ -178,55 +200,120 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
         """
         raster_list = self.parameterAsLayerList(parameters, self.INPUT_RASTERS, context)
         feedback.pushDebugInfo(
-            f"Input rasters:\n names: {[ r.name() for r in raster_list]}\ntypes:"
-            f" {[ r.rasterType() for r in raster_list]}"
+            f"Input rasters names: {[ r.name() for r in raster_list]}\n"
+            # f"Input rasters:\n names: {[ r.name() for r in raster_list]}\ntypes:"
+            # f" {[ r.rasterType() for r in raster_list]}"
+            # f" {[ r.publicSource() for r in raster_list]}"
         )
-
-        data_list, info_list = [], []
-        for rlayer in raster_list:
-            feedback.pushDebugInfo(f"Raster: {rlayer.name()}")
-            data_list += [get_rlayer_data(rlayer)]
-            info_list += [get_rlayer_info(rlayer)]
+        config_toml = {r.publicSource(): {} for r in raster_list}
+        args = {
+            "--authid": raster_list[0].crs().authid(),
+            "--geotransform": str(gdal.Open(raster_list[0].publicSource(), gdal.GA_ReadOnly).GetGeoTransform()),
+        }
 
         matrix = self.parameterAsMatrix(parameters, self.MATRIX, context)
-        feedback.pushDebugInfo(f"Matrix: {matrix=} {len(matrix)=} {type(matrix)=}")
-
-        config_text = ""
+        # feedback.pushDebugInfo(f"Matrix: {matrix=} {len(matrix)=} {type(matrix)=}")
         # ["scaling_strategy", "no_data_strategy", "fill_value", "weight"]
-        for i, row in enumerate(matrix):
+        mtx_len = len(matrix)
+        row_len = len(self.matrix_headers)
+        num_rows = mtx_len // row_len
 
-            feedback.pushDebugInfo(f"{row=}")
-            config_text += '["' + info_list[i]["file"] + '"]\n'
+        # fmt: off
+        # from qgis.PyQt.QtCore import pyqtRemoveInputHook
+        # pyqtRemoveInputHook()
+        # from IPython.terminal.embed import InteractiveShellEmbed
+        # InteractiveShellEmbed()()
+        # fmt: on
 
-            for j, col in enumerate(row):
-                if col != "":
-                    if j == 0:
-                        config_text += "scaling_strategy = "
-                    elif j == 1:
-                        config_text += "no_data_strategy = "
-                    elif j == 2:
-                        config_text += "fill_value = "
-                    config_text += '"' + col + '"\n'
+        # recreate config.toml
+        for i, fname in zip(range(num_rows), config_toml):
+            row = matrix[i * row_len : (i + 1) * row_len]
+            for j, (header, atype) in enumerate(zip(self.matrix_headers, self.matrix_headers_types)):
+                if row[j] != QVariant() and row[j] != "":
+                    try:
+                        config_toml[fname][header] = atype(row[j])
+                    except Exception as e:
+                        msg = (
+                            f"{e}\nError in Raster Configuration Matrix: {header=} at row {i+1} can't convert {row[j]} to {atype}",
+                        )
+                        feedback.reportError(msg)
+                        raise QgsProcessingException(msg)
+            # feedback.pushDebugInfo(f"{row=}")
+            feedback.pushDebugInfo(f"{fname} : {config_toml[fname]}\n")
 
-        feedback.pushDebugInfo(f"Config text:\n{config_text}")
+        # feedback.pushDebugInfo(f"{config_toml=}")
 
         # neighbors = self.parameterAsEnum(parameters, self.NEIGHBORS, context)
         # feedback.pushDebugInfo(f"neighbor connectivity: {neighbors}")
 
-        total_clusters = self.parameterAsInt(parameters, self.TTL_CLSTRS, context)
-        feedback.pushDebugInfo(f"total clusters: {total_clusters}")
+        if total_clusters := self.parameterAsInt(parameters, self.TTL_CLSTRS, context):
+            # feedback.pushDebugInfo(f"total clusters: {total_clusters}")
+            args["--n_clusters"] = str(total_clusters)
 
-        distance_threshold = self.parameterAsDouble(parameters, self.DST_TRSHLD, context)
-        feedback.pushDebugInfo(f"distance threshold: {distance_threshold}")
+        if distance_threshold := self.parameterAsDouble(parameters, self.DST_TRSHLD, context):
+            # feedback.pushDebugInfo(f"distance threshold: {distance_threshold}")
+            args["--distance_threshold"] = str(distance_threshold)
 
-        # max_surface = self.parameterAsDouble(parameters, self.MAX_SRFCE, context)
-        # feedback.pushDebugInfo(f"maximum surface: {max_surface}")
+        if min_surface := self.parameterAsDouble(parameters, self.MIN_SRFCE, context):
+            # feedback.pushDebugInfo(f"minimum surface: {min_surface}")
+            args["--sieve"] = str(min_surface)
 
-        min_surface = self.parameterAsDouble(parameters, self.MIN_SRFCE, context)
-        feedback.pushDebugInfo(f"minimum surface: {min_surface}")
+        if output_raster := self.parameterAsOutputLayer(parameters, self.OUTPUT_RASTER, context):
+            # feedback.pushDebugInfo(f"Output raster: {output_raster=} {type(output_raster)=}")
+            args["--output_raster"] = output_raster
+
+        if output_polygons := self.parameterAsOutputLayer(parameters, self.OUTPUT_POLYGONS, context):
+            # feedback.pushDebugInfo(f"Output polygons: {output_polygons=} {type(output_polygons)=}")
+            args["--output_poly"] = output_polygons
+
+        # store config as a toml file in the same path as output_polygons
+        config_file = NamedTemporaryFile(mode="w", suffix=".toml", dir=Path(output_polygons).parent, delete=False)
+        with open(config_file.name, "w") as toml_file:
+            toml_dump(config_toml, toml_file)
+
+        pairs = ([k, v] for k, v in args.items())
+        commands_list = ["-vv"] + list(itertools.chain.from_iterable(pairs))
+        commands_list += [config_file.name]
+        feedback.pushDebugInfo("\npython -m fire2a.agglomerative_clustering " + " ".join(commands_list) + "\n")
+
+        from contextlib import redirect_stderr, redirect_stdout
+
+        from fire2a import agglomerative_clustering
+
+        class FileLikeFeedback:
+            def __init__(self, feedback):
+                super().__init__()
+                self.feedback = feedback
+                self.msg = ""
+
+            def write(self, msg):
+                self.msg += msg
+                self.flush()
+
+            def flush(self):
+                self.feedback.pushConsoleInfo(self.msg)
+                self.msg = ""
+
+        std_feedback = FileLikeFeedback(feedback)
+        err_feedback = FileLikeFeedback(feedback)
+        with redirect_stdout(std_feedback), redirect_stderr(err_feedback):
+            retval = agglomerative_clustering.main(commands_list)
+        if 0 != retval:
+            feedback.reportError("Error in agglomerative_clustering")
+
+        if context.willLoadLayerOnCompletion(output_polygons):
+            display_name = "Clusterized polygons"
+            layer_details = context.LayerDetails(
+                display_name,
+                context.project(),
+                display_name,
+                QgsProcessingUtils.LayerHint.Vector,
+            )
+            context.addLayerToLoadOnCompletion(output_polygons, layer_details)
+            context.layerToLoadOnCompletionDetails(output_polygons).setPostProcessor(run_algo_styler(display_name))
 
         write_log(feedback, name=self.name())
-        return {self.OUTPUT: dest_id}
+        return {self.OUTPUT_POLYGONS: output_polygons, self.OUTPUT_RASTER: output_raster, "CONFIG": config_file.name}
 
     def name(self):
         """
@@ -268,16 +355,75 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
     def createInstance(self):
         return ClusterizeAlgorithm()
 
-    def shortDescription(self):
-        return self.tr("This short description appear when hovering?")
+    # def shortDescription(self):
+    #     return self.tr("This short description appear when hovering?")
 
     def helpUrl(self):
-        return "https://fire2a.github.io/docs"
+        return "https://fire2a.github.io/fire2a-lib/fire2a/agglomerative_clustering.html"
 
     def shortHelpString(self):
         return self.tr(
-            """The short help string is the help on the rigth vertical tab when opening the algorithm dialog?"""
+            """ <h1> Automatic clustering of different rasters </h1>
+        <h2> Overview </h2>
+        A scikit-learn pipeline that:
+        1. Handles nodata with <a href="https://scikit-learn.org/stable/modules/generated/sklearn.impute.SimpleImputer.html">SimpleImputer</a>
+        2. Scales data with <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html">StandardScaler</a>, <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.RobustScaler.html">RobustScaler</a> which removes outliers or <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html">OneHotEncoder</a> for categorical data like fuel models.
+        3. Rescales all observations to [0, 1]. 
+        4. Clusterizes the map using the <a href="https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AgglomerativeClustering.html">Agglomerative</a> clustering algorithm.
+        <h2> Usage </h2>
+        1. Select the rasters: notice you can drag & drop to <i>reorder</i> them.
+        2. Optionally fill the matrix <i>in the same order</i> than the selected rasters, with
+        - scaling_strategy = ["standard", "robust", "onehot"] (default is "standard")
+        - no_data_strategy = ["mean", "median", "most_frequent", "constant"] (default is "mean")
+        - fill_value = any number (only for "constant" no_data_strategy) (default is 0)
+        <b>Categorical rasters (like fuel models) should use "onehot" and "most_frequent"</b>
+        <br>
+        3. Experiment with the distance threshold until you get the desired number of clusters. Less distance (until 0) yields more clusters and processing time.
+        4. Fine tune the output, ensuring clusters have a minimum number of pixels using the advanced parameter -that invokese GDAL's: <a href="https://gdal.org/en/latest/programs/gdal_sieve.html#gdal-sieve">gdal_sieve</a>
+        <br>
+        <i>Both agglomerative and sieve connectivity is done with 4 neighbors because the fire simulator can cross diagonals<i/>
+        In depth instructions can be found <a href="https://fire2a.github.io/fire2a-lib/fire2a/agglomerative_clustering.html">here</a>
+        """
         )
 
     def helpString(self):
         return self.shortHelpString()
+
+
+def apply_categorized_renderer(layer: QgsVectorLayer, colors: list):
+    # Create a list of categories
+    categories = []
+    for i, feature in enumerate(layer.getFeatures()):
+        symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+        color = QColor(*colors[i])
+        symbol.setColor(color)
+        category = QgsRendererCategory(i, symbol, str(i))
+        categories += [category]
+
+    # Create the renderer and assign the categories
+    renderer = QgsCategorizedSymbolRenderer("DN", categories)
+    layer.setRenderer(renderer)
+
+
+def run_algo_styler(display_name: str):
+    class LayerPostProcessor(QgsProcessingLayerPostProcessorInterface):
+        instance = None
+        name = display_name
+
+        def postProcessLayer(self, layer, context, feedback):
+            feedback.pushInfo(f"Inside postProcessLayer: {self.name}")
+            if layer.isValid():
+                feedback.pushInfo(f"Layer valid: {self.name}")
+                layer.setName(self.name)
+                num_features = layer.featureCount()
+                colors = colormap_to_hex_list("gnuplot", num_features)
+                apply_categorized_renderer(layer, colors)
+                feedback.pushInfo(f"Applied categorized renderer to {self.name}")
+
+        # Hack to work around sip bug!
+        @staticmethod
+        def create() -> "LayerPostProcessor":
+            LayerPostProcessor.instance = LayerPostProcessor()
+            return LayerPostProcessor.instance
+
+    return LayerPostProcessor.create()
