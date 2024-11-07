@@ -39,9 +39,9 @@ from osgeo import gdal
 from PyQt5.QtGui import QColor
 from qgis.core import (QgsCategorizedSymbolRenderer, QgsFeatureSink, QgsMessageLog, QgsProcessing,
                        QgsProcessingAlgorithm, QgsProcessingContext, QgsProcessingException, QgsProcessingFeedback,
-                       QgsProcessingLayerPostProcessorInterface, QgsProcessingParameterDefinition,
-                       QgsProcessingParameterEnum, QgsProcessingParameterFeatureSink, QgsProcessingParameterMatrix,
-                       QgsProcessingParameterMultipleLayers, QgsProcessingParameterNumber,
+                       QgsProcessingLayerPostProcessorInterface, QgsProcessingParameterBoolean,
+                       QgsProcessingParameterDefinition, QgsProcessingParameterEnum, QgsProcessingParameterFeatureSink,
+                       QgsProcessingParameterMatrix, QgsProcessingParameterMultipleLayers, QgsProcessingParameterNumber,
                        QgsProcessingParameterRasterDestination, QgsProcessingParameterRasterLayer,
                        QgsProcessingParameterVectorDestination, QgsProcessingUtils, QgsRendererCategory, QgsSymbol,
                        QgsVectorLayer)
@@ -82,6 +82,7 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
     MATRIX = "Matrix"
     matrix_headers = ["scaling_strategy", "no_data_strategy", "fill_value"]
     matrix_headers_types = [str, str, float]
+    PLOT = "DebugPlot"
 
     def initAlgorithm(self, config):
         """define the inputs and output"""
@@ -180,6 +181,15 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
         # nbc_qppe.setFlags(nbc_qppe.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         # self.addParameter(nbc_qppe)
 
+        plot_qppb = QgsProcessingParameterBoolean(
+            name=self.PLOT,
+            description=self.tr("Debug plot (uses matplotlib, blocks the interface until dismissed)"),
+            defaultValue=False,
+            optional=True,
+        )
+        plot_qppb.setFlags(plot_qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(plot_qppb)
+
         self.addParameter(
             QgsProcessingParameterRasterDestination(
                 name=self.OUTPUT_RASTER,
@@ -218,13 +228,6 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
         row_len = len(self.matrix_headers)
         num_rows = mtx_len // row_len
 
-        # fmt: off
-        # from qgis.PyQt.QtCore import pyqtRemoveInputHook
-        # pyqtRemoveInputHook()
-        # from IPython.terminal.embed import InteractiveShellEmbed
-        # InteractiveShellEmbed()()
-        # fmt: on
-
         # recreate config.toml
         for i, fname in zip(range(num_rows), config_toml):
             row = matrix[i * row_len : (i + 1) * row_len]
@@ -246,6 +249,9 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
         # neighbors = self.parameterAsEnum(parameters, self.NEIGHBORS, context)
         # feedback.pushDebugInfo(f"neighbor connectivity: {neighbors}")
 
+        if debug_plot := self.parameterAsBool(parameters, self.PLOT, context):
+            args["--plots"] = "--block"
+
         if total_clusters := self.parameterAsInt(parameters, self.TTL_CLSTRS, context):
             # feedback.pushDebugInfo(f"total clusters: {total_clusters}")
             args["--n_clusters"] = str(total_clusters)
@@ -256,7 +262,7 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
 
         if min_surface := self.parameterAsDouble(parameters, self.MIN_SRFCE, context):
             # feedback.pushDebugInfo(f"minimum surface: {min_surface}")
-            args["--sieve"] = str(min_surface)
+            args["--sieve"] = str(int(min_surface))
 
         if output_raster := self.parameterAsOutputLayer(parameters, self.OUTPUT_RASTER, context):
             # feedback.pushDebugInfo(f"Output raster: {output_raster=} {type(output_raster)=}")
@@ -271,10 +277,14 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
         with open(config_file.name, "w") as toml_file:
             toml_dump(config_toml, toml_file)
 
-        pairs = ([k, v] for k, v in args.items())
-        commands_list = ["-vv"] + list(itertools.chain.from_iterable(pairs))
-        commands_list += [config_file.name]
+        commands_list = ([k, v] for k, v in args.items())
+        commands_list = list(itertools.chain.from_iterable(commands_list))
+        commands_list = [cmd for cmd in commands_list if cmd != ""]
+        commands_list = ["-vv"] + commands_list + [config_file.name]
         feedback.pushDebugInfo("\npython -m fire2a.agglomerative_clustering " + " ".join(commands_list) + "\n")
+        feedback.pushWarning(
+            '\n(For terminal users executing the previous command directly) Depending on the terminal the geotransform might need quotes "(0,0,1,0,1)" around it to be read correctly\n'
+        )
 
         from contextlib import redirect_stderr, redirect_stdout
 
