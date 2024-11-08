@@ -399,6 +399,9 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
     def helpString(self):
         return self.shortHelpString()
 
+    def icon(self):
+        return QIcon(":/plugins/fireanalyticstoolbox/assets/polygonize.png")
+
 
 def apply_categorized_renderer(layer: QgsVectorLayer, colors: list):
     # Create a list of categories
