@@ -191,10 +191,10 @@ class MeteoAlgo(QgsProcessingAlgorithm):
         return self.tr("Meteo Kitral")
 
     def group(self):
-        return self.tr("Simulator Preparation Help")
+        return self.tr("Utils")
 
     def groupId(self):
-        return "simulatorpreparation"
+        return "utils"
 
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)

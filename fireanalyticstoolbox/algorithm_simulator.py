@@ -46,12 +46,11 @@ import processing
 from fire2a.raster import read_raster, transform_georef_to_coords, xy2id
 from numpy import array
 from osgeo import gdal
-from qgis.core import (QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm, QgsProcessingContext,
+from qgis.core import (Qgis, QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm, QgsProcessingContext,
                        QgsProcessingException, QgsProcessingParameterBoolean, QgsProcessingParameterDefinition,
                        QgsProcessingParameterEnum, QgsProcessingParameterFile, QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterNumber, QgsProcessingParameterRasterLayer, QgsProcessingParameterString,
                        QgsProcessingParameterVectorLayer, QgsProject, QgsRasterLayer, QgsUnitTypes)
-from qgis.gui import Qgis
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 
