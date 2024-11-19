@@ -239,12 +239,6 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
         # neighbors = self.parameterAsEnum(parameters, self.NEIGHBORS, context)
         # feedback.pushDebugInfo(f"neighbor connectivity: {neighbors}")
 
-        if debug_plot := self.parameterAsBool(parameters, self.PLOT, context):
-            if platform_system() == "Windows":
-                feedback.pushWarning("Plotting is disabled for Windows, try running the command directly in the OSGeo4W shell with the --plots flag")
-            else:
-                args["--plots"] = "--block"
-
         if total_clusters := self.parameterAsInt(parameters, self.TTL_CLSTRS, context):
             # feedback.pushDebugInfo(f"total clusters: {total_clusters}")
             args["--n_clusters"] = str(total_clusters)
