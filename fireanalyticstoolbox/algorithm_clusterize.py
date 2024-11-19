@@ -80,9 +80,8 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
     TTL_CLSTRS = "TotalClusters"
     # NEIGHBORS = "NeighborConnectivity"
     MATRIX = "Matrix"
-    matrix_headers = ["scaling_strategy", "no_data_strategy", "fill_value"]
-    matrix_headers_types = [str, str, float]
-    PLOT = "DebugPlot"
+    matrix_headers = ["scaling_strategy", "no_data_strategy", "fill_value", "weight"]
+    matrix_headers_types = [str, str, float, float]
 
     def initAlgorithm(self, config):
         """define the inputs and output"""
@@ -110,7 +109,7 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
             name=self.DST_TRSHLD,
             description=self.tr("Distance threshold [adjusted observations]"),
             type=QgsProcessingParameterNumber.Double,  # ,Integer
-            defaultValue=10.0,
+            defaultValue=50.0,
             optional=True,
             minValue=0.0,
             # maxValue=420.666,
@@ -181,15 +180,6 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
         # nbc_qppe.setFlags(nbc_qppe.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         # self.addParameter(nbc_qppe)
 
-        plot_qppb = QgsProcessingParameterBoolean(
-            name=self.PLOT,
-            description=self.tr("Debug plot (uses matplotlib, blocks the interface until dismissed)"),
-            defaultValue=False,
-            optional=True,
-        )
-        plot_qppb.setFlags(plot_qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
-        self.addParameter(plot_qppb)
-
         self.addParameter(
             QgsProcessingParameterRasterDestination(
                 name=self.OUTPUT_RASTER,
@@ -250,7 +240,10 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
         # feedback.pushDebugInfo(f"neighbor connectivity: {neighbors}")
 
         if debug_plot := self.parameterAsBool(parameters, self.PLOT, context):
-            args["--plots"] = "--block"
+            if platform_system() == "Windows":
+                feedback.pushWarning("Plotting is disabled for Windows, try running the command directly in the OSGeo4W shell with the --plots flag")
+            else:
+                args["--plots"] = "--block"
 
         if total_clusters := self.parameterAsInt(parameters, self.TTL_CLSTRS, context):
             # feedback.pushDebugInfo(f"total clusters: {total_clusters}")
@@ -367,7 +360,7 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
         A scikit-learn pipeline that:
         1. Handles nodata with <a href="https://scikit-learn.org/stable/modules/generated/sklearn.impute.SimpleImputer.html">SimpleImputer</a>
         2. Scales data with <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html">StandardScaler</a>, <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.RobustScaler.html">RobustScaler</a> which removes outliers or <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html">OneHotEncoder</a> for categorical data like fuel models.
-        3. Rescales all observations to [0, 1]. 
+        3. Rescales all observations to [0, 1], then multiplies a prioritization (weight) to each raster.
         4. Clusterizes the map using the <a href="https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AgglomerativeClustering.html">Agglomerative</a> clustering algorithm.
         <h2> Usage </h2>
         1. Select the rasters: notice you can drag & drop to <i>reorder</i> them.
@@ -375,12 +368,17 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
         - scaling_strategy = ["standard", "robust", "onehot"] (default is "standard")
         - no_data_strategy = ["mean", "median", "most_frequent", "constant"] (default is "mean")
         - fill_value = any number (only for "constant" no_data_strategy) (default is 0)
+        - weight = any number (default is 1)
         <b>Categorical rasters (like fuel models) should use "onehot" and "most_frequent"</b>
         <br>
         3. Experiment with the distance threshold until you get the desired number of clusters. Less distance (until 0) yields more clusters and processing time.
-        4. Fine tune the output, ensuring clusters have a minimum number of pixels using the advanced parameter -that invokese GDAL's: <a href="https://gdal.org/en/latest/programs/gdal_sieve.html#gdal-sieve">gdal_sieve</a>
+        4. Fine tune the output, ensuring clusters have a minimum number of pixels using the advanced parameter -that invokes GDAL's: <a href="https://gdal.org/en/latest/programs/gdal_sieve.html#gdal-sieve">gdal_sieve</a>
+        5. Outputs: The output polygon layer has the attribute 'number of pixels'. The raster layer can be skipped.
+        6. Data debug: There's an additional option to raise a (mat)plot(lib) window with original & rescaled data distributions, clustering sizes history & histogram labels. Available outside QGIS, by executing the shown command adding the '--plots' flag in the terminal (OSGeo4WShell).
+
         <br>
         <i>Both agglomerative and sieve connectivity is done with 4 neighbors because the fire simulator can cross diagonals<i/>
+
         In depth instructions can be found <a href="https://fire2a.github.io/fire2a-lib/fire2a/agglomerative_clustering.html">here</a>
         """
         )
