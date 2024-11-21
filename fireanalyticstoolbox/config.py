@@ -125,8 +125,19 @@ NAME = {
     "bc": "Betweenness Centrality Propagation Metric",
     "dpv": "Downstream Protection Value Propagation Metric",
     "bp": "Burn Probability Propagation Metric",
-    "fuel_models": ["0. Scott & Burgan", "1. Kitral", "2. Canadian Forest Fire Behavior Prediction System"],
-    "fuel_tables": ["spain_lookup_table.csv", "kitral_lookup_table.csv", "fbp_lookup_table.csv"],
+    "fuel_models": [
+        "0. Scott & Burgan",
+        "1. Kitral",
+        "2. Canadian Forest Fire Behavior Prediction System",
+        "3. Portugal Alpha",
+    ],
+    "fuel_tables": [
+        "spain_lookup_table.csv",
+        "kitral_lookup_table.csv",
+        "fbp_lookup_table.csv",
+        "portugal_lookup_table.csv",
+    ],
+    "fuel_model_key": ["S", "K", "F", "P"],
     "ignition_modes": [
         "0. Uniformly distributed random ignition point(s)",
         "1. Probability map distributed random ignition point(s)",
