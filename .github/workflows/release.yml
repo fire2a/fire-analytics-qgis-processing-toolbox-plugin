@@ -40,6 +40,8 @@ jobs:
       with:
         repository: "fire2a/C2F-W" 
         latest: true
+        preRelease: true
+        tag: 'v0.2.4-portugAlpha'
         fileName: " Cell2FireW_v*.*.*.zip"
         out-file-path: "fireanalyticstoolbox/simulator"
         extract: true
