@@ -24,6 +24,7 @@ repository=https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plug
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
 changelog=
+	v0.6.0: Portugal fuel model
 	v0.5.1: Polygonize prioritized rasters. Algorithm now supports weighting each raster, fire2a-lib v0.3.3
 	v0.5.0: Polygonize multiple rasters algorithm, renamed section, fire2a-lib v0.3.2
 	v0.4.7: fire simulation progress bar, fire2a-lib update 0.3.1, algorithms logs in text files
