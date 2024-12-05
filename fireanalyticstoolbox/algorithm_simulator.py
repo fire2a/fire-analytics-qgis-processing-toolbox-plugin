@@ -205,7 +205,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterEnum(
                 name=self.FUEL_MODEL,
-                description=self.tr("LANDSCAPE SECTION\nSurface fuel model"),
+                description=self.tr("==================\nLANDSCAPE SECTION\n\nSurface fuel model"),
                 options=self.fuel_models,
                 allowMultiple=False,
                 defaultValue=0,
@@ -287,7 +287,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterNumber(
                 name=self.NSIM,
-                description="\nIGNITION SECTION\nNumber of simulations",
+                description="\n================\nIGNITION SECTION\n\nNumber of simulations",
                 type=QgsProcessingParameterNumber.Integer,
                 defaultValue=3,
                 optional=False,
@@ -343,7 +343,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterEnum(
                 name=self.WEATHER_MODE,
-                description=self.tr("\nWEATHER SECTION\nsource mode"),
+                description=self.tr("\n================\nWEATHER SECTION\n\nsource mode"),
                 options=self.weather_modes,
                 allowMultiple=False,
                 defaultValue=0,
@@ -401,8 +401,8 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterNumber(
                 name=self.SIM_THREADS,
                 description=(
-                    "\nRUN CONFIGURATION\nsimulation cpu threads (controls overall load to the computer by controlling"
-                    " number of simultaneous simulations"
+                    "\n===================\nRUN CONFIGURATION\nsimulation cpu threads (proportional to overall load to the computer by controlling"
+                    " number of simultaneous simulations)"
                     # "[check Advanced>Algorithm Settings alternative settings])"
                 ),
                 type=QgsProcessingParameterNumber.Integer,
@@ -427,7 +427,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterEnum(
                 name=self.OUTPUTS,
-                description=self.tr("\nOUTPUTS SECTION\noptions (click '...' button on the right)"),
+                description=self.tr("\n================\nOUTPUTS SECTION\n\noptions (click '...' button on the right)"),
                 options=[item["name"] for item in SIM_OUTPUTS],
                 allowMultiple=True,
                 defaultValue=[
@@ -957,6 +957,16 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
 
     def createInstance(self):
         return FireSimulatorAlgorithm()
+
+    def helpString(self):
+        return self.shortHelpString()
+
+    def shortHelpString(self):
+        return self.tr(
+            """
+            <a href=https://fire2a.github.io/docs/docs/qgis-toolbox/algo_simulator.html>help</a>
+            """
+        )
 
 
 def get_rasters(self, parameters, context):
