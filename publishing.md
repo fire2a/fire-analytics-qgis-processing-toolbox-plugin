@@ -15,7 +15,7 @@ plugins.xml
 
 			SAVE BEFORE INSTALL/UPDATE: A dialog asking permission to (pip) install python dependencies (fire2a-lib==0.3.3) will appear]]></about>
 
-		<version>0.5.1</version>
+		<version>0.5.2</version>
 
 		<update_date>2024-07-03T06:06:06.066666+06:00</update_date>
 
