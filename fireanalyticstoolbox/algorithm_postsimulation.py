@@ -839,6 +839,16 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         else:
             unit = None
 
+        final_name = ""
+        for item in STATS:
+            feedback.pushDebugInfo(f"{item=}, {stat_name=}")
+            if item["file"] == stat_name:
+                final_name = item["name"]
+                break
+        if final_name == "":
+            feedback.reportError(f"Unknown spatial statistic: {stat_name}")
+            raise QgsProcessingException(f"Unknown spatial statistic: {stat_name}")
+
         # out raster
         output_raster_filename = self.parameterAsOutputLayer(parameters, self.OUTPUT_RASTER, context)
         raster_format = get_output_raster_format(output_raster_filename, feedback)
@@ -891,7 +901,8 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
             if context.willLoadLayerOnCompletion(output_raster_filename):
                 # attach post processor
                 # display_name = f"{stat_name}_{self.numpy_dt[data_type_idx].__name__}"
-                display_name = f"{stat_name}"
+                display_name = f"{final_name}"
+                # known = [item["dir"] + sep + item["file"] for item in STATS]
                 layer_details = context.LayerDetails(
                     display_name, context.project(), display_name, QgsProcessingUtils.LayerHint.Raster
                 )
@@ -915,7 +926,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
             if context.willLoadLayerOnCompletion(output_raster2_filename):
                 layer_details = context.layerToLoadOnCompletionDetails(output_raster2_filename)
                 # layer_details.name = f"{stat_name}_mean&std_{self.numpy_dt[data_type_idx].__name__}"
-                layer_details.name = f"{stat_name}_mean&std"
+                layer_details.name = f"{final_name}_mean&std"
                 layer_details.groupName = NAME["layer_group"]
                 layer_details.layerSortKey = 3
 
@@ -942,6 +953,18 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
 
     def icon(self):
         return QIcon(":/plugins/fireanalyticstoolbox/assets/fireface.svg")
+
+    def helpString(self):
+        return self.shortHelpString()
+
+    def shortHelpString(self):
+        return self.tr(
+            """
+            This post processing algorithm, reads the raw output of C2F-W simulator and generates two rasters.
+            The first one has two bands corresponding to the mean and standard deviation of all simulations in each pixel, it's named _mean&std.
+            The second one, has one band per simulation.
+            """
+        )
 
 
 class ScarSIMPP(QgsProcessingAlgorithm):
