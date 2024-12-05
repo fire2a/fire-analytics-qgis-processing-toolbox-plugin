@@ -926,7 +926,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
             if context.willLoadLayerOnCompletion(output_raster2_filename):
                 layer_details = context.layerToLoadOnCompletionDetails(output_raster2_filename)
                 # layer_details.name = f"{stat_name}_mean&std_{self.numpy_dt[data_type_idx].__name__}"
-                layer_details.name = f"{final_name}_mean&std"
+                layer_details.name = f"{final_name} mean&std"
                 layer_details.groupName = NAME["layer_group"]
                 layer_details.layerSortKey = 3
 
@@ -961,8 +961,10 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         return self.tr(
             """
             This post processing algorithm, reads the raw output of C2F-W simulator and generates two rasters.
-            The first one has two bands corresponding to the mean and standard deviation of all simulations in each pixel, it's named _mean&std.
-            The second one, has one band per simulation.
+            The first one has two bands corresponding to the mean and standard deviation of all simulations in each pixel, named "StatName mean&std"
+            The second one, has one band per simulation, named "StatName"
+
+            Check the <a href=https://fire2a.github.io/docs/docs/qgis-toolbox/algo_simulator.html#options>table below<a/> for more info
             """
         )
 
