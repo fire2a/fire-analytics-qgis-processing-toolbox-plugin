@@ -531,7 +531,9 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return self.tr(
-            """Although <b>Propagation Directed Graph</b> output is fundamental to risk metrics such as DPV and BC: <b>Warning: Enabling it here can hang-up your system</b>, around 300.000 arrows is manageable for a regular laptop<br>
+             """This algorithm attempts to load everything from a simulation results directory, in a convenient but slower than selecting one of the following algorithms in the <b>PostProcessing group</b>. Check each one for more details.
+
+            Although <b>Propagation Directed Graph</b> output is fundamental to risk metrics such as DPV and BC: <b>Warning: Enabling it here can hang-up your system</b>, around 300.000 arrows is manageable for a regular laptop<br>
             Be safe by counting them first: Go to results/Messages folder:<br>
              - using bash $ wc -l Messages*csv<br>
              - using PowerShell > Get-Content Messages*.csv | Measure-Object -Line<br>
@@ -961,8 +963,11 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         return self.tr(
             """
             This post processing algorithm, reads the raw output of C2F-W simulator and generates two rasters.
-            The first one has two bands corresponding to the mean and standard deviation of all simulations in each pixel, named "StatName mean&std"
-            The second one, has one band per simulation, named "StatName"
+            One has one band per simulation, named "StatName" (so N bands for N simulations), e.g., Flame Lenght
+            
+            The second one has two bands corresponding to the mean and standard deviation, e.g., "Mean&StdDev Hit Rate Of Spread".
+            The mean statistic sums, for each pixel, its values divided by burnt count. 
+            The standard deviation divides against all simulations, not burnt count of each individual pixel.
 
             Check the <a href=https://fire2a.github.io/docs/docs/qgis-toolbox/algo_simulator.html#options>table below<a/> for more info
             """
