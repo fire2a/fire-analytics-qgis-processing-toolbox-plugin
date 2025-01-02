@@ -36,12 +36,12 @@ from qgis.PyQt.QtGui import QIcon
 from .algorithm_clusterize import ClusterizeAlgorithm
 from .algorithm_deprecated import IgnitionPointsFromLogFileSIMPP
 from .algorithm_instance_downloader import InstanceDownloader
-from .algorithm_knapsack import PolygonKnapsackAlgorithm, RasterKnapsackAlgorithm
+from .algorithm_knapsack import MultiObjectiveRasterKnapsackAlgorithm, PolygonKnapsackAlgorithm, RasterKnapsackAlgorithm
 from .algorithm_match_aiigrids import MatchAIIGrid
 from .algorithm_meteo import MeteoAlgo
-from .algorithm_postsimulation import (BetweennessCentralityMetric, BurnProbabilityMetric, DownStreamProtectionValueMetric,
-                                       IgnitionPointsSIMPP, MessagesSIMPP, PostSimulationAlgorithm, ScarSIMPP,
-                                       StatisticSIMPP)
+from .algorithm_postsimulation import (BetweennessCentralityMetric, BurnProbabilityMetric,
+                                       DownStreamProtectionValueMetric, IgnitionPointsSIMPP, MessagesSIMPP,
+                                       PostSimulationAlgorithm, ScarSIMPP, StatisticSIMPP)
 from .algorithm_raster_tutorial import RasterTutorial
 from .algorithm_sandbox import SandboxAlgorithm
 from .algorithm_simulator import FireSimulatorAlgorithm
@@ -71,6 +71,7 @@ class FireToolboxProvider(QgsProcessingProvider):
         self.addAlgorithm(FireToolboxAlgorithm())
         self.addAlgorithm(SandboxAlgorithm())
         self.addAlgorithm(RasterKnapsackAlgorithm())
+        self.addAlgorithm(MultiObjectiveRasterKnapsackAlgorithm())
         self.addAlgorithm(PolygonKnapsackAlgorithm())
         self.addAlgorithm(ClusterizeAlgorithm())
         self.addAlgorithm(FireSimulatorAlgorithm())

@@ -29,7 +29,8 @@ SOLVER.update(
         "glpk": "mipgap=0.005 tmlim=300",
         "ipopt": "",
         "gurobi": "MIPGap=0.005 TimeLimit=300",
-        "cplex_direct": "mipgap=0.005 timelimit=300",
+        "cplex": "mipgap=0.005 timelimit=300",
+        # "cplex_direct": "mipgap=0.005 timelimit=300",
         # "cplex_persistent": "mipgap=0.005 timelimit=300", needs tweak opt.set_ to work
     }
 )

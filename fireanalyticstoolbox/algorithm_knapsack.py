@@ -26,26 +26,31 @@ __copyright__ = "(C) 2024 by fdo"
 __version__ = "$Format:%H$"
 
 
+import itertools
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from platform import system as platform_system
+from tempfile import NamedTemporaryFile
 from time import sleep
 
 import numpy as np
 import processing
+from osgeo import gdal
 from processing.tools.system import getTempFilename
 from pyomo import environ as pyo
 from pyomo.common.errors import ApplicationError
 from pyomo.opt import SolverFactory, SolverStatus, TerminationCondition
 from qgis.core import (Qgis, QgsFeature, QgsFeatureRequest, QgsFeatureSink, QgsField, QgsFields, QgsMessageLog,
-                       QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterBoolean,
+                       QgsProcessing, QgsProcessingAlgorithm, QgsProcessingException, QgsProcessingParameterBoolean,
                        QgsProcessingParameterDefinition, QgsProcessingParameterFeatureSink,
                        QgsProcessingParameterFeatureSource, QgsProcessingParameterField, QgsProcessingParameterFile,
-                       QgsProcessingParameterNumber, QgsProcessingParameterRasterDestination,
-                       QgsProcessingParameterRasterLayer, QgsProcessingParameterString)
+                       QgsProcessingParameterMatrix, QgsProcessingParameterMultipleLayers, QgsProcessingParameterNumber,
+                       QgsProcessingParameterRasterDestination, QgsProcessingParameterRasterLayer,
+                       QgsProcessingParameterString)
 from qgis.PyQt.QtCore import QByteArray, QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 from scipy import stats
+from toml import dump as toml_dump
 
 from .algorithm_utils import (QgsProcessingParameterRasterDestinationGpkg, array2rasterInt16, get_output_raster_format,
                               get_raster_data, get_raster_info, get_raster_nodata, run_alg_styler_bin, write_log)
@@ -637,3 +642,236 @@ def do_knapsack(value_data, weight_data, capacity):
 
     m.capacity = pyo.Constraint(rule=capacity_rule)
     return m
+
+
+class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
+    """Selects the most valuable raster pixels restriced to a total capacity using a MIP solver. The valuation is done by a matrix of weights"""
+
+    INPUT_RASTERS = "InputRasters"
+    MATRIX = "Matrix"
+    matrix_headers = ["value_rescaling", "value_weight", "capacity_sense", "capacity_ratio"]
+    matrix_headers_types = [str, float, str, float]
+    allowed = {"value_rescaling": ["minmax", "standard", "robust", "onehot"], "capacity_sense": ["<=", ">=", "leq", "geq", "ub", "lb"]}
+
+    OUT_LAYER = "OUT_LAYER"
+
+    solver_exception_msg = ""
+
+    if platform_system() == "Windows":
+        add_cbc_to_path(QgsMessageLog)
+
+    def initAlgorithm(self, config):
+        """The form reads two raster layers one for the value and one for the weight; also configures the weight ratio and the solver"""
+        # values rasters
+        self.addParameter(
+            QgsProcessingParameterMultipleLayers(
+                name=self.INPUT_RASTERS,
+                description=self.tr("Input rasters"),
+                layerType=QgsProcessing.TypeRaster,
+                defaultValue=[QgsProcessing.TypeRaster],
+                optional=False,
+            )
+        )
+
+        # name: str, description: str = '', numberRows: int = 3, hasFixedNumberRows: bool = False, headers: Iterable[str] = [], defaultValue: Any = None, optional: bool = False
+        self.addParameter(
+            QgsProcessingParameterMatrix(
+                name=self.MATRIX,
+                description=self.tr("Raster Configuration Matrix (use same order than input rasters)"),
+                headers=self.matrix_headers,
+                optional=True,
+            )
+        )
+        # raster output
+        # DestinationGpkg inherits from QgsProcessingParameterRasterDestination to set default gpkg output format
+        self.addParameter(
+            QgsProcessingParameterRasterDestinationGpkg(self.OUT_LAYER, self.tr("Raster Knapsack Output layer"))
+        )
+        pyomo_init_algorithm(self, config)
+
+    def processAlgorithm(self, parameters, context, feedback):
+        # feedback.pushCommandInfo(f"processAlgorithm START")
+        # feedback.pushCommandInfo(f"parameters {parameters}")
+        # feedback.pushCommandInfo(f"context args: {context.asQgisProcessArguments()}")
+
+        # ?
+        # feedback.reportError(f"context.logLevel(): {context.logLevel()}")
+        # context.setLogLevel(context.logLevel()+1)
+
+        # report solver unavailability
+        feedback.pushInfo(f"Solver unavailability:\n{self.solver_exception_msg}\n")
+
+        raster_list = self.parameterAsLayerList(parameters, self.INPUT_RASTERS, context)
+        feedback.pushDebugInfo(f"Input rasters names: {[ r.name() for r in raster_list]}\n")
+
+        config_toml = {r.publicSource(): {} for r in raster_list}
+        args = {
+            "--authid": raster_list[0].crs().authid(),
+            "--geotransform": str(gdal.Open(raster_list[0].publicSource(), gdal.GA_ReadOnly).GetGeoTransform()),
+        }
+
+        matrix = self.parameterAsMatrix(parameters, self.MATRIX, context)
+        # feedback.pushDebugInfo(f"Matrix: {matrix=} {len(matrix)=} {type(matrix)=}")
+        # ["scaling_strategy", "no_data_strategy", "fill_value", "weight"]
+        mtx_len = len(matrix)
+        row_len = len(self.matrix_headers)
+        num_rows = mtx_len // row_len
+
+        # recreate config.toml
+        for i, fname in zip(range(num_rows), config_toml):
+            row = matrix[i * row_len : (i + 1) * row_len]
+            for j, (header, atype) in enumerate(zip(self.matrix_headers, self.matrix_headers_types)):
+                if row[j] != QVariant() and row[j] != "":
+                    try:
+                        config_toml[fname][header] = atype(row[j])
+                    except Exception as e:
+                        msg = (
+                            f"{e}\nError in Raster Configuration Matrix: {header=} at row {i+1} can't convert {row[j]} to {atype}",
+                        )
+                        feedback.reportError(msg)
+                        raise QgsProcessingException(msg)
+            # feedback.pushDebugInfo(f"{row=}")
+            feedback.pushDebugInfo(f"{fname} : {config_toml[fname]}\n")
+
+        if output_raster := self.parameterAsOutputLayer(parameters, self.OUT_LAYER, context):
+            # feedback.pushDebugInfo(f"Output raster: {output_raster=} {type(output_raster)=}")
+            args["--output_raster"] = output_raster
+
+        # store config as a toml file in the same path as output_polygons
+        config_file = NamedTemporaryFile(mode="w", suffix=".toml", dir=Path(output_raster).parent, delete=False)
+        with open(config_file.name, "w") as toml_file:
+            toml_dump(config_toml, toml_file)
+
+        commands_list = ([k, v] for k, v in args.items())
+        commands_list = list(itertools.chain.from_iterable(commands_list))
+        commands_list = [cmd for cmd in commands_list if cmd != ""]
+        commands_list = ["-vv"] + commands_list + [config_file.name]
+        feedback.pushDebugInfo("\npython -m fire2a.knapsack " + " ".join(commands_list) + "\n")
+        feedback.pushWarning(
+            '\n(For terminal users executing the previous command directly) Depending on the terminal the geotransform might need quotes "(0,0,1,0,1)" around it to be read correctly\n'
+        )
+
+        from contextlib import redirect_stderr, redirect_stdout
+
+        from fire2a import knapsack
+
+        class FileLikeFeedback:
+            def __init__(self, feedback):
+                super().__init__()
+                self.feedback = feedback
+                self.msg = ""
+
+            def write(self, msg):
+                self.msg += msg
+                self.flush()
+
+            def flush(self):
+                self.feedback.pushConsoleInfo(self.msg)
+                self.msg = ""
+
+        std_feedback = FileLikeFeedback(feedback)
+        err_feedback = FileLikeFeedback(feedback)
+        with redirect_stdout(std_feedback), redirect_stderr(err_feedback):
+            retval = knapsack.main(commands_list)
+        if 0 != retval:
+            feedback.reportError("Error in agglomerative_clustering")
+
+        # if showing
+        if context.willLoadLayerOnCompletion(output_raster):
+            layer_details = context.layerToLoadOnCompletionDetails(output_raster)
+            layer_details.groupName = "DecisionOptimizationGroup"
+            layer_details.name = "KnapsackRaster"
+            # layer_details.layerSortKey = 2
+            processing.run(
+                "native:setlayerstyle",
+                {
+                    "INPUT": output_raster,
+                    "STYLE": str(Path(__file__).parent / "decision_optimization" / "knapsack_raster.qml"),
+                },
+                context=context,
+                feedback=feedback,
+                is_child_algorithm=True,
+            )
+            feedback.pushDebugInfo(f"Showing layer {output_raster}")
+
+        write_log(feedback, name=self.name())
+        return {self.OUT_LAYER: output_raster, "CONFIG": config_file.name}
+
+    def name(self):
+        """
+        Returns the algorithm name, used for identifying the algorithm. This
+        string should be fixed for the algorithm, and must not be localised.
+        The name should be unique within each provider. Names should contain
+        lowercase alphanumeric characters only and no spaces or other
+        formatting characters.
+        """
+        return "multirasterknapsack"
+
+    def displayName(self):
+        """
+        Returns the translated algorithm name, which should be used for any
+        user-visible display of the algorithm name.
+        """
+        return self.tr("Multi Objective Raster Knapsack")
+
+    def group(self):
+        # return self.tr("Decision Optimization")
+        return self.tr(self.groupId())
+
+    def groupId(self):
+        # return "do"
+        return "zexperimental"
+
+    def tr(self, string):
+        return QCoreApplication.translate("Processing", string)
+
+    def createInstance(self):
+        return MultiObjectiveRasterKnapsackAlgorithm()
+
+    def helpUrl(self):
+        return "https://www.github.com/fdobad/qgis-processingplugin-template/issues"
+
+    def shortDescription(self):
+        return self.tr(
+            """Optimizes a multi objective knapsack problem using layers as values and/or weights, returns a layer with the selected pixels."""
+        )
+
+    def helpString(self):
+        return self.shortHelpString()
+
+    def icon(self):
+        return QIcon(":/plugins/fireanalyticstoolbox/assets/firebreakmap.svg")
+
+    def shortHelpString(self):
+        return self.tr(
+            """1. Select a list of rasters to be used as values (to maximize or minimize) or weights (to be capacity constrained).<br>
+
+            2. Complete the matrix datasheet in the same order as 1.:
+            - value_rescaling: minmax, onehot (output in 0,1), standard, robust (not in 0,1), empty for no rescaling
+            - value_weight: Any real number, although 0 doesn't make sense, negative values are for minimizing instead of maximizing
+            - capacity_sense: <=, >=, leq, geq, ub, lb
+            - capacity_ratio: A real number, inside (-1,1). Internally it's multiplied by the sum of all weights of that layer. E.g., 0.5 selects roughly half of the pixels, if all weights are >0.
+
+            A new raster will show selected pixels in red and non-selected green (values 1, 0 and no-data=-1).
+
+            This raster knapsack problem is NP-hard, so a MIP solver engine is used to find "nearly" the optimal solution (**), because -often- is asymptotically hard to prove the optimal value. So a default gap of 0.5% and a timelimit of 5 minutes cuts off the solver run. The user can experiment with these parameters to trade-off between accuracy, speed and instance size(*). On Windows closing the blank terminal window will abort the run!
+
+            By using Pyomo, several MIP solvers can be used: CBC, GLPK, Gurobi, CPLEX or Ipopt; If they're accessible through the system PATH, else the executable file can be selected by the user. Installation of solvers is up to the user.
+
+            Although windows version is bundled with CBC unsigned binaries, so their users may face a "Windows protected your PC" warning, please avoid pressing the "Don't run" button, follow the "More info" link, scroll then press "Run anyway". Nevertheless windows cbc does not support multithreading, so ignore that warning (or switch to Linux).
+
+            (*): Complexity can be reduced greatly by rescaling and/or rounding values into integers, or even better coarsing the raster resolution (see gdal translate resolution).
+            (**): There are specialized knapsack algorithms that solve in polynomial time, but not for every data type combination; hence using a MIP solver is the most flexible approach.
+
+            ----
+
+            USE CASE:
+
+            If you want to determine where to allocate fuel treatments throughout the landscape to protect a specific value that is affected by both the fire and the fuel treatments, use the following:
+
+                - Values: Downstream Protection Value layer calculated with the respective value that you want to protect.
+
+                - Weights: The layer, that contains the value that you want to protect and that is affected also by the fuel treatments (e.g., animal habitat).
+            If you want to determine where to allocate fuel treatments through out the landscape to protect and specific value that is affected by both, the fire and the fuel treatments use: 
+            """
+        )
