@@ -746,12 +746,35 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         commands_list = list(itertools.chain.from_iterable(commands_list))
         commands_list = [cmd for cmd in commands_list if cmd != ""]
         commands_list = ["-vv"] + commands_list + [config_file.name]
-        feedback.pushDebugInfo("\npython -m fire2a.agglomerative_clustering " + " ".join(commands_list) + "\n")
+        feedback.pushDebugInfo("\npython -m fire2a.knapsack " + " ".join(commands_list) + "\n")
         feedback.pushWarning(
             '\n(For terminal users executing the previous command directly) Depending on the terminal the geotransform might need quotes "(0,0,1,0,1)" around it to be read correctly\n'
         )
 
-        return {}
+        from contextlib import redirect_stderr, redirect_stdout
+
+        from fire2a import knapsack
+
+        class FileLikeFeedback:
+            def __init__(self, feedback):
+                super().__init__()
+                self.feedback = feedback
+                self.msg = ""
+
+            def write(self, msg):
+                self.msg += msg
+                self.flush()
+
+            def flush(self):
+                self.feedback.pushConsoleInfo(self.msg)
+                self.msg = ""
+
+        std_feedback = FileLikeFeedback(feedback)
+        err_feedback = FileLikeFeedback(feedback)
+        with redirect_stdout(std_feedback), redirect_stderr(err_feedback):
+            retval = knapsack.main(commands_list)
+        if 0 != retval:
+            feedback.reportError("Error in agglomerative_clustering")
 
         # if showing
         if context.willLoadLayerOnCompletion(output_raster):
@@ -792,10 +815,12 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         return self.tr("Multi Objective Raster Knapsack")
 
     def group(self):
-        return self.tr("Decision Optimization")
+        # return self.tr("Decision Optimization")
+        return self.tr(self.groupId())
 
     def groupId(self):
-        return "do"
+        # return "do"
+        return "zexperimental"
 
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)
@@ -819,15 +844,15 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return self.tr(
-            """1. Select a list of rasters to be used as values or weight.<br>
+            """1. Select a list of rasters to be used as values (to maximize or minimize) or weights (to be capacity constrained).<br>
 
             2. Complete the matrix datasheet in the same order as 1.:
-            - Values: must specify 'scaling_strategy' and 'value_weight'
-            - Weights: must specify 'capacity_ratio'
+            - value_rescaling: minmax, onehot (output in 0,1), standard, robust (not in 0,1), empty for no rescaling
+            - value_weight: Any real number, although 0 doesn't make sense, negative values are for minimizing instead of maximizing
+            - capacity_sense: <=, >=, leq, geq, ub, lb
+            - capacity_ratio: A real number, inside (-1,1). Internally it's multiplied by the sum of all weights of that layer. E.g., 0.5 selects roughly half of the pixels, if all weights are >0.
 
-            A new raster (default .gpkg) will show selected pixels in red and non-selected green (values 1, 0 and no-data=-1).
-
-            The capacity constraint is set up by choosing a ratio (between 0 and 1), that multiplies the sum of all weights (except no-data). Hence 1 selects all pixels that aren't no-data in both layers.
+            A new raster will show selected pixels in red and non-selected green (values 1, 0 and no-data=-1).
 
             This raster knapsack problem is NP-hard, so a MIP solver engine is used to find "nearly" the optimal solution (**), because -often- is asymptotically hard to prove the optimal value. So a default gap of 0.5% and a timelimit of 5 minutes cuts off the solver run. The user can experiment with these parameters to trade-off between accuracy, speed and instance size(*). On Windows closing the blank terminal window will abort the run!
 
