@@ -291,6 +291,21 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         #    if feedback.isCanceled():
         #        break
 
+        # feedback.setProgress 0.0 -> 100.0
+        total = 5001
+        for i in range(total):
+            #    sleep(0.1)
+            prog = i / total * 100
+            feedback.setProgress(prog)
+            feedback.setProgressText(f"setProgressText {prog}")
+            feedback.pushInfo(f"setProgressText {i=} {prog}")
+            if feedback.isCanceled():
+                feedback.pushInfo(f"setProgressText {prog}")
+                with open("/tmp/lastfeedback.txt", "w") as f:
+                    f.write(f"setProgressText {prog}")
+                raise QgsProcessingException("User cancelled the task")
+                break
+
         # Retrieve the feature source and sink. The 'dest_id' variable is used
         # to uniquely identify the feature sink, and must be included in the
         # dictionary returned by the processAlgorithm function.
