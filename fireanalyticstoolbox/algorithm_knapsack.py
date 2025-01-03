@@ -651,7 +651,10 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
     MATRIX = "Matrix"
     matrix_headers = ["value_rescaling", "value_weight", "capacity_sense", "capacity_ratio"]
     matrix_headers_types = [str, float, str, float]
-    allowed = {"value_rescaling": ["minmax", "standard", "robust", "onehot"], "capacity_sense": ["<=", ">=", "leq", "geq", "ub", "lb"]}
+    allowed = {
+        "value_rescaling": ["minmax", "standard", "robust", "onehot"],
+        "capacity_sense": ["<=", ">=", "leq", "geq", "ub", "lb"],
+    }
 
     OUT_LAYER = "OUT_LAYER"
 
@@ -751,9 +754,11 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             '\n(For terminal users executing the previous command directly) Depending on the terminal the geotransform might need quotes "(0,0,1,0,1)" around it to be read correctly\n'
         )
 
-        from contextlib import redirect_stderr, redirect_stdout
+        from importlib import reload
 
         from fire2a import knapsack
+
+        reload(knapsack)
 
         class FileLikeFeedback:
             def __init__(self, feedback):
