@@ -779,13 +779,13 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         with redirect_stdout(std_feedback), redirect_stderr(err_feedback):
             retval = knapsack.main(commands_list)
         if 0 != retval:
-            feedback.reportError("Error in agglomerative_clustering")
+            feedback.reportError("Error in fire2a-library, fire2a.knapsack check the logs")
 
         # if showing
         if context.willLoadLayerOnCompletion(output_raster):
             layer_details = context.layerToLoadOnCompletionDetails(output_raster)
             layer_details.groupName = "DecisionOptimizationGroup"
-            layer_details.name = "KnapsackRaster"
+            layer_details.name = "MultiObjectiveKnapsackRaster"
             # layer_details.layerSortKey = 2
             processing.run(
                 "native:setlayerstyle",
