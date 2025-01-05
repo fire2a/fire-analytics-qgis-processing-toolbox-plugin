@@ -652,10 +652,6 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
     MATRIX = "Matrix"
     matrix_headers = ["value_rescaling", "value_weight", "capacity_sense", "capacity_ratio"]
     matrix_headers_types = [str, float, str, float]
-    allowed = {
-        "value_rescaling": ["minmax", "standard", "robust", "onehot"],
-        "capacity_sense": ["<=", ">=", "leq", "geq", "ub", "lb"],
-    }
 
     OUT_LAYER = "OUT_LAYER"
 
