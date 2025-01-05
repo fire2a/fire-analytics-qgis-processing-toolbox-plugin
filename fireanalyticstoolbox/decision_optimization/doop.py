@@ -211,7 +211,7 @@ def pyomo_init_algorithm(self, config):
     # solver string combobox (enums
     qpps = QgsProcessingParameterString(
         name="SOLVER",
-        description="LOCAL SOLVER\nName: recommended options string [and executable STATUS]",
+        description="============\nLOCAL SOLVER\nName: recommended options string [and executable STATUS]",
         # optional=True,
     )
     qpps.setMetadata(
@@ -236,7 +236,7 @@ def pyomo_init_algorithm(self, config):
     # executable file
     qppf = QgsProcessingParameterFile(
         name="EXECUTABLE",
-        description=self.tr("Set solver executable file [REQUIRED if STATUS]"),
+        description=self.tr("Set solver executable file [required if status is 'MUST SET EXECUTABLE']"),
         behavior=QgsProcessingParameterFile.File,
         optional=True,
     )
@@ -246,7 +246,7 @@ def pyomo_init_algorithm(self, config):
     # NEOS
     qpps = QgsProcessingParameterString(
         name="NEOS_EMAIL",
-        description="CLOUD SOLVER (no MsWindows)\nNEOS registered email (visit https://neos-guide.org/)",
+        description="============\nNEOS CLOUD SOLVER\n(not available for Pyomo+MsWindows)\nRegistered email (visit https://neos-guide.org/)",
         defaultValue="",
         optional=True,
     )
@@ -254,7 +254,7 @@ def pyomo_init_algorithm(self, config):
     self.addParameter(qpps)
     qpps = QgsProcessingParameterString(
         name="NEOS_SOLVER",
-        description="NEOS solver name",
+        description="Solver name",
         defaultValue="cplex",
         optional=True,
     )
@@ -270,7 +270,7 @@ def pyomo_init_algorithm(self, config):
     # options_string
     qpps2 = QgsProcessingParameterString(
         name="NEOS_CUSTOM_OPTIONS_STRING",
-        description=self.tr("NEOS custom options string"),
+        description=self.tr("Custom options string"),
         defaultValue="",
         optional=True,
     )
