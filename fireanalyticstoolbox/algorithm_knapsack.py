@@ -869,11 +869,11 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             - capacity_sense, any of: &lt;=, &gt;=, &le;, &ge;, le, ge, ub, lb
             - capacity_ratio: A real number, inside (-1,1). Internally it's multiplied by the sum of all weights of that layer. E.g., 0.5 selects half of the pixels, if all weights (values of that raster) are equal.
 
-            3. [optional] Debug your calculations by selecting the plots option in the advanced parameters to view 4 plots to calibrate the inputs with solution stats (writing the plots can take a while).
+            3. [optional] Debug your calculations by selecting the plots option in the advanced parameters to view 4 plots to compare input distributions, with solution stats (writing the plots can take a while).
 
-            A new raster will show selected pixels in red and non-selected green (values 1, 0 and no-data=-1).
+            A new raster with selected, not selected and undecided pixels will be created. The undecided pixels means the solver failed to terminate fully; modifying solver options can mitigate this issue.
 
-            This raster knapsack problem is NP-hard, so a MIP solver engine is used to find "nearly" the optimal solution (**), because -often- is asymptotically hard to prove the optimal value. So a default gap of 0.5% and a timelimit of 5 minutes cuts off the solver run. The user can experiment with these parameters to trade-off between accuracy, speed and instance size(*). On Windows closing the blank terminal window will abort the run!
+            The classical knapsack problem is NP-hard, so a MIP solver engine is used to find "nearly" the optimal solution (**), because -often- is asymptotically hard to prove the optimal value. So a default gap of 0.5% and a timelimit of 5 minutes cuts off the solver run. The user can experiment with these parameters to trade-off between accuracy, speed and instance size(*). On Windows closing the blank terminal window will abort the run!
 
             By using Pyomo, several MIP solvers can be used: CBC, GLPK, Gurobi, CPLEX or Ipopt; If they're accessible through the system PATH, else the executable file can be selected by the user. Installation of solvers is up to the user.
 
