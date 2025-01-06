@@ -87,9 +87,6 @@ class RasterTreatmentTeamAlgorithm(QgsProcessingAlgorithm):
 
     def initAlgorithm(self, config):
         """The form reads a vector layer and two fields, one for the value and one for the weight; also configures the weight ratio and the solver"""
-        if platform_system() == "Windows":
-            add_cbc_to_path(QgsMessageLog)
-            add_cplex_to_path(QgsMessageLog)
 
         for raster in [self.IN_TRT, self.IN_VAL, self.IN_TRGTS]:
             self.addParameter(
@@ -494,9 +491,6 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
 
     def initAlgorithm(self, config):
         """The form reads a vector layer and two fields, one for the value and one for the weight; also configures the weight ratio and the solver"""
-        if platform_system() == "Windows":
-            add_cbc_to_path(QgsMessageLog)
-            add_cplex_to_path(QgsMessageLog)
 
         for raster in [self.IN_TRT, self.IN_VAL, self.IN_TRGTS]:
             self.addParameter(
@@ -763,9 +757,6 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
 
     def initAlgorithm(self, config):
         """The form reads a vector layer and two fields, one for the value and one for the weight; also configures the weight ratio and the solver"""
-        if platform_system() == "Windows":
-            add_cbc_to_path(QgsMessageLog)
-            add_cplex_to_path(QgsMessageLog)
 
         # input layer
         self.addParameter(
