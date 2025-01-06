@@ -131,22 +131,22 @@ def qml_print(msg, qgs_message_log=None):
 def add_cbc_to_path(qgs_message_log=None):
     """Add cbc to path if it is not already there"""
     if cbc := which("cbc.exe"):
-        qml_print(f"{cbc=} already", qgs_message_log)
+        qml_print(f"ready {cbc=}", qgs_message_log)
         return
     if "__file__" in globals():
         cbc = Path(__file__).parents[1] / "cbc" / "bin" / "cbc.exe"
         if cbc.is_file():
             environ["PATH"] += pathsep + str(cbc.parent)
         else:
-            qml_print(f"{cbc=} file not found!", qgs_message_log)
+            qml_print(f"file not found! {cbc=}", qgs_message_log)
     if cbc := which("cbc.exe"):
-        qml_print(f"{cbc=} available in path", qgs_message_log)
+        qml_print(f"available in path {cbc=}", qgs_message_log)
         return
-    qml_print("CBC NOT available in path", qgs_message_log)
+    qml_print("CBC SOLVER NOT available in path", qgs_message_log)
 
 def add_cplex_to_path(qgs_message_log=None):
     if cplex:= which("cplex.exe"):
-        qml_print(f"{cplex=} already", qgs_message_log)
+        qml_print(f"ready {cplex=}", qgs_message_log)
         return
     try: 
         programfiles = Path(environ.get('programfiles'))
@@ -156,17 +156,17 @@ def add_cplex_to_path(qgs_message_log=None):
                 bpath = cplexstudio / apath
                 if bpath.is_dir():
                     environ["PATH"] += pathsep + str(bpath)
-                    qml_print(f"Added {bpath} to path", qgs_message_log)
+                    qml_print(f"Added to path {bpath}", qgs_message_log)
                 else:
-                    qml_print(f"NOT added {bpath}, not a directory", qgs_message_log)
+                    qml_print(f"NOT added to path {bpath}, not a directory", qgs_message_log)
         else:
-            qml_print(f"IBM ILOG CPLEX not found in {programfiles=}", qgs_message_log)
+            qml_print(f"ibm ilog CPLEX SOLVER not found in {programfiles=}", qgs_message_log)
     except Exception as e:
-        qml_print(f"Adding IBM ILOG CPLEX error, {e}", qgs_message_log)
+        qml_print(f"Adding ibm ilog CPLEX error, {e}", qgs_message_log)
     if cplex:= which("cplex.exe"):
         qml_print(f"{cplex=}", qgs_message_log)
         return
-    qml_print("CPLEX NOT available in path", qgs_message_log)
+    qml_print("ibm ilog CPLEX SOLVER NOT available in path", qgs_message_log)
 
 
 class FileLikeFeedback(StringIO):
