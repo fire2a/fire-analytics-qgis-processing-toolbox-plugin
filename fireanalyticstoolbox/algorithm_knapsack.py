@@ -829,12 +829,10 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         return self.tr("Multi Objective Raster Knapsack")
 
     def group(self):
-        # return self.tr("Decision Optimization")
-        return self.tr(self.groupId())
+        return self.tr("Decision Optimization")
 
     def groupId(self):
-        # return "do"
-        return "zexperimental"
+        return "do"
 
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)
