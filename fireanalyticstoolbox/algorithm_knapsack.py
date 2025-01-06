@@ -55,8 +55,8 @@ from toml import dump as toml_dump
 from .algorithm_utils import (QgsProcessingParameterRasterDestinationGpkg, array2rasterInt16, get_output_raster_format,
                               get_raster_data, get_raster_info, get_raster_nodata, run_alg_styler_bin, write_log)
 from .config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
-from .decision_optimization.doop import (FileLikeFeedback, add_cbc_to_path, add_cplex_to_path, pyomo_init_algorithm, pyomo_parse_results,
-                                         pyomo_run_model)
+from .decision_optimization.doop import (FileLikeFeedback, add_cbc_to_path, add_cplex_to_path, pyomo_init_algorithm,
+                                         pyomo_parse_results, pyomo_run_model)
 
 
 class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
@@ -646,6 +646,7 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
 
     INPUT_RASTERS = "InputRasters"
     MATRIX = "Matrix"
+    PLOTS = "Plots"
     matrix_headers = ["value_rescaling", "value_weight", "capacity_sense", "capacity_ratio"]
     matrix_headers_types = [str, float, str, float]
 
@@ -682,7 +683,7 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterDestinationGpkg(self.OUT_LAYER, self.tr("Raster Knapsack Output layer"))
         )
         qppb = QgsProcessingParameterBoolean(
-            name="PLOTS",
+            name=self.PLOTS,
             description="Write debugging plots to the same directory as the output layer, includes: observations, scaled values, capacity violin plots & solution stats",
             defaultValue="True",
             optional=True,
@@ -711,7 +712,7 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             "--authid": raster_list[0].crs().authid(),
             "--geotransform": str(gdal.Open(raster_list[0].publicSource(), gdal.GA_ReadOnly).GetGeoTransform()),
         }
-        if self.parameterAsBool(parameters, "PLOTS", context):
+        if self.parameterAsBool(parameters, self.PLOTS, context):
             args["--plots"] = ""
 
         matrix = self.parameterAsMatrix(parameters, self.MATRIX, context)
@@ -793,7 +794,7 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             )
             feedback.pushDebugInfo(f"Showing layer {output_raster}")
 
-        if self.parameterAsBool(parameters, "PLOTS", context):
+        if self.parameterAsBool(parameters, self.PLOTS, context):
             feedback.pushDebugInfo("Plots:")
             outpath = Path(output_raster).parent
             for afile in ["observations.png", "scaled.png", "scaled_weighted.png", "solution.png"]:
@@ -801,6 +802,7 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
                     feedback.pushDebugInfo(apath.as_uri())
                     feedback.pushFormattedMessage(f'<img src="{str(apath)}">', apath.as_uri())
                     # feedback.pushCommandInfo('<img src="' + str(apath) + '">')
+            feedback.pushWarning("Disable plots to speed up calculations")
 
         write_log(feedback, name=self.name())
         return {self.OUT_LAYER: output_raster, "CONFIG": config_file.name}
@@ -850,15 +852,18 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return self.tr(
-            """1. Select a list of rasters to be used as values (to maximize or minimize) or weights (to be capacity constrained).<br>
+            """<b>1.</b> Select a list of rasters to be used as values (to maximize or minimize) or weights (to be capacity constrained).
+            (drag to reorder the rasters to match the matrix)
 
-            2. Complete the matrix datasheet in the same order as 1.:
-            - value_rescaling: minmax, onehot (output in 0,1), standard, robust (not in 0,1), pass for no rescaling
-            - value_weight: Any real number, although 0 doesn't make sense, negative values are for minimizing instead of maximizing
-            - capacity_sense, any of: &lt;=, &gt;=, &le;, &ge;, le, ge, ub, lb
-            - capacity_ratio: A real number, inside (-1,1). Internally it's multiplied by the sum of all weights of that layer. E.g., 0.5 selects half of the pixels, if all weights (values of that raster) are equal.
-
-            3. [optional] Debug your calculations by selecting the plots option in the advanced parameters to view 4 plots to compare input distributions, with solution stats (writing the plots can take a while).
+            <b>2.</b> Complete the matrix datasheet in the same order as 1.:
+            <b>- value_rescaling</b>: <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMax.html">MinMax</a>, <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html">OneHotEncoder</a>, <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html">StandardScaler</a>, <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.RobustScaler.html">RobustScaler</a> or pass for no rescaling.
+                MinMax is default if only a value_weight is provided.
+                OneHot is for categorical data, e.g., fuel models.
+                MinMax and OneHot outputs into [0,1] range, StandardScaler and RobustScaler not
+            <b>- value_weight</b>: Any real number, although 0 doesn't make sense, <i>negative values are for minimizing instead of maximizing</i>
+            <b>- capacity_sense</b>, whether <i>at most or at least</i>, use any of: "&lt;=, &le;, le, ub" or "&gt;=, &ge;, ge, lb", respectively.
+            <b>- capacity_ratio</b>: A real number, inside (-1,1). Internally it's multiplied by the <i>sum of all weights of that layer</i>. E.g., 0.5 selects (at most or at least) half of the pixels, if all weights (values of that raster) are equal.
+            <b>3. [speed-up]</b> Stop visually debugging your calculations by disabling the plots option in Advanced Parameters (writing the plots can take a while).
 
             A new raster with selected, not selected and undecided pixels will be created. The undecided pixels means the solver failed to terminate fully; modifying solver options can mitigate this issue.
 
@@ -871,15 +876,5 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             (*): Complexity can be reduced greatly by rescaling and/or rounding values into integers, or even better coarsing the raster resolution (see gdal translate resolution).
             (**): There are specialized knapsack algorithms that solve in polynomial time, but not for every data type combination; hence using a MIP solver is the most flexible approach.
 
-            ----
-
-            USE CASE:
-
-            If you want to determine where to allocate fuel treatments throughout the landscape to protect a specific value that is affected by both the fire and the fuel treatments, use the following:
-
-                - Values: Downstream Protection Value layer calculated with the respective value that you want to protect.
-
-                - Weights: The layer, that contains the value that you want to protect and that is affected also by the fuel treatments (e.g., animal habitat).
-            If you want to determine where to allocate fuel treatments through out the landscape to protect and specific value that is affected by both, the fire and the fuel treatments use: 
             """
         )
