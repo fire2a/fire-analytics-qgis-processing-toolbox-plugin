@@ -38,7 +38,15 @@ def classFactory(iface):  # pylint: disable=invalid-name
     from . import dependencies_handler
 
     dependencies_handler.run()
-    #
+
+    from platform import system as platform_system
+    if platform_system() == "Windows":
+        from .decision_optimization.doop import add_cbc_to_path, add_cplex_to_path
+        from qgis.core import QgsMessageLog
+        add_cbc_to_path(QgsMessageLog)
+        add_cplex_to_path(QgsMessageLog)
+    
+     
     from .fireanalyticstoolbox import FireToolboxPlugin
 
     return FireToolboxPlugin()
