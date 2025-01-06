@@ -55,7 +55,8 @@ from toml import dump as toml_dump
 from .algorithm_utils import (QgsProcessingParameterRasterDestinationGpkg, array2rasterInt16, get_output_raster_format,
                               get_raster_data, get_raster_info, get_raster_nodata, run_alg_styler_bin, write_log)
 from .config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
-from .decision_optimization.doop import add_cbc_to_path, pyomo_init_algorithm, pyomo_parse_results, pyomo_run_model
+from .decision_optimization.doop import (FileLikeFeedback, add_cbc_to_path, pyomo_init_algorithm, pyomo_parse_results,
+                                         pyomo_run_model)
 
 
 class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
@@ -651,7 +652,6 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
     MATRIX = "Matrix"
     matrix_headers = ["value_rescaling", "value_weight", "capacity_sense", "capacity_ratio"]
     matrix_headers_types = [str, float, str, float]
-    allowed = {"value_rescaling": ["minmax", "standard", "robust", "onehot"], "capacity_sense": ["<=", ">=", "leq", "geq", "ub", "lb"]}
 
     OUT_LAYER = "OUT_LAYER"
 
@@ -687,6 +687,14 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterDestinationGpkg(self.OUT_LAYER, self.tr("Raster Knapsack Output layer"))
         )
+        qppb = QgsProcessingParameterBoolean(
+            name="PLOTS",
+            description="Write debugging plots to the same directory as the output layer, includes: observations, scaled values, capacity violin plots & solution stats",
+            defaultValue="True",
+            optional=True,
+        )
+        qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppb)
         pyomo_init_algorithm(self, config)
 
     def processAlgorithm(self, parameters, context, feedback):
@@ -709,6 +717,8 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             "--authid": raster_list[0].crs().authid(),
             "--geotransform": str(gdal.Open(raster_list[0].publicSource(), gdal.GA_ReadOnly).GetGeoTransform()),
         }
+        if self.parameterAsBool(parameters, "PLOTS", context):
+            args["--plots"] = ""
 
         matrix = self.parameterAsMatrix(parameters, self.MATRIX, context)
         # feedback.pushDebugInfo(f"Matrix: {matrix=} {len(matrix)=} {type(matrix)=}")
@@ -746,41 +756,36 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         commands_list = list(itertools.chain.from_iterable(commands_list))
         commands_list = [cmd for cmd in commands_list if cmd != ""]
         commands_list = ["-vv"] + commands_list + [config_file.name]
-        feedback.pushDebugInfo("\npython -m fire2a.knapsack " + " ".join(commands_list) + "\n")
         feedback.pushWarning(
-            '\n(For terminal users executing the previous command directly) Depending on the terminal the geotransform might need quotes "(0,0,1,0,1)" around it to be read correctly\n'
+            "fire2a-lib cli alternative:\npython -m fire2a.knapsack "
+            + " ".join(commands_list)
+            + '\nDepending on the terminal the geotransform might need quotes "(0,0,1,0,1)" around it to be read correctly'
         )
+        # fire2a-lib
+        from fire2a.knapsack import get_model, post_solve, pre_solve
 
-        from contextlib import redirect_stderr, redirect_stdout
+        # pre
+        instance, args2 = pre_solve(commands_list)
+        # model
+        model = get_model(**instance)
+        # solve
+        results = pyomo_run_model(self, parameters, context, feedback, model)
+        instance["results"] = results
+        # post
+        retval, solver_dic = pyomo_parse_results(results, feedback)
+        if retval > 1:
+            solver_dic.update({self.OUT_LAYER: None})
+            feedback.reportError("Error running solver")
+            return solver_dic
 
-        from fire2a import knapsack
-
-        class FileLikeFeedback:
-            def __init__(self, feedback):
-                super().__init__()
-                self.feedback = feedback
-                self.msg = ""
-
-            def write(self, msg):
-                self.msg += msg
-                self.flush()
-
-            def flush(self):
-                self.feedback.pushConsoleInfo(self.msg)
-                self.msg = ""
-
-        std_feedback = FileLikeFeedback(feedback)
-        err_feedback = FileLikeFeedback(feedback)
-        with redirect_stdout(std_feedback), redirect_stderr(err_feedback):
-            retval = knapsack.main(commands_list)
-        if 0 != retval:
-            feedback.reportError("Error in agglomerative_clustering")
+        if 0 != post_solve(model, args=args2, **instance):
+            feedback.reportError("Error post processing solution")
 
         # if showing
         if context.willLoadLayerOnCompletion(output_raster):
             layer_details = context.layerToLoadOnCompletionDetails(output_raster)
             layer_details.groupName = "DecisionOptimizationGroup"
-            layer_details.name = "KnapsackRaster"
+            layer_details.name = "MultiObjectiveKnapsackRaster"
             # layer_details.layerSortKey = 2
             processing.run(
                 "native:setlayerstyle",
@@ -793,6 +798,15 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
                 is_child_algorithm=True,
             )
             feedback.pushDebugInfo(f"Showing layer {output_raster}")
+
+        if self.parameterAsBool(parameters, "PLOTS", context):
+            feedback.pushDebugInfo("Plots:")
+            outpath = Path(output_raster).parent
+            for afile in ["observations.png", "scaled.png", "scaled_weighted.png", "solution.png"]:
+                if (apath := outpath / afile).is_file():
+                    feedback.pushDebugInfo(apath.as_uri())
+                    feedback.pushFormattedMessage(f'<img src="{str(apath)}">', apath.as_uri())
+                    # feedback.pushCommandInfo('<img src="' + str(apath) + '">')
 
         write_log(feedback, name=self.name())
         return {self.OUT_LAYER: output_raster, "CONFIG": config_file.name}
@@ -847,14 +861,16 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             """1. Select a list of rasters to be used as values (to maximize or minimize) or weights (to be capacity constrained).<br>
 
             2. Complete the matrix datasheet in the same order as 1.:
-            - value_rescaling: minmax, onehot (output in 0,1), standard, robust (not in 0,1), empty for no rescaling
+            - value_rescaling: minmax, onehot (output in 0,1), standard, robust (not in 0,1), pass for no rescaling
             - value_weight: Any real number, although 0 doesn't make sense, negative values are for minimizing instead of maximizing
-            - capacity_sense: <=, >=, leq, geq, ub, lb
-            - capacity_ratio: A real number, inside (-1,1). Internally it's multiplied by the sum of all weights of that layer. E.g., 0.5 selects roughly half of the pixels, if all weights are >0.
+            - capacity_sense, any of: &lt;=, &gt;=, &le;, &ge;, le, ge, ub, lb
+            - capacity_ratio: A real number, inside (-1,1). Internally it's multiplied by the sum of all weights of that layer. E.g., 0.5 selects half of the pixels, if all weights (values of that raster) are equal.
 
-            A new raster will show selected pixels in red and non-selected green (values 1, 0 and no-data=-1).
+            3. [optional] Debug your calculations by selecting the plots option in the advanced parameters to view 4 plots to compare input distributions, with solution stats (writing the plots can take a while).
 
-            This raster knapsack problem is NP-hard, so a MIP solver engine is used to find "nearly" the optimal solution (**), because -often- is asymptotically hard to prove the optimal value. So a default gap of 0.5% and a timelimit of 5 minutes cuts off the solver run. The user can experiment with these parameters to trade-off between accuracy, speed and instance size(*). On Windows closing the blank terminal window will abort the run!
+            A new raster with selected, not selected and undecided pixels will be created. The undecided pixels means the solver failed to terminate fully; modifying solver options can mitigate this issue.
+
+            The classical knapsack problem is NP-hard, so a MIP solver engine is used to find "nearly" the optimal solution (**), because -often- is asymptotically hard to prove the optimal value. So a default gap of 0.5% and a timelimit of 5 minutes cuts off the solver run. The user can experiment with these parameters to trade-off between accuracy, speed and instance size(*). On Windows closing the blank terminal window will abort the run!
 
             By using Pyomo, several MIP solvers can be used: CBC, GLPK, Gurobi, CPLEX or Ipopt; If they're accessible through the system PATH, else the executable file can be selected by the user. Installation of solvers is up to the user.
 
