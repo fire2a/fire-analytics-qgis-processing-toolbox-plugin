@@ -27,36 +27,27 @@ __version__ = "$Format:%H$"
 
 
 import itertools
-from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
-from platform import system as platform_system
 from tempfile import NamedTemporaryFile
-from time import sleep
 
 import numpy as np
 import processing
 from osgeo import gdal
-from processing.tools.system import getTempFilename
 from pyomo import environ as pyo
-from pyomo.common.errors import ApplicationError
-from pyomo.opt import SolverFactory, SolverStatus, TerminationCondition
-from qgis.core import (Qgis, QgsFeature, QgsFeatureRequest, QgsFeatureSink, QgsField, QgsFields, QgsMessageLog,
-                       QgsProcessing, QgsProcessingAlgorithm, QgsProcessingException, QgsProcessingParameterBoolean,
+from qgis.core import (QgsFeature, QgsFeatureRequest, QgsFeatureSink, QgsField, QgsFields, QgsProcessing,
+                       QgsProcessingAlgorithm, QgsProcessingException, QgsProcessingParameterBoolean,
                        QgsProcessingParameterDefinition, QgsProcessingParameterFeatureSink,
-                       QgsProcessingParameterFeatureSource, QgsProcessingParameterField, QgsProcessingParameterFile,
-                       QgsProcessingParameterMatrix, QgsProcessingParameterMultipleLayers, QgsProcessingParameterNumber,
-                       QgsProcessingParameterRasterDestination, QgsProcessingParameterRasterLayer,
-                       QgsProcessingParameterString)
-from qgis.PyQt.QtCore import QByteArray, QCoreApplication, QVariant
+                       QgsProcessingParameterFeatureSource, QgsProcessingParameterField, QgsProcessingParameterMatrix,
+                       QgsProcessingParameterMultipleLayers, QgsProcessingParameterNumber,
+                       QgsProcessingParameterRasterLayer)
+from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 from scipy import stats
 from toml import dump as toml_dump
 
 from .algorithm_utils import (QgsProcessingParameterRasterDestinationGpkg, array2rasterInt16, get_output_raster_format,
-                              get_raster_data, get_raster_info, get_raster_nodata, run_alg_styler_bin, write_log)
-from .config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
-from .decision_optimization.doop import (FileLikeFeedback, add_cbc_to_path, add_cplex_to_path, pyomo_init_algorithm,
-                                         pyomo_parse_results, pyomo_run_model)
+                              get_raster_data, get_raster_info, get_raster_nodata, write_log)
+from .decision_optimization.doop import pyomo_init_algorithm, pyomo_parse_results, pyomo_run_model
 
 
 class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):

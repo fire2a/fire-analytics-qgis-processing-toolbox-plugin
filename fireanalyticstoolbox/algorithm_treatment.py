@@ -28,14 +28,9 @@ __version__ = "$Format:%H$"
 
 from contextlib import redirect_stderr, redirect_stdout
 from functools import partial
-from io import StringIO
-from itertools import compress, product
-from multiprocessing import cpu_count
-from os import environ, pathsep
+from itertools import product
 from pathlib import Path
-from platform import system as platform_system
-from shutil import which
-from time import sleep, time
+from time import time
 
 import numpy as np
 import processing
@@ -44,24 +39,18 @@ from osgeo.gdal import GDT_Int16, GetDriverByName
 from pandas import DataFrame, read_csv
 # from processing.tools.system import getTempFilename
 from pyomo import environ as pyo
-from pyomo.common.errors import ApplicationError
-from pyomo.opt import SolverFactory, SolverStatus, TerminationCondition
-from qgis.core import (Qgis, QgsFeature, QgsFeatureRequest, QgsFeatureSink, QgsField, QgsFields, QgsMessageLog,
-                       QgsProcessing, QgsProcessingAlgorithm, QgsProcessingException, QgsProcessingParameterBoolean,
+from qgis.core import (QgsFeature, QgsFeatureRequest, QgsFeatureSink, QgsField, QgsFields, QgsProcessing,
+                       QgsProcessingAlgorithm, QgsProcessingException, QgsProcessingParameterBoolean,
                        QgsProcessingParameterDefinition, QgsProcessingParameterFeatureSink,
                        QgsProcessingParameterFeatureSource, QgsProcessingParameterField, QgsProcessingParameterFile,
-                       QgsProcessingParameterMultipleLayers, QgsProcessingParameterNumber,
-                       QgsProcessingParameterRasterDestination, QgsProcessingParameterRasterLayer,
-                       QgsProcessingParameterString)
-from qgis.PyQt.QtCore import QByteArray, QCoreApplication, QVariant
+                       QgsProcessingParameterNumber, QgsProcessingParameterRasterDestination,
+                       QgsProcessingParameterRasterLayer)
+from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 
-from .algorithm_utils import (QgsProcessingParameterRasterDestinationGpkg, array2rasterInt16, get_output_raster_format,
-                              get_raster_data, get_raster_info, get_raster_nodata, run_alg_style_raster_legend,
-                              run_alg_styler_bin, write_log)
-from .config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
-from .decision_optimization.doop import (FileLikeFeedback, add_cbc_to_path, add_cplex_to_path, init_ndarray, printf, pyomo_init_algorithm,
-        
+from .algorithm_utils import (QgsProcessingParameterRasterDestinationGpkg, get_output_raster_format,
+                              run_alg_style_raster_legend, write_log)
+from .decision_optimization.doop import (FileLikeFeedback, init_ndarray, printf, pyomo_init_algorithm,
                                          pyomo_parse_results, pyomo_run_model)
 
 
@@ -458,7 +447,11 @@ class RasterTreatmentTeamAlgorithm(QgsProcessingAlgorithm):
             - rasters "must be saved to disk (for layers to have a publicSource != "")"<br>
             - raster no data == -1 <br>
             <br>
-            sample: <a href='"""+sample_path+"'>"+sample_path+"""</a><br><br>
+            sample: <a href='"""
+            + sample_path
+            + "'>"
+            + sample_path
+            + """</a><br><br>
             Use generate_polygon_treatment.py in QGIS's python console to generate a complete random instance (rasters, 3.csv's and sensible params.txt)<br><br>
 
             <b>Possible Future Features</b><br>
@@ -487,7 +480,6 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
     OUT_LAYER = "OUT_LAYER"
 
     solver_exception_msg = ""
-
 
     def initAlgorithm(self, config):
         """The form reads a vector layer and two fields, one for the value and one for the weight; also configures the weight ratio and the solver"""
@@ -724,7 +716,11 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
             - rasters "must be saved to disk (for layers to have a publicSource != "")"<br>
             - raster no data == -1 <br>
             <br>
-            sample: <a href='"""+sample_path+"'>"+sample_path+"""</a><br><br>
+            sample: <a href='"""
+            + sample_path
+            + "'>"
+            + sample_path
+            + """</a><br><br>
             Use generate_polygon_treatment.py in QGIS's python console to generate a random instance (rasters & treatmets_costs.csv)<br><br>
 
             (v) Possible feature? An optional <b>boolean multiband raster</b> defining the allowed target treatments (1s is allowed)<br>
@@ -753,7 +749,6 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
     GEOMETRY_CHECK_SKIP_INVALID = "GEOMETRY_CHECK_SKIP_INVALID"
 
     solver_exception_msg = ""
-
 
     def initAlgorithm(self, config):
         """The form reads a vector layer and two fields, one for the value and one for the weight; also configures the weight ratio and the solver"""
@@ -1065,7 +1060,11 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
             (iv) <b>Area</b> (same units than the geometry of the polygons)<br>
             <br>
             <br>
-            sample: <a href='"""+sample_path+"'>"+sample_path+"""</a><br><br>
+            sample: <a href='"""
+            + sample_path
+            + "'>"
+            + sample_path
+            + """</a><br><br>
             Use polygons.gpkg, polygons_treatments.csv & polygons_params.txt to run a sample<br><br>
             Or generate_polygon_treatment.py in QGIS's python console to generate a sensible instance in any polygon layer"""
         )
