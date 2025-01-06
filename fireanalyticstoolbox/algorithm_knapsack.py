@@ -802,10 +802,11 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         if self.parameterAsBool(parameters, "PLOTS", context):
             feedback.pushDebugInfo("Plots:")
             outpath = Path(output_raster).parent
-            for afile in ["observations.png", "scaled.png", "solution.png", "scaled_weighted.png"]:
+            for afile in ["observations.png", "scaled.png", "scaled_weighted.png", "solution.png"]:
                 if (apath := outpath / afile).is_file():
-                    # feedback.pushDebugInfo("<a href=" + apath.as_uri() + ">" + afile + "</a>")
                     feedback.pushDebugInfo(apath.as_uri())
+                    feedback.pushFormattedMessage(f'<img src="{str(apath)}">', apath.as_uri())
+                    # feedback.pushCommandInfo('<img src="' + str(apath) + '">')
 
         write_log(feedback, name=self.name())
         return {self.OUT_LAYER: output_raster, "CONFIG": config_file.name}
