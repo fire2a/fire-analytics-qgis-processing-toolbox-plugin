@@ -371,6 +371,41 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         # rasterd = parameters[self.o_rasterb]
         # feedback.pushCommandInfo(f"rasterd: {rasterd}, type: {type(rasterd)}")
 
+        # * The NumPy version is: "1.26.4"
+
+        from qgis.PyQt.QtWidgets import QGraphicsView, QDialog, QHBoxLayout
+        from .algorithm_utils import MatplotlibFigures
+        # from qgis.PyQt.QtCore import pyqtRemoveInputHook
+        # pyqtRemoveInputHook()
+        # import pdb
+        # pdb.set_trace()
+        # import code
+        # code.interact(local=locals())
+        # from IPython.terminal.embed import InteractiveShellEmbed
+        # InteractiveShellEmbed()()
+        
+        
+        qgv = QGraphicsView()
+        gs = MatplotlibFigures(graphicsView=qgv)
+        canvas = gs.new(w=8, h=6, dpi=100, tight_layout=True, facecolor="lightgray")
+
+        ax = canvas.figure.add_subplot(111)
+        ax.plot([0, 1, 2, 3], [10, 1, 20, 3])
+        ax.set_title("Sample Plot")
+        ax.set_xlabel("X Axis")
+        ax.set_ylabel("Y Axis")
+        
+        # dlg = QDialog()
+        # layout = QHBoxLayout()
+        # layout.addWidget(qgv)
+        # dlg.setLayout(layout)
+        
+
+        # gs.show(0)
+        qgv.show()
+        # dlg.exec_()
+
+
         return {"foo": "bar"}
 
     def name(self):

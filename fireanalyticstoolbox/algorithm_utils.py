@@ -282,3 +282,70 @@ def colormap_to_hex_list(colormap: str = "gnuplot", num_colors: int = 10) -> lis
     elif isinstance(cm, ListedColormap):
         return (cm.resampled(num_colors).colors * 255).astype(int)
     return []
+
+from qgis.PyQt.QtWidgets import QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QGraphicsProxyWidget
+from matplotlib.backends.backend_qtagg import FigureCanvas, NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
+class MatplotlibFigures(QGraphicsScene):
+    def __init__(self, parent = None, graphicsView = None):
+        super(MatplotlibFigures, self).__init__(parent)
+        self.canvass = []
+        self.proxy_widgets = []
+        self.resize = []
+        self.cv = -1
+        self.graphicsView = graphicsView
+        self.oldResizeEvent = self.graphicsView.resizeEvent
+        self.graphicsView.resizeEvent = self.resizeEvent
+        self.graphicsView.setScene(self)
+    def resizeEvent(self, QResizeEvent):
+        if self.cv == -1:
+            return
+        if not self.resize[self.cv]:
+            return
+        oldSize = QResizeEvent.oldSize()
+        ow = oldSize.width()
+        oh = oldSize.height()
+        size = QResizeEvent.size()
+        w = size.width()
+        h = size.height()
+        ds = abs(w-ow)+abs(h-oh)
+        if ds < 4:
+            return
+        if ds < 8:
+            self.fit2gv(self.cv)
+            return
+        self.proxy_widgets[self.cv].resize(w-5,h-5)
+        self.oldResizeEvent( QResizeEvent)
+    def new(self, w = None, h = None, **kwargs):
+        if w and h:
+            canvas = FigureCanvas( Figure( figsize=(w, h), **kwargs))
+            self.resize += [ False ]
+        else:
+            canvas = FigureCanvas( Figure( **kwargs))
+            self.resize += [ True ]
+        proxy_widget = QGraphicsProxyWidget()
+        widget = QWidget()
+        layout = QVBoxLayout()
+        layout.addWidget( NavigationToolbar(canvas))
+        layout.addWidget( canvas)
+        widget.setLayout( layout)
+        proxy_widget.setWidget(widget)
+        proxy_widget.setVisible(False)
+        self.addItem(proxy_widget)
+        self.canvass += [ canvas ]
+        self.proxy_widgets += [ proxy_widget]
+        return canvas
+    def resize2gv(self, idx):
+        w = self.graphicsView.size().width() - 5
+        h = self.graphicsView.size().height() - 5
+        self.proxy_widgets[idx].resize(w,h)
+    def fit2gv(self, idx):
+        self.graphicsView.fitInView( self.proxy_widgets[idx])
+    def show(self, idx):
+        if self.cv == idx:
+            return
+        if self.resize[idx]:
+            self.resize2gv(idx)
+        self.proxy_widgets[idx].setVisible(True)
+        self.proxy_widgets[self.cv].setVisible(False)
+        self.cv = idx
