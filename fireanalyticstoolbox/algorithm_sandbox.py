@@ -268,12 +268,22 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         parameters : <class 'dict'>
         """
         # feedback.pushVersionInfo()
+
         # feedback.pushCommandInfo("pushCommandInfo")
+        #     Pushes an informational message containing a command from the algorithm. This is usually used to report commands which are executed in an external application or as subprocesses.
         # feedback.pushConsoleInfo("pushConsoleInfo")  # monospace gray
+        #     Pushes a console feedback message from the algorithm. This is used to report the output from executing an external command or subprocess.
         # feedback.pushDebugInfo("pushDebugInfo")  # gray
+        #     Pushes an informational message containing debugging helpers from the algorithm.
         # feedback.pushInfo("pushInfo")
+        #     Pushes a general informational message from the algorithm. This can be used to report feedback which is neither a status report or an error, such as “Found 47 matching features”.
         # feedback.pushWarning("pushWarning")  # yellow
-        # feedback.reportError("reportError")  # red
+        #     Pushes a warning informational message from the algorithm. This should only be used sparsely as to maintain the importance of visual queues associated to this type of message.
+        # feedback.reportError("reportError", fatalError = True)  # red
+        #     Pushes a warning informational message from the algorithm. This should only be used sparsely as to maintain the importance of visual queues associated to this type of message.
+
+        #  pushFormattedMessage( html, text)
+        #     Pushes a pre-formatted message from the algorithm.
 
         # feedback.pushCommandInfo(f"{feedback=}")
         # feedback.pushCommandInfo(f"{parameters=}")
