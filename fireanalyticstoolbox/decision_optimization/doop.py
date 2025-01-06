@@ -58,6 +58,7 @@ NEOS_SOLVER = [
     "raposa",
     "snopt",
 ]
+ 
 
 
 def init_ndarray(data, model, *args):
@@ -127,23 +128,45 @@ def qml_print(msg, qgs_message_log=None):
     else:
         print(msg)
 
-
 def add_cbc_to_path(qgs_message_log=None):
     """Add cbc to path if it is not already there"""
-
-    if which_cbc := which("cbc.exe"):
-        qml_print(f"cbc.exe already in {which_cbc=}", qgs_message_log)
-        return True
-    if which("cbc.exe") is None and "__file__" in globals():
-        cbc_exe = Path(__file__).parents[1] / "cbc" / "bin" / "cbc.exe"
-        if cbc_exe.is_file():
-            environ["PATH"] += pathsep + str(cbc_exe.parent)
-            qml_print(f"Added {cbc_exe.parent=} to path", qgs_message_log)
-            return True
+    if cbc := which("cbc.exe"):
+        qml_print(f"{cbc=} already", qgs_message_log)
+        return
+    if "__file__" in globals():
+        cbc = Path(__file__).parents[1] / "cbc" / "bin" / "cbc.exe"
+        if cbc.is_file():
+            environ["PATH"] += pathsep + str(cbc.parent)
         else:
-            qml_print(f"{cbc_exe} file not found!", qgs_message_log)
-    qml_print("add_cbc_to_path: nothing done", qgs_message_log)
-    return False
+            qml_print(f"{cbc=} file not found!", qgs_message_log)
+    if cbc := which("cbc.exe"):
+        qml_print(f"{cbc=} available in path", qgs_message_log)
+        return
+    qml_print("CBC NOT available in path", qgs_message_log)
+
+def add_cplex_to_path(qgs_message_log=None):
+    if cplex:= which("cplex.exe"):
+        qml_print(f"{cplex=} already", qgs_message_log)
+        return
+    try: 
+        programfiles = Path(environ.get('programfiles'))
+        if cplexstudio := sorted((programfiles / "IBM"/ "ILOG").glob("CPLEX*")):
+            cplexstudio = cplexstudio[-1]
+            for apath in ["opl/bin/x64_win64","opl/oplide","cplex/bin/x64_win64","cpoptimizer/bin/x64_win64"]:
+                bpath = cplexstudio / apath
+                if bpath.is_dir():
+                    environ["PATH"] += pathsep + str(bpath)
+                    qml_print(f"Added {bpath} to path", qgs_message_log)
+                else:
+                    qml_print(f"NOT added {bpath}, not a directory", qgs_message_log)
+        else:
+            qml_print(f"IBM ILOG CPLEX not found in {programfiles=}", qgs_message_log)
+    except Exception as e:
+        qml_print(f"Adding IBM ILOG CPLEX error, {e}", qgs_message_log)
+    if cplex:= which("cplex.exe"):
+        qml_print(f"{cplex=}", qgs_message_log)
+        return
+    qml_print("CPLEX NOT available in path", qgs_message_log)
 
 
 class FileLikeFeedback(StringIO):

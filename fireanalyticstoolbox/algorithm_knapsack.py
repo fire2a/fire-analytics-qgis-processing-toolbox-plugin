@@ -55,7 +55,7 @@ from toml import dump as toml_dump
 from .algorithm_utils import (QgsProcessingParameterRasterDestinationGpkg, array2rasterInt16, get_output_raster_format,
                               get_raster_data, get_raster_info, get_raster_nodata, run_alg_styler_bin, write_log)
 from .config import METRICS, NAME, SIM_OUTPUTS, STATS, TAG, jolo
-from .decision_optimization.doop import (FileLikeFeedback, add_cbc_to_path, pyomo_init_algorithm, pyomo_parse_results,
+from .decision_optimization.doop import (FileLikeFeedback, add_cbc_to_path, add_cplex_to_path, pyomo_init_algorithm, pyomo_parse_results,
                                          pyomo_run_model)
 
 
@@ -71,11 +71,12 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
 
     solver_exception_msg = ""
 
-    if platform_system() == "Windows":
-        add_cbc_to_path(QgsMessageLog)
-
     def initAlgorithm(self, config):
         """The form reads a vector layer and two fields, one for the value and one for the weight; also configures the weight ratio and the solver"""
+        if platform_system() == "Windows":
+            add_cbc_to_path(QgsMessageLog)
+            add_cplex_to_path(QgsMessageLog)
+
         # input layer
         self.addParameter(
             QgsProcessingParameterFeatureSource(
@@ -342,11 +343,12 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
     NODATA = -32768  # -1?
     solver_exception_msg = ""
 
-    if platform_system() == "Windows":
-        add_cbc_to_path(QgsMessageLog)
-
     def initAlgorithm(self, config):
         """The form reads two raster layers one for the value and one for the weight; also configures the weight ratio and the solver"""
+        if platform_system() == "Windows":
+            add_cbc_to_path(QgsMessageLog)
+            add_cplex_to_path(QgsMessageLog)
+
         # value raster
         self.addParameter(
             QgsProcessingParameterRasterLayer(
@@ -657,11 +659,12 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
 
     solver_exception_msg = ""
 
-    if platform_system() == "Windows":
-        add_cbc_to_path(QgsMessageLog)
-
     def initAlgorithm(self, config):
         """The form reads two raster layers one for the value and one for the weight; also configures the weight ratio and the solver"""
+        if platform_system() == "Windows":
+            add_cbc_to_path(QgsMessageLog)
+            add_cplex_to_path(QgsMessageLog)
+
         # values rasters
         self.addParameter(
             QgsProcessingParameterMultipleLayers(
