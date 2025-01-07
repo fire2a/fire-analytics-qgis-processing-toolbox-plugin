@@ -24,6 +24,7 @@ repository=https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plug
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
 changelog=
+	v0.5.5: Multiobjective Knapsack fixes, fire2a-lib v0.3.6
 	v0.5.4: Multiobjective Knapsack stable, ui improved for decision optimization, cplex support, fire2a-lib v0.3.5
 	v0.5.3: C2F simulator ui design, Multiobjective Knapsack mvp, fire2a-lib v0.3.4
 	v0.5.2: Simulator help and ui improvement. Spatial statistic help and better output names.
