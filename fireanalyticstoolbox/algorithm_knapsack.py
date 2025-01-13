@@ -27,6 +27,7 @@ __version__ = "$Format:%H$"
 
 
 import itertools
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -47,7 +48,7 @@ from toml import dump as toml_dump
 
 from .algorithm_utils import (QgsProcessingParameterRasterDestinationGpkg, array2rasterInt16, get_output_raster_format,
                               get_raster_data, get_raster_info, get_raster_nodata, write_log)
-from .decision_optimization.doop import pyomo_init_algorithm, pyomo_parse_results, pyomo_run_model
+from .decision_optimization.doop import FileLikeFeedback, pyomo_init_algorithm, pyomo_parse_results, pyomo_run_model
 
 
 class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
@@ -638,6 +639,7 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
     INPUT_RASTERS = "InputRasters"
     MATRIX = "Matrix"
     PLOTS = "Plots"
+    RELAXEXCLUDENODATA = "RelaxExcludeNoData"
     matrix_headers = ["value_rescaling", "value_weight", "capacity_sense", "capacity_ratio"]
     matrix_headers_types = [str, float, str, float]
 
@@ -681,6 +683,14 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         )
         qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(qppb)
+        qppb2 = QgsProcessingParameterBoolean(
+            name=self.RELAXEXCLUDENODATA,
+            description="Relax excluding nodata values from any to all (layers containing nodata will exclude its pixel from the model)",
+            defaultValue="False",
+            optional=True,
+        )
+        qppb2.setFlags(qppb2.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppb2)
         pyomo_init_algorithm(self, config)
 
     def processAlgorithm(self, parameters, context, feedback):
@@ -696,15 +706,29 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo(f"Solver unavailability:\n{self.solver_exception_msg}\n")
 
         raster_list = self.parameterAsLayerList(parameters, self.INPUT_RASTERS, context)
+        for r in raster_list:
+            if not Path(r.publicSource()).is_file():
+                feedback.reportError(f"Raster file not found: {r.publicSource()}")
+                raise QgsProcessingException(f"Raster file not found: {r.publicSource()}")
+
         feedback.pushDebugInfo(f"Input rasters names: {[ r.name() for r in raster_list]}\n")
 
         config_toml = {r.publicSource(): {} for r in raster_list}
-        args = {
-            "--authid": raster_list[0].crs().authid(),
-            "--geotransform": str(gdal.Open(raster_list[0].publicSource(), gdal.GA_ReadOnly).GetGeoTransform()),
-        }
+        args = {}
+        for r in raster_list:
+            if gt := gdal.Open(r.publicSource(), gdal.GA_ReadOnly).GetGeoTransform():
+                args["--geotransform"] = str(gt)
+                break
+        for r in raster_list:
+            if authid := r.crs().authid():
+                args["--authid"] = authid
+                break
+        if "--authid" not in args:
+            args["--authid"] = QgsProject.instance().crs().authid()
         if self.parameterAsBool(parameters, self.PLOTS, context):
             args["--plots"] = ""
+        if self.parameterAsBool(parameters, self.RELAXEXCLUDENODATA, context):
+            args["--exclude_nodata"] = "all"
 
         matrix = self.parameterAsMatrix(parameters, self.MATRIX, context)
         # feedback.pushDebugInfo(f"Matrix: {matrix=} {len(matrix)=} {type(matrix)=}")
@@ -741,19 +765,22 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         commands_list = ([k, v] for k, v in args.items())
         commands_list = list(itertools.chain.from_iterable(commands_list))
         commands_list = [cmd for cmd in commands_list if cmd != ""]
-        commands_list = ["-vv"] + commands_list + [config_file.name]
+        commands_list = commands_list + [config_file.name]
         feedback.pushWarning(
             "fire2a-lib cli alternative:\npython -m fire2a.knapsack "
             + " ".join(commands_list)
-            + '\nDepending on the terminal the geotransform might need quotes "(0,0,1,0,1)" around it to be read correctly'
+            + '\nDepending on the terminal the geotransform might need quotes "(0,0,1,0,-1)" around it to be read correctly'
         )
         # fire2a-lib
         from fire2a.knapsack import get_model, post_solve, pre_solve
 
-        # pre
-        instance, args2 = pre_solve(commands_list)
-        # model
-        model = get_model(**instance)
+        std_feedback = FileLikeFeedback(feedback, True)
+        err_feedback = FileLikeFeedback(feedback, False)
+        with redirect_stdout(std_feedback), redirect_stderr(err_feedback):
+            # pre
+            instance, args2 = pre_solve(commands_list)
+            # model
+            model = get_model(**instance)
         # solve
         results = pyomo_run_model(self, parameters, context, feedback, model)
         instance["results"] = results
@@ -764,8 +791,9 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             feedback.reportError("Error running solver")
             return solver_dic
 
-        if 0 != post_solve(model, args=args2, **instance):
-            feedback.reportError("Error post processing solution")
+        with redirect_stdout(std_feedback), redirect_stderr(err_feedback):
+            if 0 != post_solve(model, args=args2, **instance):
+                feedback.reportError("Error post processing solution")
 
         # if showing
         if context.willLoadLayerOnCompletion(output_raster):
@@ -847,10 +875,10 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             (drag to reorder the rasters to match the matrix)
 
             <b>2.</b> Complete the matrix datasheet in the same order as 1.:
-            <b>- value_rescaling</b>: <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMax.html">MinMax</a>, <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html">OneHotEncoder</a>, <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html">StandardScaler</a>, <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.RobustScaler.html">RobustScaler</a> or pass for no rescaling.
-                MinMax is default if only a value_weight is provided.
-                OneHot is for categorical data, e.g., fuel models.
-                MinMax and OneHot outputs into [0,1] range, StandardScaler and RobustScaler not
+            <b>- value_rescaling</b>: minmax, onehot, standard, robust or pass for no rescaling.
+                <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMax.html">MinMax</a> is default if only a value_weight is provided.
+                <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html">OneHotEncoder</a> is for categorical data, e.g., fuel models.
+                MinMax and OneHot outputs into [0,1] range, <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html">Standard Scaler</a> (x - &mu;) / &sigma; and <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.RobustScaler.html">Robust Scaler</a> (same without outliers) not
             <b>- value_weight</b>: Any real number, although 0 doesn't make sense, <i>negative values are for minimizing instead of maximizing</i>
             <b>- capacity_sense</b>, whether <i>at most or at least</i>, use any of: "&lt;=, &le;, le, ub" or "&gt;=, &ge;, ge, lb", respectively.
             <b>- capacity_ratio</b>: A real number, inside (-1,1). Internally it's multiplied by the <i>sum of all weights of that layer</i>. E.g., 0.5 selects (at most or at least) half of the pixels, if all weights (values of that raster) are equal.
