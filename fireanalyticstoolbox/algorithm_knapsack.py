@@ -27,6 +27,7 @@ __version__ = "$Format:%H$"
 
 
 import itertools
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -47,7 +48,7 @@ from toml import dump as toml_dump
 
 from .algorithm_utils import (QgsProcessingParameterRasterDestinationGpkg, array2rasterInt16, get_output_raster_format,
                               get_raster_data, get_raster_info, get_raster_nodata, write_log)
-from .decision_optimization.doop import pyomo_init_algorithm, pyomo_parse_results, pyomo_run_model
+from .decision_optimization.doop import FileLikeFeedback, pyomo_init_algorithm, pyomo_parse_results, pyomo_run_model
 
 
 class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
@@ -761,10 +762,13 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         # fire2a-lib
         from fire2a.knapsack import get_model, post_solve, pre_solve
 
-        # pre
-        instance, args2 = pre_solve(commands_list)
-        # model
-        model = get_model(**instance)
+        std_feedback = FileLikeFeedback(feedback, True)
+        err_feedback = FileLikeFeedback(feedback, False)
+        with redirect_stdout(std_feedback), redirect_stderr(err_feedback):
+            # pre
+            instance, args2 = pre_solve(commands_list)
+            # model
+            model = get_model(**instance)
         # solve
         results = pyomo_run_model(self, parameters, context, feedback, model)
         instance["results"] = results
@@ -775,8 +779,9 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             feedback.reportError("Error running solver")
             return solver_dic
 
-        if 0 != post_solve(model, args=args2, **instance):
-            feedback.reportError("Error post processing solution")
+        with redirect_stdout(std_feedback), redirect_stderr(err_feedback):
+            if 0 != post_solve(model, args=args2, **instance):
+                feedback.reportError("Error post processing solution")
 
         # if showing
         if context.willLoadLayerOnCompletion(output_raster):
@@ -858,7 +863,7 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             (drag to reorder the rasters to match the matrix)
 
             <b>2.</b> Complete the matrix datasheet in the same order as 1.:
-            <b>- value_rescaling</b>: minmax, onehot, standard, robust  or pass for no rescaling.
+            <b>- value_rescaling</b>: minmax, onehot, standard, robust or pass for no rescaling.
                 <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMax.html">MinMax</a> is default if only a value_weight is provided.
                 <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html">OneHotEncoder</a> is for categorical data, e.g., fuel models.
                 MinMax and OneHot outputs into [0,1] range, <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html">Standard Scaler</a> (x - &mu;) / &sigma; and <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.RobustScaler.html">Robust Scaler</a> (same without outliers) not
