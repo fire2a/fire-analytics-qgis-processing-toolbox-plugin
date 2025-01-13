@@ -706,13 +706,25 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo(f"Solver unavailability:\n{self.solver_exception_msg}\n")
 
         raster_list = self.parameterAsLayerList(parameters, self.INPUT_RASTERS, context)
+        for r in raster_list:
+            if not Path(r.publicSource()).is_file():
+                feedback.reportError(f"Raster file not found: {r.publicSource()}")
+                raise QgsProcessingException(f"Raster file not found: {r.publicSource()}")
+
         feedback.pushDebugInfo(f"Input rasters names: {[ r.name() for r in raster_list]}\n")
 
         config_toml = {r.publicSource(): {} for r in raster_list}
-        args = {
-            "--authid": raster_list[0].crs().authid(),
-            "--geotransform": str(gdal.Open(raster_list[0].publicSource(), gdal.GA_ReadOnly).GetGeoTransform()),
-        }
+        args = {}
+        for r in raster_list:
+            if gt := gdal.Open(r.publicSource(), gdal.GA_ReadOnly).GetGeoTransform():
+                args["--geotransform"] = str(gt)
+                break
+        for r in raster_list:
+            if authid := r.crs().authid():
+                args["--authid"] = authid
+                break
+        if "--authid" not in args:
+            args["--authid"] = QgsProject.instance().crs().authid()
         if self.parameterAsBool(parameters, self.PLOTS, context):
             args["--plots"] = ""
         if self.parameterAsBool(parameters, self.RELAXEXCLUDENODATA, context):
@@ -753,11 +765,11 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         commands_list = ([k, v] for k, v in args.items())
         commands_list = list(itertools.chain.from_iterable(commands_list))
         commands_list = [cmd for cmd in commands_list if cmd != ""]
-        commands_list = ["-vv"] + commands_list + [config_file.name]
+        commands_list = commands_list + [config_file.name]
         feedback.pushWarning(
             "fire2a-lib cli alternative:\npython -m fire2a.knapsack "
             + " ".join(commands_list)
-            + '\nDepending on the terminal the geotransform might need quotes "(0,0,1,0,1)" around it to be read correctly'
+            + '\nDepending on the terminal the geotransform might need quotes "(0,0,1,0,-1)" around it to be read correctly'
         )
         # fire2a-lib
         from fire2a.knapsack import get_model, post_solve, pre_solve
