@@ -638,6 +638,7 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
     INPUT_RASTERS = "InputRasters"
     MATRIX = "Matrix"
     PLOTS = "Plots"
+    RELAXEXCLUDENODATA = "RelaxExcludeNoData"
     matrix_headers = ["value_rescaling", "value_weight", "capacity_sense", "capacity_ratio"]
     matrix_headers_types = [str, float, str, float]
 
@@ -681,6 +682,14 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         )
         qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(qppb)
+        qppb2 = QgsProcessingParameterBoolean(
+            name=self.RELAXEXCLUDENODATA,
+            description="Relax excluding nodata values from any to all (layers containing nodata will exclude its pixel from the model)",
+            defaultValue="False",
+            optional=True,
+        )
+        qppb2.setFlags(qppb2.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppb2)
         pyomo_init_algorithm(self, config)
 
     def processAlgorithm(self, parameters, context, feedback):
@@ -705,6 +714,8 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         }
         if self.parameterAsBool(parameters, self.PLOTS, context):
             args["--plots"] = ""
+        if self.parameterAsBool(parameters, self.RELAXEXCLUDENODATA, context):
+            args["--exclude_nodata"] = "all"
 
         matrix = self.parameterAsMatrix(parameters, self.MATRIX, context)
         # feedback.pushDebugInfo(f"Matrix: {matrix=} {len(matrix)=} {type(matrix)=}")
