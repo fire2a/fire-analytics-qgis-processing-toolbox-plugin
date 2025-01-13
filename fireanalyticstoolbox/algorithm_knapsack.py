@@ -847,10 +847,10 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             (drag to reorder the rasters to match the matrix)
 
             <b>2.</b> Complete the matrix datasheet in the same order as 1.:
-            <b>- value_rescaling</b>: <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMax.html">MinMax</a>, <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html">OneHotEncoder</a>, <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html">StandardScaler</a>, <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.RobustScaler.html">RobustScaler</a> or pass for no rescaling.
-                MinMax is default if only a value_weight is provided.
-                OneHot is for categorical data, e.g., fuel models.
-                MinMax and OneHot outputs into [0,1] range, StandardScaler and RobustScaler not
+            <b>- value_rescaling</b>: minmax, onehot, standard, robust  or pass for no rescaling.
+                <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMax.html">MinMax</a> is default if only a value_weight is provided.
+                <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html">OneHotEncoder</a> is for categorical data, e.g., fuel models.
+                MinMax and OneHot outputs into [0,1] range, <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html">Standard Scaler</a> (x - &mu;) / &sigma; and <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.RobustScaler.html">Robust Scaler</a> (same without outliers) not
             <b>- value_weight</b>: Any real number, although 0 doesn't make sense, <i>negative values are for minimizing instead of maximizing</i>
             <b>- capacity_sense</b>, whether <i>at most or at least</i>, use any of: "&lt;=, &le;, le, ub" or "&gt;=, &ge;, ge, lb", respectively.
             <b>- capacity_ratio</b>: A real number, inside (-1,1). Internally it's multiplied by the <i>sum of all weights of that layer</i>. E.g., 0.5 selects (at most or at least) half of the pixels, if all weights (values of that raster) are equal.
