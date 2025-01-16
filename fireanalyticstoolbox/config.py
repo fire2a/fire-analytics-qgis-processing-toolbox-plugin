@@ -14,6 +14,7 @@ SIM_INPUTS = {
     "cbh": {"units": "m", "description": "\ncbh: Canopy Base Height"},
     "cbd": {"units": "kg/m3", "description": "cbd: Canopy Bulk Density"},
     "ccf": {"units": "0,1", "description": "ccf: Canopy Cover Fraction"},
+    "hm": {"units": "m", "description": "hm: Canopy Height"},
     "py": {"units": "0,1", "description": "Probability map (requires generation mode 1)"},
 }
 
