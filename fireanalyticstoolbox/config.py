@@ -87,7 +87,7 @@ STATS = [
         "file": "CrownFlameLength",
         "ext": "asc",
         "arg": "out-fl",
-        "unit": "kW/m",
+        "unit": "m",
         "dtype": "float32",
     },
     {
@@ -96,7 +96,7 @@ STATS = [
         "file": "MaxFlameLength",
         "ext": "asc",
         "arg": "out-fl",
-        "unit": "kW/m",
+        "unit": "m",
         "dtype": "float32",
     },
 ]
