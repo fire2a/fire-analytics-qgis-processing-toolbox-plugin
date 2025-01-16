@@ -271,7 +271,9 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.HM,
-                description=self.tr(SIM_INPUTS["hm"]["description"] + f' [{SIM_INPUTS["hm"]["units"]}] (only Scott & Burgan)'),
+                description=self.tr(
+                    SIM_INPUTS["hm"]["description"] + f' [{SIM_INPUTS["hm"]["units"]}] (only Scott & Burgan)'
+                ),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=True,
             )
@@ -437,7 +439,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterEnum(
                 name=self.OUTPUTS,
                 description=self.tr("\n================\nOUTPUTS SECTION\n\noptions (click '...' button on the right)"),
-                options=[item["name"] for item in SIM_OUTPUTS],
+                options=[item["name"] + item["suffix"] if "suffix" in item else item["name"] for item in SIM_OUTPUTS],
                 allowMultiple=True,
                 defaultValue=[
                     i
@@ -980,7 +982,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
 def get_rasters(self, parameters, context):
     raster = dict(
         zip(
-            SIM_INPUTS.keys(), # ["fuels", "elevation", "cbh", "cbd", "ccf", "hm", "py"],
+            SIM_INPUTS.keys(),  # ["fuels", "elevation", "cbh", "cbd", "ccf", "hm", "py"],
             map(
                 lambda x: self.parameterAsRasterLayer(parameters, x, context),
                 [

@@ -65,7 +65,8 @@ STATS = [
         "dtype": "float32",
     },
     {
-        "name": "Surface Burn Fraction (only Canada FBP)",
+        "name": "Surface Burn Fraction",
+        "suffix": " (only Canada FBP)",
         "dir": "SurfFractionBurn",
         "file": "Sfb",
         "ext": "asc",
@@ -74,7 +75,8 @@ STATS = [
         "dtype": "float32",
     },
     {
-        "name": "Crown Intensity (only Spain S&B)",
+        "name": "Crown Intensity",
+        "suffix": " (only Spain S&B)",
         "dir": "CrownIntensity",
         "file": "CrownIntensity",
         "ext": "asc",
@@ -83,7 +85,8 @@ STATS = [
         "dtype": "float32",
     },
     {
-        "name": "Crown Flame Length (only Spain S&B)",
+        "name": "Crown Flame Length",
+        "suffix": " (only Spain S&B)",
         "dir": "CrownFlameLength",
         "file": "CrownFlameLength",
         "ext": "asc",
@@ -92,7 +95,8 @@ STATS = [
         "dtype": "float32",
     },
     {
-        "name": "Max Flame Length (only Spain S&B)",
+        "name": "Max Flame Length",
+        "suffix": " (only Spain S&B)",
         "dir": "MaxFlameLength",
         "file": "MaxFlameLength",
         "ext": "asc",
