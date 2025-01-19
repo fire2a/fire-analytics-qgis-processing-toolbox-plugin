@@ -90,6 +90,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     CBH = "CbhRaster"
     CBD = "CbdRaster"
     CCF = "CcfRaster"
+    HM = "HmRaster"
     CROWN = "EnableCrownFire"
     IGNITION_MODE = "IgnitionMode"
     NSIM = "NumberOfSimulations"
@@ -268,6 +269,16 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             )
         )
         self.addParameter(
+            QgsProcessingParameterRasterLayer(
+                name=self.HM,
+                description=self.tr(
+                    SIM_INPUTS["hm"]["description"] + f' [{SIM_INPUTS["hm"]["units"]}] (only Scott & Burgan)'
+                ),
+                defaultValue=[QgsProcessing.TypeRaster],
+                optional=True,
+            )
+        )
+        self.addParameter(
             QgsProcessingParameterBoolean(
                 name=self.CROWN,
                 description="Enable Crown Fire behavior",
@@ -428,7 +439,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterEnum(
                 name=self.OUTPUTS,
                 description=self.tr("\n================\nOUTPUTS SECTION\n\noptions (click '...' button on the right)"),
-                options=[item["name"] for item in SIM_OUTPUTS],
+                options=[item["name"] + item["suffix"] if "suffix" in item else item["name"] for item in SIM_OUTPUTS],
                 allowMultiple=True,
                 defaultValue=[
                     i
@@ -652,8 +663,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 continue
             if (
                 (k in ["fuels", "elevation"])
-                # (k in ["fuels", "elevation", "pv"])
-                or (k in ["cbh", "cbd", "ccf"] and is_crown)
+                or (k in ["cbh", "cbd", "ccf", "hm"] and is_crown)
                 or (k == "py" and ignition_mode == 1)
             ):
                 feedback.pushDebugInfo(f"copy: {k}:{v}")
@@ -972,18 +982,16 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
 def get_rasters(self, parameters, context):
     raster = dict(
         zip(
-            SIM_INPUTS.keys(),
-            # ["fuels", "elevation", "cbh", "cbd", "ccf", "py"],
-            # ["fuels", "elevation", "pv", "cbh", "cbd", "ccf", "py"],
+            SIM_INPUTS.keys(),  # ["fuels", "elevation", "cbh", "cbd", "ccf", "hm", "py"],
             map(
                 lambda x: self.parameterAsRasterLayer(parameters, x, context),
                 [
                     self.FUEL,
                     self.ELEVATION,
-                    # self.PV,
                     self.CBH,
                     self.CBD,
                     self.CCF,
+                    self.HM,
                     self.IGNIPROBMAP,
                 ],
             ),
