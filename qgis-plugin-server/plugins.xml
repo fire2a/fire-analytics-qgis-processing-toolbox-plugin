@@ -8,7 +8,7 @@
 			SAVE BEFORE INSTALL/UPDATE: A dialog asking permission to (pip) install python dependencies (fire2a-lib==0.3.7) will appear]]></about>
 		<version>0.7.0</version>
 		<trusted>True</trusted>
-		<qgis_minimum_version>3.36.2</qgis_minimum_version>
+		<qgis_minimum_version>3.22.15</qgis_minimum_version>
 		<qgis_maximum_version>4.0.0</qgis_maximum_version>
 		<homepage><![CDATA[https://fire2a.github.io/docs]]></homepage>
 		<file_name>fireanalyticstoolbox</file_name>

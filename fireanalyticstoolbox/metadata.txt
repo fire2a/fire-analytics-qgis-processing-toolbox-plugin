@@ -4,7 +4,7 @@
 
 [general]
 name=Fire Analytics Processing-Toolbox
-qgisMinimumVersion=3.34
+qgisMinimumVersion=3.22
 description=Wild & Forest fires simulation, prevention and insights related algorithms. Including a fire simulator, user valued risk metrics and prescriptive analytics via mathematical programming optimization to generate management recommendations
 version=0.0.1
 author=Fernando Badilla Veliz - Fire2a.com
