@@ -16,7 +16,7 @@ call "%USERPROFILE%\source\pyenv\python-qgis-cmd.bat"
 ipython
 
 References:
-https://fire2a.github.io/docs/docs/qgis/README.html
+https://fire2a.github.io/docs/qgis-cookbook
 https://gis.stackexchange.com/a/408738
 https://gis.stackexchange.com/a/172849
 """

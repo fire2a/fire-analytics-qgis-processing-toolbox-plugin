@@ -969,7 +969,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
             The <b>mean statistic</b> sums, for each pixel, its values divided by <b>burnt count</b>. 
             The <b>standard deviation</b> divides against <b>all simulations</b>, not burnt count of each individual pixel.
 
-            Check the <a href=https://fire2a.github.io/docs/docs/qgis-toolbox/algo_simulator.html#options>table below<a/> for more info
+            Check the <a href=https://fire2a.github.io/docs/qgis-toolbox/algo_simulator.html#options>table below<a/> for more info
             """
         )
 

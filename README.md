@@ -8,7 +8,7 @@ Tutoriales para usuarios español en: [fire2a/documentacion](https://fire2a.gith
 
 ## Quickstart
 ### Install
-[comprehensive tutorial here](https://fire2a.github.io/docs/docs/qgis-cookbook/README.html#installation)  
+[comprehensive tutorial here](https://fire2a.github.io/docs/qgis-toolbox)  
 1. Install [QGIS](https://qgis.org/download/)
 1. Install fire2a's custom [plugin repo source](https://fire2a.github.io/fire-analytics-qgis-processing-toolbox-plugin/plugins.xml) (QGIS>Plugins>ManageAnd...>Settings>Add>URL)
 1. Install python requirements typing `pip install fire2a-lib` into QGIS python console (restart QGIS)
@@ -49,7 +49,7 @@ Tutoriales para usuarios español en: [fire2a/documentacion](https://fire2a.gith
     embed()
     # fmt: on
 
-Also checkout our [algorithms library](https://fire2a.github.io/docs/docs/fire2a-lib.html)
+Also checkout our [algorithms library](https://fire2a.github.io/docs/algo-lib)
 
 ## Structure
 - Plugin files at `fireanalyticstoolbox` directory  
