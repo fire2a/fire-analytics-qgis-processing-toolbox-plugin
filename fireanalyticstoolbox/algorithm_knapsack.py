@@ -310,7 +310,7 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
         return PolygonKnapsackAlgorithm()
 
     def helpUrl(self):
-        return "https://www.github.com/fdobad/qgis-processingplugin-template/issues"
+        return "https://fire2a.github.io/docs/qgis-toolbox"
 
     def shortDescription(self):
         return self.tr(
@@ -566,7 +566,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         return RasterKnapsackAlgorithm()
 
     def helpUrl(self):
-        return "https://www.github.com/fdobad/qgis-processingplugin-template/issues"
+        return "https://fire2a.github.io/docs/qgis-toolbox"
 
     def shortDescription(self):
         return self.tr(
@@ -856,7 +856,7 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         return MultiObjectiveRasterKnapsackAlgorithm()
 
     def helpUrl(self):
-        return "https://www.github.com/fdobad/qgis-processingplugin-template/issues"
+        return "https://fire2a.github.io/docs/qgis-toolbox"
 
     def shortDescription(self):
         return self.tr(

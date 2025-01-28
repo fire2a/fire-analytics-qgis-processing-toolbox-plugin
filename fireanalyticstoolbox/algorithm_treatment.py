@@ -417,7 +417,7 @@ class RasterTreatmentTeamAlgorithm(QgsProcessingAlgorithm):
         return RasterTreatmentTeamAlgorithm()
 
     def helpUrl(self):
-        return "https://www.github.com/fdobad/qgis-processingplugin-template/issues"
+        return "https://fire2a.github.io/docs/qgis-toolbox"
 
     def shortDescription(self):
         sample_path = (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri()
@@ -694,7 +694,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         return RasterTreatmentAlgorithm()
 
     def helpUrl(self):
-        return "https://www.github.com/fdobad/qgis-processingplugin-template/issues"
+        return "https://fire2a.github.io/docs/qgis-toolbox"
 
     def shortDescription(self):
         sample_path = (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri()
@@ -1040,7 +1040,7 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
         return PolyTreatmentAlgorithm()
 
     def helpUrl(self):
-        return "https://www.github.com/fdobad/qgis-processingplugin-template/issues"
+        return "https://fire2a.github.io/docs/qgis-toolbox"
 
     def shortDescription(self):
         sample_path = (Path(__file__).parent / "decision_optimization" / "treatments_sample").as_uri()
