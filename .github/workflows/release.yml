@@ -62,7 +62,7 @@ jobs:
         git archive --output "fireanalyticstoolbox_${{ github.ref_name }}.zip" $astash fireanalyticstoolbox
 
     - name: Create Release
-      uses: ncipollo/release-action@v1.12.0
+      uses: ncipollo/release-action@v1.15.0
       with:
         artifacts: "fireanalyticstoolbox_${{ github.ref_name }}.zip"
         token: ${{ secrets.GITHUB_TOKEN }}
