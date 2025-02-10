@@ -783,10 +783,10 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             # Construct the dry run message
             dry_msg = (
                 f"DRY RUN! Open a {shell} terminal, execute this:\n\n"
-                f"{var_prefix}c2f={c2f_path}/Cell2Fire{get_ext()}\n"
+                f'{var_prefix}c2f="{c2f_path}/Cell2Fire{get_ext()}"\n'
                 f"{var_prefix}of={args['output-folder']}\n"
                 f"{var_prefix}if={args['input-instance-folder']}\n"
-                f"$c2f "
+                f"{'&' if platform_system()=='Windows' else ''} $c2f "
             )
             for k, v in args.items():
                 if v is False or v is None or k in ["input-instance-folder", "output-folder"]:
