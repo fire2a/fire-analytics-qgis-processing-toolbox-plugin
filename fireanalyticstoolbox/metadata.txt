@@ -24,6 +24,7 @@ repository=https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plug
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
 changelog=
+	v0.7.2: C2F simulator dry-run parameter "fix for windows"
 	v0.7.1: C2F simulator tiff warning, documentation links update.
 	v0.7.0: C2F simulator adds CrownIntensity, CrownFlameLength and MaxFlameLength statistics for Scott & Burgan model
 	v0.5.6: Multiobjective Knapsack help & nodata option, fire2a-lib v0.3.7

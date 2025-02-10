@@ -2,7 +2,7 @@
 metadata.txt
 
     changelog
-        v0.7.1: 
+        v0.7.2: 
 
 	SAVE BEFORE INSTALL/UPDATE: A dialog asking permission to (pip) install python dependencies (fire2a-lib==0.3.7) will appear
 
@@ -21,4 +21,4 @@ plugins.xml
 
 		<update_date>2024-07-03T06:06:06.066666+06:00</update_date>
 
-		<download_url>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases/download/v0.7.1/fireanalyticstoolbox_v0.7.1.zip</download_url>
+		<download_url>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases/download/v0.7.2/fireanalyticstoolbox_v0.7.2.zip</download_url>
