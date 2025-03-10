@@ -25,7 +25,7 @@ jobs:
          git add fireanalyticstoolbox/metadata.txt
 
     - name: download cbc
-      uses: robinraju/release-downloader@v1.11
+      uses: robinraju/release-downloader@v1.12
       with:
         repository: "coin-or/Cbc"
         latest: true
@@ -36,7 +36,7 @@ jobs:
         zipBall: false
 
     - name: download cell2fire
-      uses: robinraju/release-downloader@v1.11
+      uses: robinraju/release-downloader@v1.12
       with:
         repository: "fire2a/C2F-W" 
         latest: true
