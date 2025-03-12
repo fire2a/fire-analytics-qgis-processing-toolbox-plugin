@@ -977,9 +977,8 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             See documentation:
             <a href=https://fire2a.github.io/docs/qgis-toolbox/algo_simulator.html>This dialog</a>
             <a href=https://fire2a.github.io/docs/Cell2FireW>Cell2FireW</a>
-            <font color="red">Warning: GeoTiff(.tif) support is being developed and limited only to reading a fuels layer!<font>
-            <font color="orange">Warning: Kitral cbh and cbd rasters must use nodata -9999<font>
-            If planning to use more layers, transform them to AIIGrid(.asc) format!
+            <font color="red">Warning: GeoTiff(.tif) support (in development) limited to only reading the fuels layer!</font> If planning to use more layers, transform them to AIIGrid(.asc) format!
+            <font color="orange">Warning: Kitral cbh and cbd rasters must use nodata -9999</font>
             """
         )
 
