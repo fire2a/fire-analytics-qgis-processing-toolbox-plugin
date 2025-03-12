@@ -73,8 +73,9 @@ def run():
     )
     if response == QMessageBox.Yes:
         if platform_system() == "Darwin":
-            cwd = "/Applications/QGIS.app/Contents/MacOS/bin"
+            cwd = sys.prefix
             right_here = "./"
+            QgsMessageLog().logMessage(f"Plugin {plugin_name}: Using Python in {cwd}", tag="Plugins", level=Qgis.Success)
         else:
             cwd = None
             right_here = ""
