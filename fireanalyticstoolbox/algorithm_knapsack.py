@@ -897,3 +897,293 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
 
             """
         )
+
+
+class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
+    """Algorithm that takes selects the most valuable raster pixels restriced to a total weight using a MIP solver"""
+
+    IN_PA = "PA"
+    IN_VALUE = "VALUE"
+    IN_WEIGHT = "WEIGHT"
+    IN_RATIO = "RATIO"
+    OUT_LAYER = "OUT_LAYER"
+
+    NODATA = -32768  # -1?
+    solver_exception_msg = ""
+
+    def initAlgorithm(self, config):
+        """The form reads two raster layers one for the value and one for the weight; also configures the weight ratio and the solver"""
+
+        # pa raster
+        self.addParameter(
+            QgsProcessingParameterRasterLayer(
+                name=self.IN_PA,
+                description=self.tr("Protected Areas layer"),
+                defaultValue=[QgsProcessing.TypeRaster],
+                optional=True,
+            )
+        )
+        # value raster
+        self.addParameter(
+            QgsProcessingParameterRasterLayer(
+                name=self.IN_VALUE,
+                description=self.tr("Values layer (if blank 1's will be used)"),
+                defaultValue=[QgsProcessing.TypeRaster],
+                optional=True,
+            )
+        )
+        # weight raster
+        self.addParameter(
+            QgsProcessingParameterRasterLayer(
+                name=self.IN_WEIGHT,
+                description=self.tr("Weights layer (if blank 1's will be used)"),
+                defaultValue=[QgsProcessing.TypeRaster],
+                optional=True,
+            )
+        )
+        # ratio double
+        qppn = QgsProcessingParameterNumber(
+            name=self.IN_RATIO,
+            description=self.tr("Capacity ratio (1 = weight.sum)"),
+            type=QgsProcessingParameterNumber.Double,
+            defaultValue=0.068,
+            optional=False,
+            minValue=0.0,
+            maxValue=1.0,
+        )
+        qppn.setMetadata({"widget_wrapper": {"decimals": 3}})
+        self.addParameter(qppn)
+        # raster output
+        # DestinationGpkg inherits from QgsProcessingParameterRasterDestination to set default gpkg output format
+        self.addParameter(
+            QgsProcessingParameterRasterDestinationGpkg(self.OUT_LAYER, self.tr("Raster Knapsack Output layer"))
+        )
+        pyomo_init_algorithm(self, config)
+
+    def processAlgorithm(self, parameters, context, feedback):
+        # feedback.pushCommandInfo(f"processAlgorithm START")
+        # feedback.pushCommandInfo(f"parameters {parameters}")
+        # feedback.pushCommandInfo(f"context args: {context.asQgisProcessArguments()}")
+
+        # ?
+        # feedback.reportError(f"context.logLevel(): {context.logLevel()}")
+        # context.setLogLevel(context.logLevel()+1)
+
+        # report solver unavailability
+        feedback.pushInfo(f"Solver unavailability:\n{self.solver_exception_msg}\n")
+
+        # get raster data
+        pa_layer = self.parameterAsRasterLayer(parameters, self.IN_PA, context)
+        pa_data = get_raster_data(pa_layer)
+        pa_nodata = get_raster_nodata(pa_layer, feedback)
+        pa_map_info = get_raster_info(pa_layer)
+
+        value_layer = self.parameterAsRasterLayer(parameters, self.IN_VALUE, context)
+        value_data = get_raster_data(value_layer)
+        value_nodata = get_raster_nodata(value_layer, feedback)
+        value_map_info = get_raster_info(value_layer)
+
+        weight_layer = self.parameterAsRasterLayer(parameters, self.IN_WEIGHT, context)
+        weight_data = get_raster_data(weight_layer)
+        weight_nodata = get_raster_nodata(weight_layer, feedback)
+        weight_map_info = get_raster_info(weight_layer)
+
+        # raster(s) conditions
+        if not value_layer and not weight_layer:
+            feedback.reportError("No input layers, need at least one raster!")
+            return {self.OUT_LAYER: None, "SOLVER_STATUS": None, "SOLVER_TERMINATION_CONDITION": None}
+        elif value_layer and weight_layer:
+            # TODO == -> math.isclose
+            if not (
+                value_map_info["width"] == weight_map_info["width"]
+                and value_map_info["height"] == weight_map_info["height"]
+                and value_map_info["cellsize_x"] == weight_map_info["cellsize_x"]
+                and value_map_info["cellsize_y"] == weight_map_info["cellsize_y"]
+            ):
+                feedback.reportError("Layers must have the same width, height and cellsizes")
+                return {self.OUT_LAYER: None, "SOLVER_STATUS": None, "SOLVER_TERMINATION_CONDITION": None}
+            width, height, extent, crs, _, _ = value_map_info.values()
+        elif value_layer and not weight_layer:
+            width, height, extent, crs, _, _ = value_map_info.values()
+            weight_data = np.ones(height * width)
+        elif not value_layer and weight_layer:
+            width, height, extent, crs, _, _ = weight_map_info.values()
+            value_data = np.ones(height * width)
+        # TODO validation
+        if not pa_layer:
+            pa_data = np.zeros(height * width)
+
+        # instance summary
+        N = width * height
+
+        feedback.pushInfo(
+            f"width: {width}, height: {height}, N:{N}\n"
+            f"extent: {extent}, crs: {crs}\n"
+            "\n"
+            f"pa !=0: {np.any(pa_data!=0)}\n"
+            f"nodata: {pa_nodata}\n"
+            f"preview: {pa_data}\n"
+            f"stats: {stats.describe(pa_data[pa_data!=pa_nodata])}\n"
+            "\n"
+            f"value !=0: {np.any(value_data!=0)}\n"
+            f"nodata: {value_nodata}\n"
+            f"preview: {value_data}\n"
+            f"stats: {stats.describe(value_data[value_data!=value_nodata])}\n"
+            "\n"
+            f"weight !=1: {np.any(weight_data!=1)}\n"
+            f"nodata: {weight_nodata}\n"
+            f"preview: {weight_data}\n"
+            f"stats: {stats.describe(weight_data[weight_data!=weight_nodata])}\n"
+        )
+        if isinstance(value_nodata, list):
+            feedback.pushError(f"value_nodata: {value_nodata} is list, not implemented!")
+        if isinstance(weight_nodata, list):
+            feedback.pushError(f"weight_nodata: {weight_nodata} is list, not implemented!")
+        # nodata fest
+        if value_nodata is None and weight_nodata is None:
+            pass
+        elif value_nodata is None and weight_nodata is not None:
+            self.NODATA = weight_nodata
+        elif value_nodata is not None and weight_nodata is None:
+            self.NODATA = value_nodata
+        elif value_nodata == weight_nodata:
+            self.NODATA = value_nodata
+        elif value_nodata != weight_nodata:
+            feedback.pushWarning(f"Rasters have different nodata values: {value_nodata=}, {weight_nodata=}")
+        feedback.pushDebugInfo(f"Using {self.NODATA=}\n")
+
+        no_indexes = np.where(
+            (value_data == value_nodata)
+            | (weight_data == weight_nodata)
+            | np.isnan(value_data)
+            | np.isnan(weight_data)
+            | (pa_data == pa_nodata)
+        )[0]
+        feedback.pushInfo(f"discarded pixels (no_indexes): {len(no_indexes)/N:.2%}\n")
+
+        mask = np.ones(N, dtype=bool)
+        mask[no_indexes] = False
+
+        ratio = self.parameterAsDouble(parameters, self.IN_RATIO, context)
+        weight_sum = weight_data[mask].sum()
+        capacity = np.round(weight_sum * ratio)
+        feedback.pushInfo(f"capacity bound: {ratio=}, {weight_sum=}, {capacity=}\n")
+
+        # cplex hack
+        # TODO : make pull request to pyomo to fix this
+        if tmp := self.parameterAsString(parameters, "SOLVER", context):
+            if tmp.startswith("cplex"):
+                value_data = value_data.astype("float64")
+                weight_data = weight_data.astype("float64")
+                feedback.pushDebugInfo(f"cplex hack: changed dtypes {value_data.dtype=},{weight_data.dtype=}")
+
+        model = do_knapsack(value_data[mask], weight_data[mask], capacity)
+        results = pyomo_run_model(self, parameters, context, feedback, model, display_model=False)
+        retval, solver_dic = pyomo_parse_results(results, feedback)
+
+        if retval > 1:
+            solver_dic.update({self.OUT_LAYER: None})
+            return solver_dic
+
+        # pyomo solution to squared numpy array
+        masked_response = np.array([pyo.value(model.X[i], exception=False) for i in model.X])
+        # -2 undecided
+        masked_response[masked_response == None] = -2
+        masked_response = masked_response.astype(np.int16)
+        # -1 left out
+        response = -np.ones(N, dtype=np.int16)
+        response[mask] = masked_response
+
+        feedback.pushDebugInfo(f"{response=}, {response.shape=}")
+        assert N == len(response)
+
+        undecided, nodata, not_selected, selected = np.histogram(response, bins=[-2, -1, 0, 1, 2])[0]
+        feedback.pushInfo(
+            f"Solution histogram:\n{selected=}\n{not_selected=}\n{nodata=} (invalid value or weight)\n{undecided=}\n"
+        )
+        response[response == -1] = self.NODATA
+        response.resize(height, width)
+
+        output_layer_filename = self.parameterAsOutputLayer(parameters, self.OUT_LAYER, context)
+        outFormat = get_output_raster_format(output_layer_filename, feedback)
+
+        array2rasterInt16(
+            response,
+            "knapsack",
+            output_layer_filename,
+            extent,
+            crs,
+            nodata=self.NODATA,
+        )
+        feedback.setProgress(100)
+        feedback.setProgressText("Writing new raster to file ended, progress 100%")
+
+        # if showing
+        if context.willLoadLayerOnCompletion(output_layer_filename):
+            layer_details = context.layerToLoadOnCompletionDetails(output_layer_filename)
+            layer_details.groupName = "DecisionOptimizationGroup"
+            layer_details.name = "KnapsackRaster"
+            # layer_details.layerSortKey = 2
+            processing.run(
+                "native:setlayerstyle",
+                {
+                    "INPUT": output_layer_filename,
+                    "STYLE": str(Path(__file__).parent / "decision_optimization" / "knapsack_raster.qml"),
+                },
+                context=context,
+                feedback=feedback,
+                is_child_algorithm=True,
+            )
+            feedback.pushDebugInfo(f"Showing layer {output_layer_filename}")
+
+        solver_dic.update({self.OUT_LAYER: output_layer_filename})
+        feedback.pushDebugInfo(f"{solver_dic=}")
+        write_log(feedback, name=self.name())
+        return solver_dic
+
+    def name(self):
+        """
+        Returns the algorithm name, used for identifying the algorithm. This
+        string should be fixed for the algorithm, and must not be localised.
+        The name should be unique within each provider. Names should contain
+        lowercase alphanumeric characters only and no spaces or other
+        formatting characters.
+        """
+        return "parasterknapsack"
+
+    def displayName(self):
+        """
+        Returns the translated algorithm name, which should be used for any
+        user-visible display of the algorithm name.
+        """
+        return self.tr("PA Raster Knapsack")
+
+    def group(self):
+        return self.tr("Decision Optimization")
+
+    def groupId(self):
+        return "do"
+
+    def tr(self, string):
+        return QCoreApplication.translate("Processing", string)
+
+    def createInstance(self):
+        return PARasterKnapsackAlgorithm()
+
+    def helpUrl(self):
+        return "https://fire2a.github.io/docs/qgis-toolbox"
+
+    def shortDescription(self):
+        return self.tr("""Sebastian""")
+
+    def helpString(self):
+        return self.shortHelpString()
+
+    def icon(self):
+        return QIcon(":/plugins/fireanalyticstoolbox/assets/firebreakmap.svg")
+
+    def shortHelpString(self):
+        return self.tr(
+            """sebastian
+            """
+        )
