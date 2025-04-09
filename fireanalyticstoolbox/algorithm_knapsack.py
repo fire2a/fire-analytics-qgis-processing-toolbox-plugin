@@ -1058,6 +1058,7 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             | np.isnan(value_data)
             | np.isnan(weight_data)
             | (pa_data == pa_nodata)
+            | (pa_data == 1)
         )[0]
         feedback.pushInfo(f"discarded pixels (no_indexes): {len(no_indexes)/N:.2%}\n")
 
