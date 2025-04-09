@@ -1058,7 +1058,6 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             | np.isnan(value_data)
             | np.isnan(weight_data)
             | (pa_data == pa_nodata)
-            | (pa_data == 1)
         )[0]
         feedback.pushInfo(f"discarded pixels (no_indexes): {len(no_indexes)/N:.2%}\n")
 
@@ -1069,6 +1068,11 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         weight_sum = weight_data[mask].sum()
         capacity = np.round(weight_sum * ratio)
         feedback.pushInfo(f"capacity bound: {ratio=}, {weight_sum=}, {capacity=}\n")
+
+        pa_indexes = np.where(
+            (pa_data == 1)
+        )[0]
+        mask[pa_indexes] = False
 
         # cplex hack
         # TODO : make pull request to pyomo to fix this
