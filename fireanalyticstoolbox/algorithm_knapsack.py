@@ -44,6 +44,7 @@ from qgis.core import (QgsFeature, QgsFeatureRequest, QgsFeatureSink, QgsField, 
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 from scipy import stats
+from scipy.ndimage import convolve ### LÍNEA NUEVA
 from toml import dump as toml_dump
 
 from .algorithm_utils import (QgsProcessingParameterRasterDestinationGpkg, array2rasterInt16, get_output_raster_format,
@@ -1072,7 +1073,7 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         pa_indexes = np.where(
             (pa_data == 1)
         )[0]
-        mask[pa_indexes] = False
+        #mask[pa_indexes] = False ###AQUÍ HAY UN CAMBIO
 
         # cplex hack
         # TODO : make pull request to pyomo to fix this
@@ -1098,6 +1099,30 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         # -1 left out
         response = -np.ones(N, dtype=np.int16)
         response[mask] = masked_response
+
+        #### ESTO ES NUEVO
+        pa_firebreak_mask = (pa_data[mask] > 0) & (masked_response>0)
+        if np.any(pa_firebreak_mask):
+            ocupado = pyo.value(pyo.sum_product(model.X, model.We, index=model.N))
+            new_capacity = capacity - ocupado + (weight_data[mask][pa_firebreak_mask]).sum()
+
+            kernel = np.array([[1, 1, 1],
+                            [1, 1, 1],
+                            [1, 1, 1]])
+
+            borde = convolve(pa_data.reshape([height, width]), kernel)
+            borde = np.where(borde>0, 1, 0)
+            borde = borde - pa_data.reshape([height, width])
+            borde_mask = (borde>0).reshape([-1])
+            new_model = do_knapsack(value_data[borde_mask & mask], weight_data[borde_mask & mask], new_capacity)
+
+            results = pyomo_run_model(self, parameters, context, feedback, new_model, display_model=False)
+            retval, solver_dic = pyomo_parse_results(results, feedback)
+
+            new_masked_response = np.array([pyo.value(new_model.X[i], exception=False) for i in new_model.X])
+            response[pa_indexes] = 0
+            response[mask & borde_mask] = new_masked_response
+        ######
 
         feedback.pushDebugInfo(f"{response=}, {response.shape=}")
         assert N == len(response)
