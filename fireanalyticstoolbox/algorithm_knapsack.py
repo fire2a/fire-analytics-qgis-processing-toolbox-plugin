@@ -1073,6 +1073,7 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         pa_indexes = np.where(
             (pa_data == 1)
         )[0]
+        pa_mask = (pa_data == 1)
         #mask[pa_indexes] = False ###AQUÍ HAY UN CAMBIO
 
         # cplex hack
@@ -1101,27 +1102,34 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         response[mask] = masked_response
 
         #### ESTO ES NUEVO
-        pa_firebreak_mask = (pa_data[mask] > 0) & (masked_response>0)
+        pa_firebreak_mask = (pa_mask[mask]) & (masked_response==1)
         if np.any(pa_firebreak_mask):
-            ocupado = pyo.value(pyo.sum_product(model.X, model.We, index=model.N))
-            new_capacity = capacity - ocupado + (weight_data[mask][pa_firebreak_mask]).sum()
+            used_capacity = pyo.value(pyo.sum_product(model.X, model.We, index=model.N))
+            new_capacity = capacity - used_capacity + (weight_data[mask][pa_firebreak_mask]).sum()
 
             kernel = np.array([[1, 1, 1],
                             [1, 1, 1],
                             [1, 1, 1]])
+            boundary_pa = convolve(pa_data.reshape([height, width]), kernel)
+            boundary_pa = np.where(boundary_pa>0, 1, 0)
+            boundary_pa = boundary_pa - pa_data.reshape([height, width])
+            boundary_pa_mask = (boundary_pa==1).reshape([-1])
 
-            borde = convolve(pa_data.reshape([height, width]), kernel)
-            borde = np.where(borde>0, 1, 0)
-            borde = borde - pa_data.reshape([height, width])
-            borde_mask = (borde>0).reshape([-1])
-            new_model = do_knapsack(value_data[borde_mask & mask], weight_data[borde_mask & mask], new_capacity)
+            max_abs_value_boundary = np.abs(value_data[boundary_pa_mask & mask]).max()
+            max_value_nopa = value_data[(~pa_mask) & mask].max()
+            value_data[boundary_pa_mask & mask] += max_abs_value_boundary + max_value_nopa
+
+
+            new_model = do_knapsack(value_data[mask & (response!=1) & (~pa_mask)], 
+                                    weight_data[mask & (response!=1) & (~pa_mask)], 
+                                    new_capacity)
 
             results = pyomo_run_model(self, parameters, context, feedback, new_model, display_model=False)
             retval, solver_dic = pyomo_parse_results(results, feedback)
 
             new_masked_response = np.array([pyo.value(new_model.X[i], exception=False) for i in new_model.X])
             response[pa_indexes] = 0
-            response[mask & borde_mask] = new_masked_response
+            response[mask & (response!=1) & (~pa_mask)] = new_masked_response
         ######
 
         feedback.pushDebugInfo(f"{response=}, {response.shape=}")
