@@ -66,7 +66,7 @@ class MeteoAlgo(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterNumber(
                 self.IN_PERCENTILE,
-                self.tr("Carolina's Percentile"),
+                self.tr("Quantile of daily maximum temperature"),
                 type=QgsProcessingParameterNumber.Double,
                 defaultValue=0.5,
                 minValue=0,
