@@ -14,20 +14,26 @@ from shutil import which
 
 from pyomo.common.errors import ApplicationError
 from pyomo.opt import SolverFactory, SolverManagerFactory, SolverStatus, TerminationCondition
-from qgis.core import QgsProcessingException
 
 from ..config import TAG
 
 one_or_more_newlines = re_compile(r"\n+")
 
-SOLVER = {
-    "cbc": f"ratioGap=0.005 seconds=300 threads={cpu_count() - 1}",
-    "glpk": "mipgap=0.005 tmlim=300",
-    "ipopt": "",
-    "gurobi": "MIPGap=0.005 TimeLimit=300",
-    "cplex_direct": "mipgap=0.005 timelimit=300",
-    # "cplex_persistent": "mipgap=0.005 timelimit=300", needs tweak opt.set_ to work
-}
+if platform_system() == "Windows":
+    SOLVER = {"cbc": "ratioGap=0.005 seconds=300"}
+else:
+    SOLVER = {"cbc": f"ratioGap=0.005 seconds=300 threads={cpu_count() - 1}"}
+
+SOLVER.update(
+    {
+        "glpk": "mipgap=0.005 tmlim=300",
+        "ipopt": "",
+        "gurobi": "MIPGap=0.005 TimeLimit=300",
+        "cplex": "mipgap=0.005 timelimit=300",
+        # "cplex_direct": "mipgap=0.005 timelimit=300",
+        # "cplex_persistent": "mipgap=0.005 timelimit=300", needs tweak opt.set_ to work
+    }
+)
 NEOS_SOLVER = [
     "bonmin",
     "cbc",
@@ -52,6 +58,7 @@ NEOS_SOLVER = [
     "raposa",
     "snopt",
 ]
+ 
 
 
 def init_ndarray(data, model, *args):
@@ -112,25 +119,54 @@ def check_solver_availabilityBASED():
     return pyomo_solvers_list
 
 
+def qml_print(msg, qgs_message_log=None):
+    # qml_print = lambda x, y: y.logMessage(x, TAG) if qgs_message_log else print(x)
+    if qgs_message_log:
+        # from qgis.core import QgsMessageLog
+        # QgsMessageLog().logMessage(msg, TAG)
+        qgs_message_log().logMessage(msg, TAG)
+    else:
+        print(msg)
+
 def add_cbc_to_path(qgs_message_log=None):
     """Add cbc to path if it is not already there"""
-    from qgis.core import QgsMessageLog
-
-    qml_print = lambda x, y: QgsMessageLog.logMessage(x, TAG) if qgs_message_log else print(x)
-
-    if which_cbc := which("cbc.exe"):
-        qml_print(f"cbc.exe already in {which_cbc=}", qgs_message_log)
-        return True
-    if which("cbc.exe") is None and "__file__" in globals():
-        cbc_exe = Path(__file__).parents[1] / "cbc" / "bin" / "cbc.exe"
-        if cbc_exe.is_file():
-            environ["PATH"] += pathsep + str(cbc_exe.parent)
-            qml_print(f"Added {cbc_exe.parent=} to path", qgs_message_log)
-            return True
+    if cbc := which("cbc.exe"):
+        qml_print(f"ready {cbc=}", qgs_message_log)
+        return
+    if "__file__" in globals():
+        cbc = Path(__file__).parents[1] / "cbc" / "bin" / "cbc.exe"
+        if cbc.is_file():
+            environ["PATH"] += pathsep + str(cbc.parent)
         else:
-            qml_print(f"{cbc_exe} file not found!", qgs_message_log)
-    qml_print("add_cbc_to_path: nothing done", qgs_message_log)
-    return False
+            qml_print(f"file not found! {cbc=}", qgs_message_log)
+    if cbc := which("cbc.exe"):
+        qml_print(f"available in path {cbc=}", qgs_message_log)
+        return
+    qml_print("CBC SOLVER NOT available in path", qgs_message_log)
+
+def add_cplex_to_path(qgs_message_log=None):
+    if cplex:= which("cplex.exe"):
+        qml_print(f"ready {cplex=}", qgs_message_log)
+        return
+    try: 
+        programfiles = Path(environ.get('programfiles'))
+        if cplexstudio := sorted((programfiles / "IBM"/ "ILOG").glob("CPLEX*")):
+            cplexstudio = cplexstudio[-1]
+            for apath in ["opl/bin/x64_win64","opl/oplide","cplex/bin/x64_win64","cpoptimizer/bin/x64_win64"]:
+                bpath = cplexstudio / apath
+                if bpath.is_dir():
+                    environ["PATH"] += pathsep + str(bpath)
+                    qml_print(f"Added to path {bpath}", qgs_message_log)
+                else:
+                    qml_print(f"NOT added to path {bpath}, not a directory", qgs_message_log)
+        else:
+            qml_print(f"ibm ilog CPLEX SOLVER not found in {programfiles=}", qgs_message_log)
+    except Exception as e:
+        qml_print(f"Adding ibm ilog CPLEX error, {e}", qgs_message_log)
+    if cplex:= which("cplex.exe"):
+        qml_print(f"{cplex=}", qgs_message_log)
+        return
+    qml_print("ibm ilog CPLEX SOLVER NOT available in path", qgs_message_log)
 
 
 class FileLikeFeedback(StringIO):
@@ -198,7 +234,7 @@ def pyomo_init_algorithm(self, config):
     # solver string combobox (enums
     qpps = QgsProcessingParameterString(
         name="SOLVER",
-        description="LOCAL SOLVER\nName: recommended options string [and executable STATUS]",
+        description="============\nLOCAL SOLVER\nName: recommended options string [and executable STATUS]",
         # optional=True,
     )
     qpps.setMetadata(
@@ -223,7 +259,7 @@ def pyomo_init_algorithm(self, config):
     # executable file
     qppf = QgsProcessingParameterFile(
         name="EXECUTABLE",
-        description=self.tr("Set solver executable file [REQUIRED if STATUS]"),
+        description=self.tr("Set solver executable file [required if status is 'MUST SET EXECUTABLE']"),
         behavior=QgsProcessingParameterFile.File,
         optional=True,
     )
@@ -233,7 +269,7 @@ def pyomo_init_algorithm(self, config):
     # NEOS
     qpps = QgsProcessingParameterString(
         name="NEOS_EMAIL",
-        description="CLOUD SOLVER (no MsWindows)\nNEOS registered email (visit https://neos-guide.org/)",
+        description="============\nNEOS CLOUD SOLVER\n(not available for Pyomo+MsWindows)\nRegistered email (visit https://neos-guide.org/)",
         defaultValue="",
         optional=True,
     )
@@ -241,7 +277,7 @@ def pyomo_init_algorithm(self, config):
     self.addParameter(qpps)
     qpps = QgsProcessingParameterString(
         name="NEOS_SOLVER",
-        description="NEOS solver name",
+        description="Solver name",
         defaultValue="cplex",
         optional=True,
     )
@@ -257,7 +293,7 @@ def pyomo_init_algorithm(self, config):
     # options_string
     qpps2 = QgsProcessingParameterString(
         name="NEOS_CUSTOM_OPTIONS_STRING",
-        description=self.tr("NEOS custom options string"),
+        description=self.tr("Custom options string"),
         defaultValue="",
         optional=True,
     )
@@ -362,6 +398,8 @@ def printf(msg, feedback=None, level=-1):
         elif level >= 2:
             feedback.reportError(msg)
         if feedback.isCanceled():
+            from qgis.core import QgsProcessingException
+
             raise QgsProcessingException("Algorithm cancelled by user")
     else:
         print(msg)

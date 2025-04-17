@@ -14,5 +14,6 @@
 	<file>dpv.svg</file>
 	<file>match_aii.svg</file>
 	<file>meteo.svg</file>
+	<file>polygonize.png</file>
     </qresource>
 </RCC>

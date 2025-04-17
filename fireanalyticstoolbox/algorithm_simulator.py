@@ -33,11 +33,11 @@ __revision__ = "$Format:%H$"
 from datetime import datetime
 from math import isclose
 from multiprocessing import cpu_count
-from os import chmod, kill, sep
+from os import chmod, kill, popen, sep
 from pathlib import Path
 from platform import machine as platform_machine
 from platform import system as platform_system
-from shutil import copy
+from shutil import copy, which
 from signal import SIGTERM
 from stat import S_IXGRP, S_IXOTH, S_IXUSR
 from typing import Any
@@ -46,12 +46,11 @@ import processing
 from fire2a.raster import read_raster, transform_georef_to_coords, xy2id
 from numpy import array
 from osgeo import gdal
-from qgis.core import (QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm, QgsProcessingContext,
+from qgis.core import (Qgis, QgsMessageLog, QgsProcessing, QgsProcessingAlgorithm, QgsProcessingContext,
                        QgsProcessingException, QgsProcessingParameterBoolean, QgsProcessingParameterDefinition,
                        QgsProcessingParameterEnum, QgsProcessingParameterFile, QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterNumber, QgsProcessingParameterRasterLayer, QgsProcessingParameterString,
                        QgsProcessingParameterVectorLayer, QgsProject, QgsRasterLayer, QgsUnitTypes)
-from qgis.gui import Qgis
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 
@@ -63,15 +62,15 @@ output_args = [item["arg"] for item in SIM_OUTPUTS]
 output_names = [item["name"] for item in SIM_OUTPUTS]
 
 
+plugin_dir = Path(__file__).parent
+c2f_path = Path(plugin_dir, "simulator", "C2F", "Cell2Fire")
+
+
 class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     """Cell2Fire"""
 
     output_dict = None
     results_dir = None
-    plugin_dir = Path(__file__).parent
-    c2f_path = Path(plugin_dir, "simulator", "C2F", "Cell2Fire")
-    # c2f_path = Path(plugin_dir, "simulator", "C2F")
-    # c2f_path = Path("/home/fdo/source/C2F-W")
 
     fuel_models = NAME["fuel_models"]
     fuel_tables = NAME["fuel_tables"]
@@ -91,6 +90,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     CBH = "CbhRaster"
     CBD = "CbdRaster"
     CCF = "CcfRaster"
+    HM = "HmRaster"
     CROWN = "EnableCrownFire"
     IGNITION_MODE = "IgnitionMode"
     NSIM = "NumberOfSimulations"
@@ -113,22 +113,88 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
 
     def canExecute(self):
         """checks if cell2fire binary is available"""
-        c2f_bin = Path(self.c2f_path, f"Cell2Fire{get_ext()}")
-        if c2f_bin.is_file():
-            st = c2f_bin.stat()
-            chmod(c2f_bin, st.st_mode | S_IXUSR | S_IXGRP | S_IXOTH)
+        if platform_system() == "Windows":
+            suffix = ".exe"
+
+        elif platform_system() == "Linux":
+            if which("lsb_release") is None:
+                return False, "lsb_release command not found! (apt install lsb-release)"
+            if which("uname") is None:
+                return False, "uname command not found! (apt install uname)"
+            distribution = popen("lsb_release --short --id 2>/dev/null").read().strip()
+            codename = popen("lsb_release --short --codename 2>/dev/null").read().strip()
+            machine = popen("uname --machine 2>/dev/null").read().strip()
+            suffix = "." + distribution + "." + codename + "." + machine
+            c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
+            if not c2f_bin.is_file():
+                QgsMessageLog.logMessage(
+                    f"{self.name()}, Cell2Fire binary not available for {distribution=} {codename=} {machine=}",
+                    tag=TAG,
+                    level=Qgis.Warning,
+                )
+                QgsMessageLog.logMessage(f"{self.name()}, Not a file! {c2f_bin}", tag=TAG, level=Qgis.Warning)
+                QgsMessageLog.logMessage(f"{self.name()}, Falling back to manylinux", tag=TAG, level=Qgis.Critical)
+                suffix = ""
+                c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
+            if which("ldd"):
+                ldd = popen("ldd " + str(c2f_bin)).read()
+                QgsMessageLog.logMessage(f"{self.name()}, Binary dependencies:\n{ldd}", tag=TAG, level=Qgis.Info)
+                if "not found" in ldd:
+                    QgsMessageLog.logMessage(
+                        f"{self.name()}, Missing dependencies! Falling back to manylinux", tag=TAG, level=Qgis.Critical
+                    )
+                    suffix = ""
+
+        elif platform_system() == "Darwin":
+            # echo "suffix="$(uname -s).${{ matrix.runner }}.$(arch)"" >> $GITHUB_ENV
+            os = popen("uname -s 2>/dev/null").read().strip()
+            pname = popen("sw_vers -productName 2>/dev/null").read().strip()
+            pmayorvers = int(popen("sw_vers -productVersion 2>/dev/null | cut -d '.' -f 1 2>/dev/null").read().strip())
+            arch = popen("arch 2>/dev/null").read().strip()
+            if arch == "arm64" and pmayorvers != 14:
+                QgsMessageLog.logMessage(
+                    f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 14", tag=TAG, level=Qgis.Critical
+                )
+                pmayorvers = 14
+            if arch == "i386" and pmayorvers > 13:
+                QgsMessageLog.logMessage(
+                    f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 13", tag=TAG, level=Qgis.Critical
+                )
+                pmayorvers = 13
+            if arch == "i386" and pmayorvers < 12:
+                QgsMessageLog.logMessage(
+                    f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 12", tag=TAG, level=Qgis.Critical
+                )
+                pmayorvers = 12
+            suffix = f"_{os}.{pname}-{pmayorvers}.{arch}-static"
+            if which("otool -L"):
+                c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
+                if c2f_bin.is_file():
+                    ldd = popen("otool -L " + str(c2f_bin) + " 2>&1 ").read()
+                    QgsMessageLog.logMessage(
+                        f"{self.name()}, Dependencies of {c2f_bin.name}:\n{ldd}", tag=TAG, level=Qgis.Info
+                    )
+                else:
+                    suffix = suffix.replace("-static", "")
+                    c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
+                    if c2f_bin.is_file():
+                        ldd = popen("otool -L " + str(c2f_bin) + " 2>&1 ").read()
+                        QgsMessageLog.logMessage(
+                            f"{self.name()}, Dependencies of {c2f_bin.name}:\n{ldd}", tag=TAG, level=Qgis.Info
+                        )
+            #     if "not found" in ldd:
+            #         return False, "Missing dependencies! (brew install libomp?)"
         else:
-            return False, "Cell2Fire binary not found! Check fire2a documentation for compiling"
-        #
-        if platform_system() in ["Linux", "Windows"] and platform_machine() in ["x86_64", "AMD64"]:
-            return True, ""
-        elif platform_system() == "Darwin" and platform_machine() == "x86_64":
-            return True, ""
-        elif platform_system() == "Darwin" and platform_machine() == "arm64":
-            QgsMessageLog.logMessage("Using a very old binary!!", tag=TAG, level=Qgis.Warning)
-            return True, ""
-        else:
-            return False, f"OS {platform_system()} {platform_machine()} not supported yet"
+            return False, f"OS {platform_system()} not supported yet"
+
+        c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
+        if not c2f_bin.is_file():
+            return False, "Cell2Fire binary not found!"
+        st = c2f_bin.stat()
+        # TODO check if chmod is needed or failed!
+        chmod(c2f_bin, st.st_mode | S_IXUSR | S_IXGRP | S_IXOTH)
+        QgsMessageLog.logMessage(f"{self.name()}, Using Binary {c2f_bin}", tag=TAG, level=Qgis.Success)
+        return True, ""
 
     def initAlgorithm(self, config):
         """
@@ -140,7 +206,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterEnum(
                 name=self.FUEL_MODEL,
-                description=self.tr("LANDSCAPE SECTION\nSurface fuel model"),
+                description=self.tr("==================\nLANDSCAPE SECTION\n\nSurface fuel model"),
                 options=self.fuel_models,
                 allowMultiple=False,
                 defaultValue=0,
@@ -203,6 +269,16 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             )
         )
         self.addParameter(
+            QgsProcessingParameterRasterLayer(
+                name=self.HM,
+                description=self.tr(
+                    SIM_INPUTS["hm"]["description"] + f' [{SIM_INPUTS["hm"]["units"]}] (only Scott & Burgan)'
+                ),
+                defaultValue=[QgsProcessing.TypeRaster],
+                optional=True,
+            )
+        )
+        self.addParameter(
             QgsProcessingParameterBoolean(
                 name=self.CROWN,
                 description="Enable Crown Fire behavior",
@@ -222,9 +298,9 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterNumber(
                 name=self.NSIM,
-                description="\nIGNITION SECTION\nNumber of simulations",
+                description="\n================\nIGNITION SECTION\n\nNumber of simulations",
                 type=QgsProcessingParameterNumber.Integer,
-                defaultValue=2,
+                defaultValue=3,
                 optional=False,
                 minValue=1,
                 maxValue=66642069,
@@ -278,7 +354,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterEnum(
                 name=self.WEATHER_MODE,
-                description=self.tr("\nWEATHER SECTION\nsource mode"),
+                description=self.tr("\n================\nWEATHER SECTION\n\nsource mode"),
                 options=self.weather_modes,
                 allowMultiple=False,
                 defaultValue=0,
@@ -336,8 +412,8 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterNumber(
                 name=self.SIM_THREADS,
                 description=(
-                    "\nRUN CONFIGURATION\nsimulation cpu threads (controls overall load to the computer by controlling"
-                    " number of simultaneous simulations"
+                    "\n===================\nRUN CONFIGURATION\nsimulation cpu threads (proportional to overall load to the computer by controlling"
+                    " number of simultaneous simulations)"
                     # "[check Advanced>Algorithm Settings alternative settings])"
                 ),
                 type=QgsProcessingParameterNumber.Integer,
@@ -362,8 +438,8 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterEnum(
                 name=self.OUTPUTS,
-                description=self.tr("\nOUTPUTS SECTION\noptions (click '...' button on the right)"),
-                options=[item["name"] for item in SIM_OUTPUTS],
+                description=self.tr("\n================\nOUTPUTS SECTION\n\noptions (click '...' button on the right)"),
+                options=[item["name"] + item["suffix"] if "suffix" in item else item["name"] for item in SIM_OUTPUTS],
                 allowMultiple=True,
                 defaultValue=[
                     i
@@ -563,6 +639,9 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             results_dir = Path(instance_dir, "results")
         else:
             results_dir = Path(self.parameterAsString(parameters, self.RESULTS_DIR, context))
+        if " " in str(results_dir):
+            feedback.reportError(f"results directory can't contain spaces: {results_dir}")
+            raise QgsProcessingException(f"results directory can't contain spaces: {results_dir}")
         self.results_dir = results_dir
         results_dir.mkdir(parents=True, exist_ok=True)
         feedback.pushDebugInfo(
@@ -574,7 +653,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
 
         # COPY
         # fuel table
-        copy(Path(self.plugin_dir, "simulator", self.fuel_tables[fuel_model]), instance_dir)
+        copy(Path(plugin_dir, "simulator", self.fuel_tables[fuel_model]), instance_dir)
         # layers
         feedback.pushDebugInfo("\n")
         raster = get_rasters(self, parameters, context)
@@ -584,8 +663,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 continue
             if (
                 (k in ["fuels", "elevation"])
-                # (k in ["fuels", "elevation", "pv"])
-                or (k in ["cbh", "cbd", "ccf"] and is_crown)
+                or (k in ["cbh", "cbd", "ccf", "hm"] and is_crown)
                 or (k == "py" and ignition_mode == 1)
             ):
                 feedback.pushDebugInfo(f"copy: {k}:{v}")
@@ -618,7 +696,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 "native:setlayerstyle",
                 {
                     "INPUT": raster["fuels"],
-                    "STYLE": str(Path(self.plugin_dir, "simulator", f"fuel_{fuel_model}_layerStyle.qml")),
+                    "STYLE": str(Path(plugin_dir, "simulator", f"fuel_{fuel_model}_layerStyle.qml")),
                 },
                 context=context,
                 feedback=feedback,
@@ -679,6 +757,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         feedback.pushDebugInfo(f"args: {args}\n")
 
         cmd = f"./Cell2Fire{get_ext()}"
+        feedback.pushDebugInfo(f"binary start cmd: {cmd}\n")
         # cmd alternative (remove powershell below)
         # if platform_system() == "Windows":
         #     cmd.replace("./", "")
@@ -692,21 +771,49 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         cmd += " " + self.parameterAsString(parameters, self.ADD_ARGS, context)
 
         if self.parameterAsBool(parameters, self.DRYRUN, context):
-            feedback.pushWarning(
-                f"DRY RUN!\nOpen a terminal in this directory:\n{self.c2f_path}\nExecute this command:\n{cmd}\n"
+            # Determine platform-specific variables
+            if platform_system() == "Windows":
+                shell = "powershell"
+                var_prefix = "$"
+                log_command = "2>&1 | Tee-Object -FilePath ($of + '/LogFile.txt')"
+            else:
+                shell = "bash"
+                var_prefix = ""
+                log_command = "2>&1 | tee $of/LogFile.txt"
+            # Construct the dry run message
+            dry_msg = (
+                f"DRY RUN! Open a {shell} terminal, execute this:\n\n"
+                f'{var_prefix}c2f="{c2f_path}/Cell2Fire{get_ext()}"\n'
+                f"{var_prefix}of={args['output-folder']}\n"
+                f"{var_prefix}if={args['input-instance-folder']}\n"
+                f"{'&' if platform_system()=='Windows' else ''} $c2f "
             )
+            for k, v in args.items():
+                if v is False or v is None or k in ["input-instance-folder", "output-folder"]:
+                    continue
+                dry_msg += f" --{k} {v if v is not True else ''}"
+            dry_msg += (
+                " "
+                + self.parameterAsString(parameters, self.ADD_ARGS, context)
+                + " --input-instance-folder $if --output-folder $of "
+                + log_command
+                + "\n"
+            )
+            # print
+            feedback.pushWarning(dry_msg)
+            # return
             self.output_dict = {
                 self.INSTANCE_DIR: str(instance_dir),
                 self.RESULTS_DIR: str(results_dir),
                 self.OUTPUTS: selected_outputs,
                 self.DRYRUN: True,
-                "path": str(self.c2f_path),
+                "path": str(c2f_path),
                 "command": cmd,
             }
             return self.output_dict
 
         # RUN
-        c2f = C2F(proc_dir=self.c2f_path, feedback=feedback, log_file=results_dir / "LogFile.txt")
+        c2f = C2F(total_sims=args["nsims"], proc_dir=c2f_path, feedback=feedback, log_file=results_dir / "LogFile.txt")
         if platform_system() == "Windows":
             cmd = 'C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -Command "& {' + cmd + '}"'
         c2f.start(cmd)
@@ -734,7 +841,16 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         # feedback.pushDebugInfo("postProcessAlgorithm start")
         output_dict = self.output_dict
         if output_dict.get(self.DRYRUN):
-            feedback.pushWarning("dryrun, no postprocessing")
+            feedback.pushWarning("\n DRY RUN! instructions ended (is up to the user to run this instance)")
+            if platform_system == "Windows":
+                tee = "| Tee-Object -FilePath"
+                follow = "Get-Content -Wait -Tail"
+            else:
+                tee = "| tee"
+                follow = "tail --follow"
+            feedback.pushConsoleInfo(
+                f"PRO TIP: To make it even faster replace '{tee}' with '>', and periodically check the log file with {follow} $of/LogFile.txt in another terminal"
+            )
             write_log(feedback, name=self.name())
             return output_dict
         instance_dir = output_dict[self.INSTANCE_DIR]
@@ -852,22 +968,34 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     def createInstance(self):
         return FireSimulatorAlgorithm()
 
+    def helpString(self):
+        return self.shortHelpString()
+
+    def shortHelpString(self):
+        return self.tr(
+            """
+            See documentation:
+            <a href=https://fire2a.github.io/docs/qgis-toolbox/algo_simulator.html>This dialog</a>
+            <a href=https://fire2a.github.io/docs/Cell2FireW>Cell2FireW</a>
+            <font color="red">Warning: GeoTiff(.tif) support (in development) limited to only reading the fuels layer!</font> If planning to use more layers, transform them to AIIGrid(.asc) format!
+            <font color="orange">Warning: Kitral cbh and cbd rasters must use nodata -9999</font>
+            """
+        )
+
 
 def get_rasters(self, parameters, context):
     raster = dict(
         zip(
-            SIM_INPUTS.keys(),
-            # ["fuels", "elevation", "cbh", "cbd", "ccf", "py"],
-            # ["fuels", "elevation", "pv", "cbh", "cbd", "ccf", "py"],
+            SIM_INPUTS.keys(),  # ["fuels", "elevation", "cbh", "cbd", "ccf", "hm", "py"],
             map(
                 lambda x: self.parameterAsRasterLayer(parameters, x, context),
                 [
                     self.FUEL,
                     self.ELEVATION,
-                    # self.PV,
                     self.CBH,
                     self.CBD,
                     self.CCF,
+                    self.HM,
                     self.IGNIPROBMAP,
                 ],
             ),
@@ -942,17 +1070,50 @@ def compare_raster_properties(base: dict, incumbent: dict):
     return True, "all ok"
 
 
-def get_ext() -> str:
-    """Get the extension for the executable file based on the platform system and machine"""
-    ext = ""
+def get_ext():
+    """checks if cell2fire binary is available"""
     if platform_system() == "Windows":
-        ext = ".exe"
-    else:
-        ext = f".{platform_system()}.{platform_machine()}"
+        suffix = ".exe"
 
-    if ext not in [".exe", ".Linux.x86_64", ".Darwin.arm64", ".Darwin.x86_64"]:
-        QgsMessageLog.logMessage(f"Untested platform: {ext}", tag=TAG, level=Qgis.Warning)
-    if ext == ".Darwin.arm64":
-        QgsMessageLog.logMessage(f"Build not automated, probably using old binary: {ext}", tag=TAG, level=Qgis.Warning)
+    elif platform_system() == "Linux":
+        distribution = popen("lsb_release --short --id 2>/dev/null").read().strip()
+        codename = popen("lsb_release --short --codename 2>/dev/null").read().strip()
+        machine = popen("uname --machine 2>/dev/null").read().strip()
+        suffix = "." + distribution + "." + codename + "." + machine
+        c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
+        if not c2f_bin.is_file():
+            suffix = ""
+            c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
+        if which("ldd"):
+            ldd = popen("ldd " + str(c2f_bin)).read()
+            if "not found" in ldd:
+                suffix = ""
 
-    return ext
+    elif platform_system() == "Darwin":
+        # echo "suffix="$(uname -s).${{ matrix.runner }}.$(arch)"" >> $GITHUB_ENV
+        os = popen("uname -s 2>/dev/null").read().strip()
+        pname = popen("sw_vers -productName 2>/dev/null").read().strip()
+        pmayorvers = int(popen("sw_vers -productVersion 2>/dev/null | cut -d '.' -f 1 2>/dev/null").read().strip())
+        arch = popen("arch 2>/dev/null").read().strip()
+        if arch == "arm64" and pmayorvers != 14:
+            pmayorvers = 14
+        if arch == "i386" and pmayorvers > 13:
+            pmayorvers = 13
+        if arch == "i386" and pmayorvers < 12:
+            pmayorvers = 12
+        suffix = f"_{os}.{pname}-{pmayorvers}.{arch}-static"
+        if which("otool -L"):
+            c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
+            if c2f_bin.is_file():
+                ldd = popen("otool -L " + str(c2f_bin) + " 2>&1 ").read()
+            else:
+                suffix = suffix.replace("-static", "")
+                c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
+                if c2f_bin.is_file():
+                    ldd = popen("otool -L " + str(c2f_bin) + " 2>&1 ").read()
+
+    c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
+    st = c2f_bin.stat()
+    # TODO check if chmod is needed or failed!
+    chmod(c2f_bin, st.st_mode | S_IXUSR | S_IXGRP | S_IXOTH)
+    return suffix

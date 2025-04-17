@@ -531,7 +531,9 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return self.tr(
-            """Although <b>Propagation Directed Graph</b> output is fundamental to risk metrics such as DPV and BC: <b>Warning: Enabling it here can hang-up your system</b>, around 300.000 arrows is manageable for a regular laptop<br>
+            """This algorithm attempts to load everything from a simulation results directory, in a convenient but slower than selecting one of the following algorithms in the <b>PostProcessing group</b>. Check each one for more details.
+
+            Although <b>Propagation Directed Graph</b> output is fundamental to risk metrics such as DPV and BC: <b>Warning: Enabling it here can hang-up your system</b>, around 300.000 arrows is manageable for a regular laptop<br>
             Be safe by counting them first: Go to results/Messages folder:<br>
              - using bash $ wc -l Messages*csv<br>
              - using PowerShell > Get-Content Messages*.csv | Measure-Object -Line<br>
@@ -839,6 +841,16 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         else:
             unit = None
 
+        final_name = ""
+        for item in STATS:
+            feedback.pushDebugInfo(f"{item=}, {stat_name=}")
+            if item["file"] == stat_name:
+                final_name = item["name"]
+                break
+        if final_name == "":
+            feedback.reportError(f"Unknown spatial statistic: {stat_name}")
+            raise QgsProcessingException(f"Unknown spatial statistic: {stat_name}")
+
         # out raster
         output_raster_filename = self.parameterAsOutputLayer(parameters, self.OUTPUT_RASTER, context)
         raster_format = get_output_raster_format(output_raster_filename, feedback)
@@ -891,7 +903,8 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
             if context.willLoadLayerOnCompletion(output_raster_filename):
                 # attach post processor
                 # display_name = f"{stat_name}_{self.numpy_dt[data_type_idx].__name__}"
-                display_name = f"{stat_name}"
+                display_name = f"{final_name}"
+                # known = [item["dir"] + sep + item["file"] for item in STATS]
                 layer_details = context.LayerDetails(
                     display_name, context.project(), display_name, QgsProcessingUtils.LayerHint.Raster
                 )
@@ -915,7 +928,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
             if context.willLoadLayerOnCompletion(output_raster2_filename):
                 layer_details = context.layerToLoadOnCompletionDetails(output_raster2_filename)
                 # layer_details.name = f"{stat_name}_mean&std_{self.numpy_dt[data_type_idx].__name__}"
-                layer_details.name = f"{stat_name}_mean&std"
+                layer_details.name = f"{final_name} mean&std"
                 layer_details.groupName = NAME["layer_group"]
                 layer_details.layerSortKey = 3
 
@@ -942,6 +955,23 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
 
     def icon(self):
         return QIcon(":/plugins/fireanalyticstoolbox/assets/fireface.svg")
+
+    def helpString(self):
+        return self.shortHelpString()
+
+    def shortHelpString(self):
+        return self.tr(
+            """
+            This post processing algorithm, reads the raw output of C2F-W simulator and generates two rasters.
+            One has one band per simulation, named "StatName" (so N bands for N simulations), e.g., Surface Flame Lenght
+            
+            The second one has two bands corresponding to the mean and standard deviation, e.g., "Mean&StdDev Hit Rate Of Spread".
+            The <b>mean statistic</b> sums, for each pixel, its values divided by <b>burnt count</b>. 
+            The <b>standard deviation</b> divides against <b>all simulations</b>, not burnt count of each individual pixel.
+
+            Check the <a href=https://fire2a.github.io/docs/qgis-toolbox/algo_simulator.html#options>table below<a/> for more info
+            """
+        )
 
 
 class ScarSIMPP(QgsProcessingAlgorithm):
@@ -1673,7 +1703,9 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
     BASE_LAYER = "ProtectionValueRaster"
     IN = "PickledMessages"
     OUT_R = "RasterOutput"
-    THREADS = "Threads"
+    IN_THREADS = "Threads"
+    IN_FILL = "NoBurnFill"
+    IN_SCALE = "Scaling"
 
     def initAlgorithm(self, config):
         self.addParameter(
@@ -1708,7 +1740,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         )
         # advanced
         qppn = QgsProcessingParameterNumber(
-            name=self.THREADS,
+            name=self.IN_THREADS,
             description=self.tr("Maximum number of threads to use simultaneously"),
             type=QgsProcessingParameterNumber.Integer,
             defaultValue=cpu_count() - 1,
@@ -1718,6 +1750,24 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         )
         qppn.setFlags(qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(qppn)
+        qppb = QgsProcessingParameterBoolean(
+            name=self.IN_FILL,
+            description=("Include original protection values where no fire was seen (default true)"),
+            defaultValue=True,
+            optional=True,
+        )
+        qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppb)
+        qppb1 = QgsProcessingParameterBoolean(
+            name=self.IN_SCALE,
+            description=(
+                "Scale every pixel by burn count (default true); or all pixels by number of simulations (false)"
+            ),
+            defaultValue=True,
+            optional=True,
+        )
+        qppb1.setFlags(qppb1.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(qppb1)
 
     def processAlgorithm(self, parameters, context, feedback):
         """Here is where the processing itself takes place."""
@@ -1740,6 +1790,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         if nodata:
             pv[pv == nodata] = 0
         dpv = zeros(pv.shape, dtype=pv.dtype)
+        burn_count = zeros(pv.shape, dtype=pv.dtype)
 
         if platform_system() == "Windows":
             feedback.pushWarning("MsWindows detected! Using the serial DPV calculation, switch to Linux to parallelize")
@@ -1760,12 +1811,13 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
                 mdpv = pv[i2n]
                 recursion(treeG, root, mdpv, i2n)
                 dpv[i2n] += mdpv
+                burn_count[i2n] += 1
                 feedback.setProgress((count + 1) / nsim * 100)
                 if feedback.isCanceled():
                     break
         else:
             # multiprocessing
-            threads = self.parameterAsEnum(parameters, self.THREADS, context)
+            threads = self.parameterAsEnum(parameters, self.IN_THREADS, context)
             feedback.pushDebugInfo(f"Orchestrating {nsim} processes in a {threads}-lane parallel execution pool")
             pool = Pool(threads)
             results = [
@@ -1789,11 +1841,24 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
             for result in results:
                 sdpv, si2n, sid = result.get()
                 dpv[si2n] += sdpv
+                burn_count[si2n] += 1
                 # feedback.pushDebugInfo(f"accumulated dpv sum -per simulation {sid}: {dpv.sum()}")
             pool.close()
             pool.join()
+
+        feedback.pushDebugInfo("End parallel part")
+        # fill places where no fire was recorded
+        if self.parameterAsBool(parameters, self.IN_FILL, context):
+            mask = (dpv == 0) & (pv != 0)
+            perc = mask.sum() / len(mask) * 100
+            feedback.pushDebugInfo(f"Completing {perc:.2f} % of landscape that never burned")
+            dpv[mask] = pv[mask]
         # scale
-        dpv = dpv / nsim
+        if self.parameterAsBool(parameters, self.IN_SCALE, context):
+            burned_mask = burn_count != 0
+            dpv[burned_mask] = dpv[burned_mask] / burn_count[burned_mask]
+        else:
+            dpv = dpv / nsim
         # descriptive statistics
         if np_any(dpv[dpv != 0]):
             dpv_stats = scipy_stats.describe(dpv[dpv != 0.0], axis=None)
@@ -1857,6 +1922,29 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
 
     def displayName(self):
         return self.tr(NAME["dpv"])
+
+    def helpString(self):
+        return self.shortHelpString()
+
+    def shortHelpString(self):
+        return self.tr(
+            """This Metric mixes a user defined proteccion value raster with the fire spread history of each simulation (the Propagation Digraph). Using the fact that the value of a pixel should also include the values of downstream pixels (or succesors in its fire propagation tree); In the sense that protecting that pixel also protects where the fire would have gone if not protected<br>
+            <a href="https://doi.org/10.1016/j.cor.2021.105252">https://doi.org/10.1016/j.cor.2021.105252</a><br>
+            <b>To run:</b><br>
+            1. Select a protection value raster 
+                - Any number type works
+                - NODATA is mapped to 0 value
+                - In a relative sense, negative numbers mean you want them burned / unprotected
+            2. First generate the Propagation Digraph Algorithm that generates the messages.pickle file <i>(skip showing them if they are too many simulations and periods)</i> by default along side the original messages.csv files
+            3. Select the messages.pickle file
+            <b>Advanced options:</b><br>
+            - <b>Threads</b> Maximum number of threads to use simultaneously. Does not work on Windows! (use linux for serious parallelization)
+            For retaining <i>protection value compatibility</i> use:
+            - <b>No Burn Fill</b> Include original protection values where no fire was seen (default true)
+            - <b>Scaling</b> Scale every pixel by burn count (default true); or all pixels by number of simulations (false)
+            For <i>fraction of times pixels were burned</i> use the false options, even with burn probability as the protection value
+            """
+        )
 
     def icon(self):
         return QIcon(":/plugins/fireanalyticstoolbox/assets/dpv.svg")

@@ -9,6 +9,7 @@ from importlib.metadata import PackageNotFoundError, distribution
 from pathlib import Path
 from re import match as re_match
 from subprocess import run as subprocess_run
+from platform import system as platform_system
 
 from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt.QtWidgets import QCheckBox, QMessageBox
@@ -71,7 +72,14 @@ def run():
         QMessageBox.No,
     )
     if response == QMessageBox.Yes:
-        result = subprocess_run(["python3", "-m", "pip", "install", requirement], capture_output=True, text=True)
+        if platform_system() == "Darwin":
+            cwd = sys.prefix
+            right_here = "./"
+            QgsMessageLog().logMessage(f"Plugin {plugin_name}: Using Python in {cwd}", tag="Plugins", level=Qgis.Success)
+        else:
+            cwd = None
+            right_here = ""
+        result = subprocess_run([right_here+"python3", "-m", "pip", "install", requirement], capture_output=True, text=True, cwd=cwd)
         if result.returncode == 0:
             msg = [f"pip install {requirement} success!"]
             QgsMessageLog().logMessage(f"Plugin {plugin_name}: {msg[-1]}", tag="Plugins", level=Qgis.Success)

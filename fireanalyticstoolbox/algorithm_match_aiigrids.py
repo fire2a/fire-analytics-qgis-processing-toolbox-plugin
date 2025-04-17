@@ -193,10 +193,10 @@ class MatchAIIGrid(QgsProcessingAlgorithm):
         return self.tr("Match AII Grids")
 
     def group(self):
-        return self.tr("Simulator Preparation Help")
+        return self.tr("Utils")
 
     def groupId(self):
-        return "simulatorpreparation"
+        return "utils"
 
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)
@@ -205,7 +205,7 @@ class MatchAIIGrid(QgsProcessingAlgorithm):
         return MatchAIIGrid()
 
     def helpUrl(self):
-        return "https://www.github.com/fdobad/qgis-processingplugin-template/issues"
+        return "https://fire2a.github.io/docs/qgis-toolbox"
 
     def shortDescription(self):
         return self.tr(
