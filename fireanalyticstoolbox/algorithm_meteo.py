@@ -219,23 +219,8 @@ class MeteoAlgo(QgsProcessingAlgorithm):
         return "https://fire2a.github.io/docs/qgis-toolbox"
 
     def shortDescription(self):
-        return self.tr(
-            """<b>Meteo</b> generates weather scenarios files for (Cell2)Fire(W) Simulator using the Kitral fuel model standard.<br>
-            Using real Chilean weather station data from the Valparaíso to the Araucanía region in summer; Defining the target area (32S to 40S)<br>
-            <br>
-            - Selecting a <b>location</b> will pick the three nearest weather stations for sampling<br>
-            - <b>Start hour</b>: Time of day from where to start picking station data<br>
-            - <b>Temperature quantile</b>: A number greater than or equal to 0 and less than 1. It takes the daily maximum temperature values that are above the desired proportion. <br> 
-            Example: quantile 0.75 takes the days when the daily maximum temperature is above the 75 &#37; <br>	
-            - <b>Length of each scenario </b>: Indicates the duration, in hours, of each scenario<br>
-            - <b>Number_of_simulations</b>: files to generate<br>
-            - <b>output_directory</b>: folder where the files are written containing Weather(+digit).csv numbered files with each weather scenario<br>
-            <br>
-            Future Roadmap:<br>
-            - <b>step resolution</b>: Do other than hourly weather scenarios, to be used with the --Weather-Period-Length option (that defaults to 60)<br>
-            - Draw an animated vector layer representing the weather scenarios as arrows<br>
-            """
-        )
+        from fire2a.meteo import __doc__ as docstring
+        return self.tr(docstring)
 
     def icon(self):
         return QIcon(":/plugins/fireanalyticstoolbox/assets/meteo.svg")
