@@ -164,10 +164,10 @@ class MeteoAlgo(QgsProcessingAlgorithm):
         destination_crs = QgsCoordinateReferenceSystem(4326)  # EPSG:4326 for WGS 84
         crs_transform = QgsCoordinateTransform(source_crs, destination_crs, QgsProject.instance())
         transformed_point = crs_transform.transform(point)
-        x, y = transformed_point.x(), transformed_point.y()
-        feedback.pushDebugInfo(f"{x=}, {y=}")
-        instance["x"] = x
-        instance["y"] = y
+        lon, lat = transformed_point.x(), transformed_point.y()
+        feedback.pushDebugInfo(f"{lat=}, {lon=}")
+        instance["lon"] = lon
+        instance["lat"] = lat
 
         feedback.pushInfo(f"Generating {instance=}")
 
