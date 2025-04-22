@@ -37,14 +37,14 @@ from osgeo import gdal
 from pyomo import environ as pyo
 from qgis.core import (QgsFeature, QgsFeatureRequest, QgsFeatureSink, QgsField, QgsFields, QgsProcessing,
                        QgsProcessingAlgorithm, QgsProcessingException, QgsProcessingParameterBoolean,
-                       QgsProcessingParameterDefinition, QgsProcessingParameterFeatureSink,
+                       QgsProcessingParameterDefinition, QgsProcessingParameterEnum, QgsProcessingParameterFeatureSink,
                        QgsProcessingParameterFeatureSource, QgsProcessingParameterField, QgsProcessingParameterMatrix,
                        QgsProcessingParameterMultipleLayers, QgsProcessingParameterNumber,
                        QgsProcessingParameterRasterLayer)
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 from scipy import stats
-from scipy.ndimage import convolve ### LÍNEA NUEVA
+from scipy.ndimage import convolve  # ## LÍNEA NUEVA
 from toml import dump as toml_dump
 
 from .algorithm_utils import (QgsProcessingParameterRasterDestinationGpkg, array2rasterInt16, get_output_raster_format,
@@ -904,6 +904,7 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
     """Algorithm that takes selects the most valuable raster pixels restriced to a total weight using a MIP solver"""
 
     IN_PA = "PA"
+    IN_STRAT = "STRATEGY"
     IN_VALUE = "VALUE"
     IN_WEIGHT = "WEIGHT"
     IN_RATIO = "RATIO"
@@ -922,6 +923,16 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
                 description=self.tr("Protected Areas layer"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=True,
+            )
+        )
+        # protected area strategy
+        self.addParameter(
+            QgsProcessingParameterEnum(
+                name=self.IN_STRAT,
+                description=self.tr("SEBA protected area strategy"),
+                options=["SEBA Skip the protected area", "SEBA Reselect inner to border"],
+                allowMultiple=False,
+                defaultValue=0,
             )
         )
         # value raster
@@ -972,6 +983,9 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
 
         # report solver unavailability
         feedback.pushInfo(f"Solver unavailability:\n{self.solver_exception_msg}\n")
+
+        strategy = self.parameterAsInt(parameters, self.IN_STRAT, context)
+        feedback.pushDebugInfo(f"{strategy=}")
 
         # get raster data
         pa_layer = self.parameterAsRasterLayer(parameters, self.IN_PA, context)
@@ -1070,11 +1084,9 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         capacity = np.round(weight_sum * ratio)
         feedback.pushInfo(f"capacity bound: {ratio=}, {weight_sum=}, {capacity=}\n")
 
-        pa_indexes = np.where(
-            (pa_data == 1)
-        )[0]
-        pa_mask = (pa_data == 1)
-        #mask[pa_indexes] = False ###AQUÍ HAY UN CAMBIO
+        pa_indexes = np.where((pa_data == 1))[0]
+        pa_mask = pa_data == 1
+        # mask[pa_indexes] = False ###AQUÍ HAY UN CAMBIO
 
         # cplex hack
         # TODO : make pull request to pyomo to fix this
@@ -1102,34 +1114,33 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         response[mask] = masked_response
 
         #### ESTO ES NUEVO
-        pa_firebreak_mask = (pa_mask[mask]) & (masked_response==1)
+        pa_firebreak_mask = (pa_mask[mask]) & (masked_response == 1)
         if np.any(pa_firebreak_mask):
             used_capacity = pyo.value(pyo.sum_product(model.X, model.We, index=model.N))
             new_capacity = capacity - used_capacity + (weight_data[mask][pa_firebreak_mask]).sum()
 
-            kernel = np.array([[1, 1, 1],
-                            [1, 1, 1],
-                            [1, 1, 1]])
+            kernel = np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
             boundary_pa = convolve(pa_data.reshape([height, width]), kernel)
-            boundary_pa = np.where(boundary_pa>0, 1, 0)
+            boundary_pa = np.where(boundary_pa > 0, 1, 0)
             boundary_pa = boundary_pa - pa_data.reshape([height, width])
-            boundary_pa_mask = (boundary_pa==1).reshape([-1])
+            boundary_pa_mask = (boundary_pa == 1).reshape([-1])
 
             max_abs_value_boundary = np.abs(value_data[boundary_pa_mask & mask]).max()
             max_value_nopa = value_data[(~pa_mask) & mask].max()
             value_data[boundary_pa_mask & mask] += max_abs_value_boundary + max_value_nopa
 
-
-            new_model = do_knapsack(value_data[mask & (response!=1) & (~pa_mask)], 
-                                    weight_data[mask & (response!=1) & (~pa_mask)], 
-                                    new_capacity)
+            new_model = do_knapsack(
+                value_data[mask & (response != 1) & (~pa_mask)],
+                weight_data[mask & (response != 1) & (~pa_mask)],
+                new_capacity,
+            )
 
             results = pyomo_run_model(self, parameters, context, feedback, new_model, display_model=False)
             retval, solver_dic = pyomo_parse_results(results, feedback)
 
             new_masked_response = np.array([pyo.value(new_model.X[i], exception=False) for i in new_model.X])
             response[pa_indexes] = 0
-            response[mask & (response!=1) & (~pa_mask)] = new_masked_response
+            response[mask & (response != 1) & (~pa_mask)] = new_masked_response
         ######
 
         feedback.pushDebugInfo(f"{response=}, {response.shape=}")
@@ -1212,7 +1223,7 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         return "https://fire2a.github.io/docs/qgis-toolbox"
 
     def shortDescription(self):
-        return self.tr("""Sebastian""")
+        return self.tr("""SEBA""")
 
     def helpString(self):
         return self.shortHelpString()
@@ -1222,6 +1233,6 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return self.tr(
-            """sebastian
+            """SEBA
             """
         )
