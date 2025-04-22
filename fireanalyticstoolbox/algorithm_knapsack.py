@@ -197,7 +197,7 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
 
         ratio = self.parameterAsDouble(parameters, self.IN_RATIO, context)
         weight_sum = weight_data[mask].sum()
-        capacity = np.round(weight_sum * ratio)
+        capacity = weight_sum * ratio
         feedback.pushInfo(f"capacity bound: {ratio=}, {weight_sum=}, {capacity=}\n")
 
         # cplex hack
@@ -462,7 +462,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
 
         ratio = self.parameterAsDouble(parameters, self.IN_RATIO, context)
         weight_sum = weight_data[mask].sum()
-        capacity = np.round(weight_sum * ratio)
+        capacity = weight_sum * ratio
         feedback.pushInfo(f"capacity bound: {ratio=}, {weight_sum=}, {capacity=}\n")
 
         # cplex hack
@@ -991,7 +991,7 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         pa_layer = self.parameterAsRasterLayer(parameters, self.IN_PA, context)
         pa_data = get_raster_data(pa_layer)
         pa_nodata = get_raster_nodata(pa_layer, feedback)
-        pa_map_info = get_raster_info(pa_layer)
+        pa_map_info = get_raster_info(pa_layer )
 
         value_layer = self.parameterAsRasterLayer(parameters, self.IN_VALUE, context)
         value_data = get_raster_data(value_layer)
@@ -1081,12 +1081,13 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
 
         ratio = self.parameterAsDouble(parameters, self.IN_RATIO, context)
         weight_sum = weight_data[mask].sum()
-        capacity = np.round(weight_sum * ratio)
+        capacity = weight_sum * ratio
         feedback.pushInfo(f"capacity bound: {ratio=}, {weight_sum=}, {capacity=}\n")
 
         pa_indexes = np.where((pa_data == 1))[0]
         pa_mask = pa_data == 1
-        # mask[pa_indexes] = False ###AQUÍ HAY UN CAMBIO
+        if strategy == 0:
+            mask[pa_indexes] = False ###AQUÍ HAY UN CAMBIO
 
         # cplex hack
         # TODO : make pull request to pyomo to fix this
@@ -1114,34 +1115,35 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         response[mask] = masked_response
 
         #### ESTO ES NUEVO
-        pa_firebreak_mask = (pa_mask[mask]) & (masked_response == 1)
-        if np.any(pa_firebreak_mask):
-            used_capacity = pyo.value(pyo.sum_product(model.X, model.We, index=model.N))
-            new_capacity = capacity - used_capacity + (weight_data[mask][pa_firebreak_mask]).sum()
+        if strategy == 1:
+            pa_firebreak_mask = (pa_mask[mask]) & (masked_response == 1)
+            if np.any(pa_firebreak_mask):
+                used_capacity = pyo.value(pyo.sum_product(model.X, model.We, index=model.N))
+                new_capacity = capacity - used_capacity + (weight_data[mask][pa_firebreak_mask]).sum()
 
-            kernel = np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
-            boundary_pa = convolve(pa_data.reshape([height, width]), kernel)
-            boundary_pa = np.where(boundary_pa > 0, 1, 0)
-            boundary_pa = boundary_pa - pa_data.reshape([height, width])
-            boundary_pa_mask = (boundary_pa == 1).reshape([-1])
+                kernel =      np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
+                boundary_pa = convolve(pa_data.reshape([height, width]), kernel)
+                boundary_pa = np.where(boundary_pa > 0, 1, 0)
+                boundary_pa = boundary_pa - pa_data.reshape([height, width])
+                boundary_pa_mask = (boundary_pa == 1).reshape([-1])
 
-            max_abs_value_boundary = np.abs(value_data[boundary_pa_mask & mask]).max()
-            max_value_nopa = value_data[(~pa_mask) & mask].max()
-            value_data[boundary_pa_mask & mask] += max_abs_value_boundary + max_value_nopa
+                max_abs_value_boundary = np.abs(value_data[boundary_pa_mask & mask]).max()
+                max_value_nopa = value_data[(~pa_mask) & mask].max()
+                value_data[boundary_pa_mask & mask] += max_abs_value_boundary + max_value_nopa
 
-            new_model = do_knapsack(
-                value_data[mask & (response != 1) & (~pa_mask)],
-                weight_data[mask & (response != 1) & (~pa_mask)],
-                new_capacity,
-            )
+                new_model = do_knapsack(
+                    value_data[mask & (response != 1) & (~pa_mask)],
+                    weight_data[mask & (response != 1) & (~pa_mask)],
+                    new_capacity,
+                )
 
-            results = pyomo_run_model(self, parameters, context, feedback, new_model, display_model=False)
-            retval, solver_dic = pyomo_parse_results(results, feedback)
+                results = pyomo_run_model(self, parameters, context, feedback, new_model, display_model=False)
+                retval, solver_dic = pyomo_parse_results(results, feedback)
 
-            new_masked_response = np.array([pyo.value(new_model.X[i], exception=False) for i in new_model.X])
-            response[pa_indexes] = 0
-            response[mask & (response != 1) & (~pa_mask)] = new_masked_response
-        ######
+                new_masked_response = np.array([pyo.value(new_model.X[i], exception=False) for i in new_model.X])
+                response[pa_indexes] = 0
+                response[mask & (response != 1) & (~pa_mask)] = new_masked_response
+            ######
 
         feedback.pushDebugInfo(f"{response=}, {response.shape=}")
         assert N == len(response)
@@ -1157,7 +1159,7 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         outFormat = get_output_raster_format(output_layer_filename, feedback)
 
         array2rasterInt16(
-            response,
+            response,  
             "knapsack",
             output_layer_filename,
             extent,
@@ -1223,7 +1225,7 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         return "https://fire2a.github.io/docs/qgis-toolbox"
 
     def shortDescription(self):
-        return self.tr("""SEBA""")
+        return self.tr("""SEBA short description""")
 
     def helpString(self):
         return self.shortHelpString()
@@ -1233,6 +1235,6 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return self.tr(
-            """SEBA
+            """SEBA shortHelpString
             """
         )
