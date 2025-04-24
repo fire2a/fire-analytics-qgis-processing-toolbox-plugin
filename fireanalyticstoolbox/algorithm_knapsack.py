@@ -1238,17 +1238,17 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             """Optimizes the knapsack problem by incorporating protected area (pixels) that the algorithm cannot select. 
 
                 <b>1. Select the protected pixels layer:</b> 
-                This must be a raster fully populated with 0's and 1's. Pixels with a value of 1 will be treated as non-selectable, while those with a value of 0 will be treated as selectable.
+                This must be a raster fully populated with 0s and 1s. Pixels with a value of 1 will be treated as protected, while those with a value of 0 will be considered non-protected.
 
-                It is crucial that the raster contains no missing values and only binary values (0 and 1) to ensure the algorithm works correctly.
-
+                It is crucial that the raster contains no missing values and only binary values (0 and 1) to ensure the algorithm functions correctly.
+                
                 <b>2. Choose the strategy to apply to protected pixels:</b>
                 Two strategies are available:
 
                 Strategy 1 – Make protected pixels unselectable:
-                This strategy ignores pixels classified as non-selectable and solves the knapsack problem using only selectable pixels.
-                
+                This strategy excludes pixels classified as protected from selection and solves the knapsack problem using only non-protected pixels.
+
                 Strategy 2 – Reselection prioritizing pixels neighboring the protected area:
-                This strategy involves first solving the classic knapsack problem using the provided value and weight layers. Then, the pixels selected outside the protected area are retained, while those selected within the protected area are re-optimized by relocating them toward the border
+                This strategy involves first solving the classic knapsack problem using the provided value and weight layers. Pixels selected outside the protected area are retained, while those selected within the protected area are re-optimized by relocating them toward its border.
             """
         )
