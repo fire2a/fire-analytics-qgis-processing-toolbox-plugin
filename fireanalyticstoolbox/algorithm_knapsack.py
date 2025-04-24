@@ -920,7 +920,7 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.IN_PA,
-                description=self.tr("Protected pixels layer"),
+                description=self.tr("Protected area layer"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=True,
             )
@@ -930,7 +930,7 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterEnum(
                 name=self.IN_STRAT,
                 description=self.tr("Strategy for the protected pixels"),
-                options=["Skip the protected pixels", "Reselection prioritizing neighboring pixels."],
+                options=["Make protected pixels unselectable", "Reselection prioritizing pixels neighboring the protected area"],
                 allowMultiple=False,
                 defaultValue=0,
             )
