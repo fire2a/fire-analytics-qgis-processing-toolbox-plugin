@@ -920,7 +920,7 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.IN_PA,
-                description=self.tr("Protected Areas layer"),
+                description=self.tr("Protected pixels layer"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=True,
             )
@@ -929,8 +929,8 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterEnum(
                 name=self.IN_STRAT,
-                description=self.tr("SEBA protected area strategy"),
-                options=["SEBA Skip the protected area", "SEBA Reselect inner to border"],
+                description=self.tr("Strategy for the protected pixels"),
+                options=["Skip the protected pixels", "Reselection prioritizing neighboring pixels."],
                 allowMultiple=False,
                 defaultValue=0,
             )
@@ -1207,7 +1207,7 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         Returns the translated algorithm name, which should be used for any
         user-visible display of the algorithm name.
         """
-        return self.tr("PA Raster Knapsack")
+        return self.tr("Raster Knapsack with Protected Pixels")
 
     def group(self):
         return self.tr("Decision Optimization")
@@ -1235,6 +1235,22 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return self.tr(
-            """SEBA shortHelpString
+            """Optimizes the knapsack problem by incorporating protected pixels that the algorithm cannot select. 
+
+                <b>1. Select the protected pixels layer:</b> 
+                This must be a raster fully populated with 0's and 1's. Pixels with a value of 1 will be treated as non-selectable, while those with a value of 0 will be treated as selectable.
+
+                It is crucial that the raster contains no missing values and only binary values (0 and 1) to ensure the algorithm works correctly.
+
+                <b>2. Choose the strategy to apply to protected pixels:</b>
+                Two strategies are available:
+
+                Strategy 1 – Skip the protected pixels:
+                This strategy ignores pixels classified as non-selectable and solves the knapsack problem using only selectable pixels.
+                It’s important to note that the weights of non-selectable pixels are still included in the calculation of the total weight (weight.sum), and thus influence the model’s capacity (capacity = capacity ratio * weight.sum).
+
+                Strategy 2 – Reselection prioritizing neighboring pixels:
+                This strategy involves solving the classic knapsack problem using the provided value and weight layers. After the initial solution, selected non-protected pixels are retained, while selected protected pixels are discarded. A new knapsack problem is then solved to replace the discarded pixels using only the non-protected pixels.
+                The new problem is solved with a capacity equal to the freed space from the discarded protected pixels. Additionally, the reselection process prioritizes pixels that are adjacent to protected ones. This is done by increasing their value such that all pixels adjacent to protected pixels have a higher value than any non-adjacent pixel.                                
             """
         )
