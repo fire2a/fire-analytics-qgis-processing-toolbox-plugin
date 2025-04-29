@@ -68,7 +68,7 @@ from qgis.core import (Qgis, QgsColorRampShader, QgsFeature, QgsFeatureSink, Qgs
                        QgsProcessingParameterRasterDestination, QgsProcessingParameterRasterLayer, QgsProcessingUtils,
                        QgsProject, QgsRasterBandStats, QgsRasterFileWriter, QgsRasterShader,
                        QgsSingleBandPseudoColorRenderer, QgsWkbTypes)
-from qgis.PyQt.QtCore import QCoreApplication, QVariant
+from qgis.PyQt.QtCore import QCoreApplication, QMetaType
 from qgis.PyQt.QtGui import QColor, QIcon
 from scipy import stats as scipy_stats
 
@@ -141,10 +141,10 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         # create layer
         # fields
         fields = QgsFields()
-        fields.append(QgsField(name="simulation", type=QVariant.Int, len=10))
-        fields.append(QgsField(name="cell", type=QVariant.Int, len=10))
-        fields.append(QgsField(name="x_pixel", type=QVariant.Int, len=10))
-        fields.append(QgsField(name="y_line", type=QVariant.Int, len=10))
+        fields.append(QgsField(name="simulation", type=QMetaType.Type.Int, len=10))
+        fields.append(QgsField(name="cell", type=QMetaType.Type.Int, len=10))
+        fields.append(QgsField(name="x_pixel", type=QMetaType.Type.Int, len=10))
+        fields.append(QgsField(name="y_line", type=QMetaType.Type.Int, len=10))
         # sink
         (sink, dest_id) = self.parameterAsSink(
             parameters,
@@ -616,8 +616,8 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
         H = raster_props["RasterYSize"]
         # set output layer
         fields = QgsFields()
-        fields.append(QgsField(name="simulation", type=QVariant.Int, len=10))
-        fields.append(QgsField(name="time", type=QVariant.Int, len=10))
+        fields.append(QgsField(name="simulation", type=QMetaType.Type.Int, len=10))
+        fields.append(QgsField(name="time", type=QMetaType.Type.Int, len=10))
         # TODO remove (,)
         (sink, dest_id) = self.parameterAsSink(
             parameters,
