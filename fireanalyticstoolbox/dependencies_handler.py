@@ -2,6 +2,7 @@
 """
 see https://github.com/fdobad/qgis-easy-dependencies-plugin/blob/main/README.md
 """
+from sys import prefix as sys_prefix
 from configparser import ConfigParser
 from distutils.version import LooseVersion
 from importlib import import_module, reload
@@ -73,8 +74,8 @@ def run():
     )
     if response == QMessageBox.Yes:
         if platform_system() == "Darwin":
-            cwd = sys.prefix
-            right_here = "./"
+            cwd = sys_prefix
+            right_here = "./bin/"
             QgsMessageLog().logMessage(f"Plugin {plugin_name}: Using Python in {cwd}", tag="Plugins", level=Qgis.Success)
         else:
             cwd = None
@@ -113,7 +114,7 @@ def run():
         qmb = QMessageBox(
             QMessageBox.Warning,
             f"Plugin '{plugin_name}'",
-            f"{plugin_name}: User declined installation! Please resolve manually in QGIS Python Console, typing:\n\n\t!pip install {requirement}\n",
+            f"{plugin_name}: User declined installation! YOU'LL GET AN IMPORT ERROR! Please resolve manually in QGIS Python Console, typing:\n\n\t!pip install {requirement}\n",
         )
         qcb = QCheckBox("Do not attempt to check and install dependencies again!")
         qmb.setCheckBox(qcb)
