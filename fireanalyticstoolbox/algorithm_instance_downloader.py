@@ -72,11 +72,12 @@ class InstanceDownloader(QgsProcessingAlgorithm):
             QgsProcessingParameterFileDestination(
                 name=self.FILEDEST,
                 description=self.tr(
-                    "Output file\n"
+                    "Output file [optional]\n"
                     "- leave empty for using selected filename and temporary path\n"
                     "- if current project is saved its path will be used\n"
-                    "- else use absolute filename\n"
-                    "- or relative filenaming for users home directory"
+                    "- else use absolute filenaming (.zip extension is suggested)\n"
+                    "- or relative filenaming for users home directory (or default qgis launch path)\n\n"
+                    "After downloading, the file will be unzipped and opened in the file browser\n"
                 ),
                 optional=True,
             )
@@ -112,7 +113,7 @@ class InstanceDownloader(QgsProcessingAlgorithm):
                     "OUTPUT": str(outfiledest),
                 },
             )
-        except QgsProcessingException as e:
+        except QgsProcessingException:
             return {"no internet": "try again later"}
         # feedback.pushInfo(f"{output}")
         feedback.pushInfo(f"Download complete to {outfiledest}, unzipping...")
