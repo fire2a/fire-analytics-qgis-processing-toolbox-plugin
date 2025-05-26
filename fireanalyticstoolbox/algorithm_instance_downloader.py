@@ -42,19 +42,23 @@ class InstanceDownloader(QgsProcessingAlgorithm):
     yson = None
 
     def initAlgorithm(self, config):
-        with NamedTemporaryFile(delete=False) as tmpfile:
-            try:
-                output = processing.run(
-                    "native:filedownloader",
-                    {
-                        "URL": self.url,
-                        "METHOD": "0",
-                        "OUTPUT": tmpfile.name,
-                    },
-                )
-                self.yson = json_load(open(output["OUTPUT"], "r"))
-            except QgsProcessingException as e:
-                self.yson = {"assets": [{"name": "No internet, try again later!"}]}
+        try:
+            output = processing.run(
+                "native:filedownloader",
+                {
+                    "URL": self.url,
+                    "METHOD": "0",
+                    "OUTPUT": "TEMPORARY_OUTPUT",
+                },
+            )
+            if "OUTPUT" not in output:
+                raise QgsProcessingException("QGIS native:filedownloader did not return correctly")
+            if not Path(output["OUTPUT"]).is_file() or Path(output["OUTPUT"]).stat().st_size == 0:
+                raise QgsProcessingException("QGIS native:filedownloader did not return a valid file")
+            with open(output["OUTPUT"], "r") as f:
+                self.yson = json_load(f)
+        except QgsProcessingException:
+            self.yson = {"assets": [{"name": "No internet, try again later! check Processing logs for more info"}]}
 
         self.addParameter(
             QgsProcessingParameterEnum(
@@ -68,11 +72,12 @@ class InstanceDownloader(QgsProcessingAlgorithm):
             QgsProcessingParameterFileDestination(
                 name=self.FILEDEST,
                 description=self.tr(
-                    "Output file\n"
+                    "Output file [optional]\n"
                     "- leave empty for using selected filename and temporary path\n"
                     "- if current project is saved its path will be used\n"
-                    "- else use absolute filename\n"
-                    "- or relative filenaming for users home directory"
+                    "- else use absolute filenaming (.zip extension is suggested)\n"
+                    "- or relative filenaming for users home directory (or default qgis launch path)\n\n"
+                    "After downloading, the file will be unzipped and opened in the file browser\n"
                 ),
                 optional=True,
             )
@@ -109,6 +114,7 @@ class InstanceDownloader(QgsProcessingAlgorithm):
                 },
             )
         except QgsProcessingException as e:
+            feedback.reportError(f"Exception downloading {instance}: {e}")
             return {"no internet": "try again later"}
         # feedback.pushInfo(f"{output}")
         feedback.pushInfo(f"Download complete to {outfiledest}, unzipping...")
