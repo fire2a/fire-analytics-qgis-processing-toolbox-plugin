@@ -113,7 +113,8 @@ class InstanceDownloader(QgsProcessingAlgorithm):
                     "OUTPUT": str(outfiledest),
                 },
             )
-        except QgsProcessingException:
+        except QgsProcessingException as e:
+            feedback.reportError(f"Exception downloading {instance}: {e}")
             return {"no internet": "try again later"}
         # feedback.pushInfo(f"{output}")
         feedback.pushInfo(f"Download complete to {outfiledest}, unzipping...")
