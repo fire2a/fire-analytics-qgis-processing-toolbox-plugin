@@ -79,7 +79,10 @@ class IgnitionPointsFromLogFileSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform"),
+                # description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
+                description=QCoreApplication.translate(
+                    "BaseContext", "Base raster (normally fuel or elevation) to get the geotransform"
+                ),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -176,8 +179,8 @@ class IgnitionPointsFromLogFileSIMPP(QgsProcessingAlgorithm):
         write_log(feedback, name=self.name())
         return {self.OUT_LAYER: dest_id}
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="IgnitionPointsFromLogFileSIMPP"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return IgnitionPointsFromLogFileSIMPP()

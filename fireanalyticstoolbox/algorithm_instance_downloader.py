@@ -132,8 +132,8 @@ class InstanceDownloader(QgsProcessingAlgorithm):
     def displayName(self):
         return self.tr("Instance Downloader")
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="InstanceDownloader"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return InstanceDownloader()

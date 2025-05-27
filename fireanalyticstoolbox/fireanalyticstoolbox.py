@@ -35,6 +35,7 @@ import os
 import sys
 
 from qgis.core import QgsApplication, QgsProcessingAlgorithm
+from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator
 
 from .fireanalyticstoolbox_provider import FireToolboxProvider
 
@@ -48,6 +49,17 @@ class FireToolboxPlugin(object):
 
     def __init__(self):
         self.provider = None
+
+        # initialize plugin directory
+        self.plugin_dir = os.path.dirname(__file__)
+        # initialize locale
+        locale = QSettings().value("locale/userLocale")[0:2]
+        locale_path = os.path.join(self.plugin_dir, "i18n", "{}.qm".format(locale))
+
+        if os.path.exists(locale_path):
+            self.translator = QTranslator()
+            self.translator.load(locale_path)
+            QCoreApplication.installTranslator(self.translator)
 
     def initProcessing(self):
         """Init Processing provider for QGIS >= 3.8."""

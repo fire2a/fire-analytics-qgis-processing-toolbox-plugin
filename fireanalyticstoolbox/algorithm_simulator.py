@@ -962,8 +962,8 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
     #     """
     #     return "experimental"
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="FireSimulatorAlgorithm"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return FireSimulatorAlgorithm()

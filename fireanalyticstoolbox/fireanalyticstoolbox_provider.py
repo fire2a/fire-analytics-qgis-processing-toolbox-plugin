@@ -31,6 +31,7 @@ __copyright__ = "(C) 2023 by Fernando Badilla Veliz - Fire2a.com"
 __revision__ = "$Format:%H$"
 
 from qgis.core import QgsProcessingProvider
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 
 from .algorithm_clusterize import ClusterizeAlgorithm
@@ -127,3 +128,6 @@ class FireToolboxProvider(QgsProcessingProvider):
         implementation returns the same string as name().
         """
         return self.name()
+
+    def tr(self, string, context="FireToolboxProvider"):
+        return QCoreApplication.translate(context, string)
