@@ -209,8 +209,8 @@ class MeteoAlgo(QgsProcessingAlgorithm):
     def groupId(self):
         return "utils"
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="MeteoAlgo"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return MeteoAlgo()
@@ -220,6 +220,7 @@ class MeteoAlgo(QgsProcessingAlgorithm):
 
     def shortDescription(self):
         from fire2a.meteo import __doc__ as docstring
+
         return self.tr(docstring)
 
     def icon(self):

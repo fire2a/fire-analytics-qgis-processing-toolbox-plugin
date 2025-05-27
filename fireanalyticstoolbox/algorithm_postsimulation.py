@@ -105,7 +105,10 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform"),
+                # description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
+                description=QCoreApplication.translate(
+                    "BaseContext", "Base raster (normally fuel or elevation) to get the geotransform"
+                ),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -189,8 +192,8 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         write_log(feedback, name=self.name())
         return {self.OUT_LAYER: dest_id}
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="IgnitionPointsSIMPP"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return IgnitionPointsSIMPP()
@@ -225,7 +228,10 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform"),
+                # description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
+                description=QCoreApplication.translate(
+                    "BaseContext", "Base raster (normally fuel or elevation) to get the geotransform"
+                ),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -520,8 +526,8 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
     def groupId(self):
         return "simulatorpostprocessing"
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="PostSimulationAlgorithm"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return PostSimulationAlgorithm()
@@ -565,7 +571,10 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform"),
+                # description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
+                description=QCoreApplication.translate(
+                    "BaseContext", "Base raster (normally fuel or elevation) to get the geotransform"
+                ),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -702,8 +711,8 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
     #     # layer.triggerRepaint()
     #     return {self.OUTPUT_LAYER: self.dest_id}
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="MessagesSIMPP"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return MessagesSIMPP()
@@ -757,7 +766,10 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform"),
+                # description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
+                description=QCoreApplication.translate(
+                    "BaseContext", "Base raster (normally fuel or elevation) to get the geotransform"
+                ),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -935,8 +947,8 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         write_log(feedback, name=self.name())
         return output_dict
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="StatisticSIMPP"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return StatisticSIMPP()
@@ -1011,7 +1023,10 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform"),
+                # description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
+                description=QCoreApplication.translate(
+                    "BaseContext", "Base raster (normally fuel or elevation) to get the geotransform"
+                ),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -1200,8 +1215,8 @@ class ScarSIMPP(QgsProcessingAlgorithm):
     def groupId(self):
         return "simulatorpostprocessing"
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="ScarSIMPP"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return ScarSIMPP()
@@ -1238,7 +1253,10 @@ class BurnProbabilityMetric(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform"),
+                # description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
+                description=QCoreApplication.translate(
+                    "BaseContext", "Base raster (normally fuel or elevation) to get the geotransform"
+                ),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -1302,9 +1320,6 @@ class BurnProbabilityMetric(QgsProcessingAlgorithm):
         write_log(feedback, name=self.name())
         return output_dict
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
-
     def group(self):
         return self.tr(NAME["simm"])
 
@@ -1316,6 +1331,9 @@ class BurnProbabilityMetric(QgsProcessingAlgorithm):
 
     def displayName(self):
         return self.tr(NAME["bp"])
+
+    def tr(self, string, context="BurnProbabilityMetric"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return BurnProbabilityMetric()
@@ -1493,7 +1511,10 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform"),
+                # description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
+                description=QCoreApplication.translate(
+                    "BaseContext", "Base raster (normally fuel or elevation) to get the geotransform"
+                ),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -1644,8 +1665,8 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
         write_log(feedback, name=self.name())
         return {self.OUT_R: output_raster_filename}
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="BetweennessCentralityMetric"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return BetweennessCentralityMetric()
@@ -1905,8 +1926,8 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         write_log(feedback, name=self.name())
         return {self.OUT_R: output_raster_filename}
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="DownStreamProtectionValueMetric"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return DownStreamProtectionValueMetric()
