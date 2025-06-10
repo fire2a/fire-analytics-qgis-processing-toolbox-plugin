@@ -79,7 +79,6 @@ class IgnitionPointsFromLogFileSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                # description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
                 description=QCoreApplication.translate(
                     "BaseContext", "Base raster (normally fuel or elevation) to get the geotransform"
                 ),

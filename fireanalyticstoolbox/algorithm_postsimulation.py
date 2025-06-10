@@ -1513,7 +1513,7 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
         )
         qppb = QgsProcessingParameterBoolean(
             name=self.IN_def_k,
-            description=self.tr("Use default sampling ratio K = sqrt(number_of_nodes)/5"),
+            description=self.tr("Use default sampling ratio") + " K = sqrt(number_of_nodes)/5",
             defaultValue=True,
             optional=False,
         )

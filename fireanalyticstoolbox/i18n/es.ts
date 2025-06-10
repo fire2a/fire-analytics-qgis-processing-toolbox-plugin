@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
-<TS version="2.1">
+<TS version="2.1" language="es">
 <context>
     <name>BaseContext</name>
     <message>
@@ -12,26 +12,29 @@
 <context>
     <name>BetweennessCentralityMetric</name>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="1535"/>
-        <source>Use default sampling ratio K = sqrt(number_of_nodes)/5</source>
-        <translation type="unfinished"></translation>
+        <location filename="../algorithm_postsimulation.py" line="1514"/>
+        <source>Use default sampling ratio</source>
+        <translation>Usar la ratio de sampleo por defecto</translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="1543"/>
+        <location filename="../algorithm_postsimulation.py" line="1522"/>
         <source>K samples to estimate betweenness.
  Not set and disabled default sampling checkbox means all nodes are used: very slow!
  Trade-off between accuracy and running time.</source>
-        <translation type="unfinished"></translation>
+        <translation>K muestras para estimar la centralidad de intermediación.
+	No fijado y deshabilitada la casilla de muestreo por defecto significa que se usan todos los nodos: ¡muy lento!
+	Es un dilema entre precisión y tiempo de ejecución.</translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="1558"/>
+        <location filename="../algorithm_postsimulation.py" line="1537"/>
         <source>Random number generator seed for sampling. Used if K is not set.</source>
-        <translation type="unfinished"></translation>
+        <translation>Semilla del generador de números aleatorios para el muestreo. Se usa si K no está configurado.</translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="1578"/>
-        <source>Output BC raster</source>
-        <translation type="unfinished"></translation>
+        <location filename="../algorithm_postsimulation.py" line="1557"/>
+        <source>Output raster</source>
+        <translation type="obsolete">Raster de salida</translation>
+    </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="1493"/>
         <source>Base raster (normally fuel or elevation) to get the geotransform</source>
@@ -48,17 +51,25 @@
 <context>
     <name>BurnProbabilityMetric</name>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="1277"/>
-        <source>Output burn probability raster</source>
-        <translation>Salida raster de probabilidad de quema</translation>
-    </message>
-    <message>
-        <location filename="../algorithm_postsimulation.py" line="1345"/>
+        <location filename="../algorithm_postsimulation.py" line="1327"/>
         <source>Burn probabilty raster is the mean of all simulations&lt;br&gt;
             It&apos;s the same as using the &apos;Fire Scar&apos; algorithm, skipping output for scars and polygons, leaving only the &apos;Burn Probability&apos; output enabled&lt;br&gt;
             From a simulation results directory, select the &apos;Grids&apos; directory and choose any of the &apos;ForestGrid&apos; files
             </source>
-        <translation type="unfinished"></translation>
+        <translation>El raster de probabilidad de quema (BP) es la media de todas las simulaciones&lt;br&gt;
+		    Es lo mismo que usar el algoritmo 'Fire Scar', omitiendo la salida de cicatrices y polígonos, dejando solo la salida de 'Burn Probability' habilitada&lt;br&gt;
+	    </translation>
+    </message>
+    <message>
+        <location filename="../algorithm_postsimulation.py" line="1259"/>
+        <source>burn probability</source>
+        <translation type="unfinished">probabilidad de quema</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_postsimulation.py" line="1259"/>
+        <source>Output raster</source>
+        <translation type="obsolete">Raster de salida</translation>
+    </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="1238"/>
         <source>Base raster (normally fuel or elevation) to get the geotransform</source>
@@ -76,59 +87,64 @@
     <name>ClusterizeAlgorithm</name>
     <message>
         <location filename="../algorithm_clusterize.py" line="88"/>
-        <source>Input rasters to clusterize</source>
-        <translation type="unfinished"></translation>
+        <source>to clusterize</source>
+        <translation>para agrupar</translation>
     </message>
     <message>
         <location filename="../algorithm_clusterize.py" line="99"/>
         <source>Raster Configuration Matrix (use same order than input rasters)</source>
-        <translation type="unfinished"></translation>
+        <translation>Matriz de configuración de raster (usar el mismo orden que los rasters de entrada)</translation>
     </message>
     <message>
         <location filename="../algorithm_clusterize.py" line="108"/>
         <source>Distance threshold [adjusted observations]</source>
-        <translation type="unfinished"></translation>
+        <translation>Umbral de distancia [observaciones ajustadas]</translation>
     </message>
     <message>
         <location filename="../algorithm_clusterize.py" line="122"/>
         <source>Total clusters</source>
-        <translation type="unfinished"></translation>
+        <translation>Total de grupos</translation>
     </message>
     <message>
         <location filename="../algorithm_clusterize.py" line="134"/>
         <source>Minimum surface [pixels]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Superficie mínima [píxeles]</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_clusterize.py" line="88"/>
+        <source>Input rasters</source>
+        <translation type="unfinished">Rasters de entrada</translation>
     </message>
     <message>
         <location filename="../algorithm_clusterize.py" line="183"/>
         <source>Output raster</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Raster de salida</translation>
     </message>
     <message>
         <location filename="../algorithm_clusterize.py" line="190"/>
         <source>Output polygons</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Polígonos de salida</translation>
     </message>
 </context>
 <context>
     <name>DownStreamProtectionValueMetric</name>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="1732"/>
+        <location filename="../algorithm_postsimulation.py" line="1711"/>
         <source>Protection Value Raster (get values &amp; geotransform)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="1753"/>
+        <location filename="../algorithm_postsimulation.py" line="1732"/>
         <source>Output raster</source>
-        <translation type="unfinished"></translation>
+        <translation type="obsolete">Raster de salida</translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="1763"/>
+        <location filename="../algorithm_postsimulation.py" line="1742"/>
         <source>Maximum number of threads to use simultaneously</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="1951"/>
+        <location filename="../algorithm_postsimulation.py" line="1930"/>
         <source>This Metric mixes a user defined proteccion value raster with the fire spread history of each simulation (the Propagation Digraph). Using the fact that the value of a pixel should also include the values of downstream pixels (or succesors in its fire propagation tree); In the sense that protecting that pixel also protects where the fire would have gone if not protected&lt;br&gt;
             &lt;a href=&quot;https://doi.org/10.1016/j.cor.2021.105252&quot;&gt;https://doi.org/10.1016/j.cor.2021.105252&lt;/a&gt;&lt;br&gt;
             &lt;b&gt;To run:&lt;/b&gt;&lt;br&gt;
@@ -146,6 +162,12 @@
             For &lt;i&gt;fraction of times pixels were burned&lt;/i&gt; use the false options, even with burn probability as the protection value
             </source>
         <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../algorithm_postsimulation.py" line="1732"/>
+        <source>Output raster</source>
+        <comment>BaseContext</comment>
+        <translation type="unfinished">Raster de salida</translation>
     </message>
 </context>
 <context>
@@ -273,7 +295,7 @@ options (click &apos;...&apos; button on the right)</source>
 <context>
     <name>FireToolboxProvider</name>
     <message>
-        <location filename="../fireanalyticstoolbox_provider.py" line="112"/>
+        <location filename="../fireanalyticstoolbox_provider.py" line="113"/>
         <source>Fire Analytics</source>
         <translation>Analíticas de incendios</translation>
     </message>
@@ -281,17 +303,17 @@ options (click &apos;...&apos; button on the right)</source>
 <context>
     <name>IgnitionPointsFromLogFileSIMPP</name>
     <message>
-        <location filename="../algorithm_deprecated.py" line="100"/>
+        <location filename="../algorithm_deprecated.py" line="99"/>
         <source>Output ignition point(s) layer</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../algorithm_deprecated.py" line="189"/>
+        <location filename="../algorithm_deprecated.py" line="188"/>
         <source>zdeprecated</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../algorithm_deprecated.py" line="198"/>
+        <location filename="../algorithm_deprecated.py" line="197"/>
         <source>Ignition Points From LogFile</source>
         <translation type="unfinished"></translation>
     </message>
@@ -299,19 +321,25 @@ options (click &apos;...&apos; button on the right)</source>
 <context>
     <name>IgnitionPointsSIMPP</name>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="126"/>
+        <location filename="../algorithm_postsimulation.py" line="123"/>
         <source>Output ignition point(s) layer</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="202"/>
+        <location filename="../algorithm_postsimulation.py" line="199"/>
         <source>Simulator Post Processing</source>
+        <translation type="unfinished">Post procesamiento de simulaciones</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_postsimulation.py" line="208"/>
+        <source>Ignition Points</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="211"/>
-        <source>Ignition Points</source>
-        <translation type="unfinished"></translation>
+        <location filename="../algorithm_postsimulation.py" line="105"/>
+        <source>Base raster (normally fuel or elevation) to get the geotransform</source>
+        <comment>BaseContext</comment>
+        <translation type="unfinished">Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
     </message>
 </context>
 <context>
@@ -319,24 +347,36 @@ options (click &apos;...&apos; button on the right)</source>
     <message>
         <location filename="../algorithm_instance_downloader.py" line="63"/>
         <source>Select the instances to download</source>
-        <translation type="unfinished"></translation>
+        <translation>Seleccione las instancias a descargar</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_instance_downloader.py" line="136"/>
+        <source>Instance Downloader</source>
+        <translation>Descargador de instancias</translation>
     </message>
     <message>
         <location filename="../algorithm_instance_downloader.py" line="71"/>
-        <source>Output file [optional]
-- leave empty for using selected filename and temporary path
+        <source>optional</source>
+        <translation>opcional</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_instance_downloader.py" line="71"/>
+        <source>- leave empty for using selected filename and temporary path
 - if current project is saved its path will be used
 - else use absolute filenaming (.zip extension is suggested)
 - or relative filenaming for users home directory (or default qgis launch path)
 
 After downloading, the file will be unzipped and opened in the file browser
 </source>
-        <translation type="unfinished"></translation>
+        <translation>- dejar vacío para usar el nombre de archivo seleccionado en ruta temporal
+- si el proyecto actual está guardado se usará su ruta
+- de lo contrario usar un nombre de archivo absoluto (.zip es sugerido)
+- o un nombre de archivo relativo al directorio personal del usuario (o ruta de inicio por defecto de qgis)</translation>
     </message>
     <message>
-        <location filename="../algorithm_instance_downloader.py" line="133"/>
-        <source>Instance Downloader</source>
-        <translation>Descargador de instancias</translation>
+        <location filename="../algorithm_instance_downloader.py" line="71"/>
+        <source>Output file</source>
+        <translation type="unfinished">Archivo de salida</translation>
     </message>
 </context>
 <context>
@@ -383,29 +423,35 @@ After downloading, the file will be unzipped and opened in the file browser
 <context>
     <name>MessagesSIMPP</name>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="595"/>
+        <location filename="../algorithm_postsimulation.py" line="586"/>
         <source>Output propagation digraph layer</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="603"/>
+        <location filename="../algorithm_postsimulation.py" line="594"/>
         <source>Output pickled messages file (needed by BC or DPV metrics, defaults to results/Messages/messages.pickle)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="721"/>
+        <location filename="../algorithm_postsimulation.py" line="712"/>
         <source>Simulator Post Processing</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Post procesamiento de simulaciones</translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="730"/>
+        <location filename="../algorithm_postsimulation.py" line="721"/>
         <source>Propagation DiGraph</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="739"/>
+        <location filename="../algorithm_postsimulation.py" line="730"/>
         <source>Warning: Uncheck &apos;Open output file after running algorithm&apos; if the graph is too big or your computer too slow.</source>
         <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../algorithm_postsimulation.py" line="565"/>
+        <source>Base raster (normally fuel or elevation) to get the geotransform</source>
+        <comment>BaseContext</comment>
+        <translation type="unfinished">Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
     </message>
 </context>
 <context>
@@ -456,12 +502,12 @@ After downloading, the file will be unzipped and opened in the file browser
     <message>
         <location filename="../algorithm_knapsack.py" line="655"/>
         <source>Input rasters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rasters de entrada</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="666"/>
         <source>Raster Configuration Matrix (use same order than input rasters)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Matriz de configuración de raster (usar el mismo orden que los rasters de entrada)</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="676"/>
@@ -553,7 +599,7 @@ After downloading, the file will be unzipped and opened in the file browser
     <message>
         <location filename="../algorithm_knapsack.py" line="1216"/>
         <source>Decision Optimization</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Optimizador de decisiones</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="1231"/>
@@ -626,7 +672,7 @@ After downloading, the file will be unzipped and opened in the file browser
     <message>
         <location filename="../algorithm_treatment.py" line="1031"/>
         <source>Decision Optimization</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Optimizador de decisiones</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="1047"/>
@@ -689,7 +735,7 @@ After downloading, the file will be unzipped and opened in the file browser
     <message>
         <location filename="../algorithm_knapsack.py" line="302"/>
         <source>Decision Optimization</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Optimizador de decisiones</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="317"/>
@@ -700,12 +746,12 @@ After downloading, the file will be unzipped and opened in the file browser
 <context>
     <name>PostSimulationAlgorithm</name>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="521"/>
+        <location filename="../algorithm_postsimulation.py" line="515"/>
         <source>Bundle</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="539"/>
+        <location filename="../algorithm_postsimulation.py" line="533"/>
         <source>This algorithm attempts to load everything from a simulation results directory, in a convenient but slower than selecting one of the following algorithms in the &lt;b&gt;PostProcessing group&lt;/b&gt;. Check each one for more details.
 
             Although &lt;b&gt;Propagation Directed Graph&lt;/b&gt; output is fundamental to risk metrics such as DPV and BC: &lt;b&gt;Warning: Enabling it here can hang-up your system&lt;/b&gt;, around 300.000 arrows is manageable for a regular laptop&lt;br&gt;
@@ -716,6 +762,12 @@ After downloading, the file will be unzipped and opened in the file browser
             &lt;i&gt;The visualization alternative is &lt;b&gt;Propagation Fire Scars&lt;/b&gt;. Or even &lt;b&gt;Final Fire Scar&lt;/b&gt;, recommended for very large simulations&lt;/i&gt;
             </source>
         <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../algorithm_postsimulation.py" line="225"/>
+        <source>Base raster (normally fuel or elevation) to get the geotransform</source>
+        <comment>BaseContext</comment>
+        <translation type="unfinished">Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
     </message>
 </context>
 <context>
@@ -748,7 +800,7 @@ After downloading, the file will be unzipped and opened in the file browser
     <message>
         <location filename="../algorithm_knapsack.py" line="558"/>
         <source>Decision Optimization</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Optimizador de decisiones</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="573"/>
@@ -915,6 +967,24 @@ After downloading, the file will be unzipped and opened in the file browser
     </message>
 </context>
 <context>
+    <name>RasterTutorial</name>
+    <message>
+        <location filename="../algorithm_raster_tutorial.py" line="53"/>
+        <source>Output raster format .%s not supported</source>
+        <translation>Formato de salida raster .%s no soportado</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_raster_tutorial.py" line="42"/>
+        <source>Input Raster %s</source>
+        <translation>Raster %s de entradash</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_raster_tutorial.py" line="43"/>
+        <source>Output Raster</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>SandboxAlgorithm</name>
     <message>
         <location filename="../algorithm_sandbox.py" line="208"/>
@@ -942,32 +1012,32 @@ After downloading, the file will be unzipped and opened in the file browser
 <context>
     <name>ScarSIMPP</name>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="1047"/>
+        <location filename="../algorithm_postsimulation.py" line="1032"/>
         <source>Output final scar raster</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="1055"/>
+        <location filename="../algorithm_postsimulation.py" line="1040"/>
         <source>Output propagation scars polygons</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="1064"/>
+        <location filename="../algorithm_postsimulation.py" line="1049"/>
         <source>Output burn probability raster</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Salida raster de probabilidad de quema</translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="1210"/>
+        <location filename="../algorithm_postsimulation.py" line="1195"/>
         <source>Fire Scar</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="1213"/>
+        <location filename="../algorithm_postsimulation.py" line="1198"/>
         <source>Simulator Post Processing</source>
         <translation>Post procesamiento de simulaciones</translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="1231"/>
+        <location filename="../algorithm_postsimulation.py" line="1216"/>
         <source> - Input &lt;b&gt;Sample&lt;/b&gt; Fire Scar is any of the ForestGrid files; with it a pattern search for all Grids(any digit)/ForestGrid(any digit).csv will be performed.
             - Output &lt;b&gt;Final&lt;/b&gt; Scar raster needs simulation ran with Final Fire Scar option, each band is a simulation
             - Output &lt;b&gt;Burn Probability&lt;/b&gt; raster is the mean of all simulations, requires &gt;1 simulations
@@ -979,31 +1049,37 @@ After downloading, the file will be unzipped and opened in the file browser
             &lt;i&gt;If the Bundle algorithm failed for you, this propagation output is the most likely cause...&lt;/i&gt;</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <location filename="../algorithm_postsimulation.py" line="1011"/>
+        <source>Base raster (normally fuel or elevation) to get the geotransform</source>
+        <comment>BaseContext</comment>
+        <translation type="unfinished">Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
+    </message>
 </context>
 <context>
     <name>StatisticSIMPP</name>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="808"/>
+        <location filename="../algorithm_postsimulation.py" line="805"/>
         <source>Output raster</source>
+        <translation type="obsolete">Raster de salida</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_postsimulation.py" line="805"/>
+        <source>mean &amp; std</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="817"/>
-        <source>Output raster mean &amp; std</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../algorithm_postsimulation.py" line="957"/>
+        <location filename="../algorithm_postsimulation.py" line="945"/>
         <source>Simulator Post Processing</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Post procesamiento de simulaciones</translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="966"/>
+        <location filename="../algorithm_postsimulation.py" line="954"/>
         <source>Spatial Statistic</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="975"/>
+        <location filename="../algorithm_postsimulation.py" line="963"/>
         <source>
             This post processing algorithm, reads the raw output of C2F-W simulator and generates two rasters.
             One has one band per simulation, named &quot;StatName&quot; (so N bands for N simulations), e.g., Surface Flame Lenght
@@ -1015,6 +1091,26 @@ After downloading, the file will be unzipped and opened in the file browser
             Check the &lt;a href=https://fire2a.github.io/docs/qgis-toolbox/algo_simulator.html#options&gt;table below&lt;a/&gt; for more info
             </source>
         <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../algorithm_postsimulation.py" line="757"/>
+        <source>Base raster (normally fuel or elevation) to get the geotransform</source>
+        <comment>BaseContext</comment>
+        <translation type="unfinished">Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_postsimulation.py" line="805"/>
+        <source>Output raster</source>
+        <comment>BaseContext</comment>
+        <translation type="unfinished">Raster de salida</translation>
+    </message>
+</context>
+<context>
+    <name>Utils</name>
+    <message>
+        <location filename="../algorithm_utils.py" line="195"/>
+        <source>This output is written to</source>
+        <translation>Este resultado fue escrito en</translation>
     </message>
 </context>
 </TS>

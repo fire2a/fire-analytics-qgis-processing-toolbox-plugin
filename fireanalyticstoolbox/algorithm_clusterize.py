@@ -88,7 +88,7 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterMultipleLayers(
                 name=self.INPUT_RASTERS,
-                description=self.tr("Input rasters to clusterize"),
+                description=self.tr("Input rasters") + " " + self.tr("to clusterize"),
                 layerType=QgsProcessing.TypeRaster,
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
