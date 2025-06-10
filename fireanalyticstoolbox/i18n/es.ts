@@ -4,7 +4,7 @@
 <context>
     <name>BaseContext</name>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="1511"/>
+        <location filename="../algorithm_deprecated.py" line="79"/>
         <source>Base raster (normally fuel or elevation) to get the geotransform</source>
         <translation>Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
     </message>
@@ -32,6 +32,17 @@
         <location filename="../algorithm_postsimulation.py" line="1578"/>
         <source>Output BC raster</source>
         <translation type="unfinished"></translation>
+    <message>
+        <location filename="../algorithm_postsimulation.py" line="1493"/>
+        <source>Base raster (normally fuel or elevation) to get the geotransform</source>
+        <comment>BaseContext</comment>
+        <translation type="unfinished">Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_postsimulation.py" line="1557"/>
+        <source>Output raster</source>
+        <comment>BaseContext</comment>
+        <translation type="unfinished">Raster de salida</translation>
     </message>
 </context>
 <context>
@@ -48,6 +59,17 @@
             From a simulation results directory, select the &apos;Grids&apos; directory and choose any of the &apos;ForestGrid&apos; files
             </source>
         <translation type="unfinished"></translation>
+    <message>
+        <location filename="../algorithm_postsimulation.py" line="1238"/>
+        <source>Base raster (normally fuel or elevation) to get the geotransform</source>
+        <comment>BaseContext</comment>
+        <translation type="unfinished">Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_postsimulation.py" line="1259"/>
+        <source>Output raster</source>
+        <comment>BaseContext</comment>
+        <translation type="unfinished">Raster de salida</translation>
     </message>
 </context>
 <context>

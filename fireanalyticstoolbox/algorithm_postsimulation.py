@@ -105,10 +105,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                # description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
-                description=QCoreApplication.translate(
-                    "BaseContext", "Base raster (normally fuel or elevation) to get the geotransform"
-                ),
+                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -228,10 +225,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                # description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
-                description=QCoreApplication.translate(
-                    "BaseContext", "Base raster (normally fuel or elevation) to get the geotransform"
-                ),
+                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -571,10 +565,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                # description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
-                description=QCoreApplication.translate(
-                    "BaseContext", "Base raster (normally fuel or elevation) to get the geotransform"
-                ),
+                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -766,10 +757,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                # description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
-                description=QCoreApplication.translate(
-                    "BaseContext", "Base raster (normally fuel or elevation) to get the geotransform"
-                ),
+                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -808,7 +796,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterDestination(
                 name=self.OUTPUT_RASTER,
-                description=self.tr("Output raster"),
+                description=self.tr("Output raster", "BaseContext"),
                 # defaultValue=None,
                 # optional=False,
                 # createByDefault=True,
@@ -817,7 +805,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterDestination(
                 name=self.OUTPUT_RASTER_2,
-                description=self.tr("Output raster mean & std"),
+                description=self.tr("Output raster", "BaseContext") + " " + self.tr("mean & std"),
                 # defaultValue=None,
                 optional=True,
                 createByDefault=True,
@@ -1023,10 +1011,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                # description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
-                description=QCoreApplication.translate(
-                    "BaseContext", "Base raster (normally fuel or elevation) to get the geotransform"
-                ),
+                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -1253,10 +1238,7 @@ class BurnProbabilityMetric(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                # description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
-                description=QCoreApplication.translate(
-                    "BaseContext", "Base raster (normally fuel or elevation) to get the geotransform"
-                ),
+                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -1277,7 +1259,7 @@ class BurnProbabilityMetric(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterDestination(
                 name=self.OUT_BP,
-                description=self.tr("Output burn probability raster"),
+                description=self.tr("Output raster", "BaseContext") + ": " + self.tr("burn probability"),
                 optional=True,
                 createByDefault=True,
             )
@@ -1511,10 +1493,7 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                # description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
-                description=QCoreApplication.translate(
-                    "BaseContext", "Base raster (normally fuel or elevation) to get the geotransform"
-                ),
+                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -1578,7 +1557,7 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterDestination(
                 name=self.OUT_R,
-                description=self.tr("Output BC raster"),
+                description=self.tr("Output raster", "BaseContext") + " BC",
                 # defaultValue=None,
                 # optional=False,
                 # createByDefault=True,
@@ -1753,7 +1732,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterDestination(
                 name=self.OUT_R,
-                description=self.tr("Output raster"),
+                description=self.tr("Output raster", "BaseContext"),
                 # defaultValue=None,
                 optional=False,
                 createByDefault=True,
