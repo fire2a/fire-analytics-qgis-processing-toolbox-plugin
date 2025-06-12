@@ -206,7 +206,10 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterEnum(
                 name=self.FUEL_MODEL,
-                description=self.tr("==================\nLANDSCAPE SECTION\n\nSurface fuel model"),
+                description="==================\n"
+                + self.tr("LANDSCAPE SECTION")
+                + "\n\n"
+                + self.tr("Surface fuel model"),
                 options=self.fuel_models,
                 allowMultiple=False,
                 defaultValue=0,
@@ -215,7 +218,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.FUEL,
-                description=self.tr(SIM_INPUTS["fuels"]["description"]),
+                description=SIM_INPUTS["fuels"]["description"],
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -223,7 +226,9 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterBoolean(
                 name=self.PAINTFUELS,
-                description="Style (paint) fuel raster with selected surface fuel model (native:setlayerstyle)",
+                description=self.tr(
+                    "Style (paint) fuel raster with selected surface fuel model (native:setlayerstyle)"
+                ),
                 defaultValue=False,
                 optional=True,
             )
@@ -231,7 +236,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.ELEVATION,
-                description=self.tr(SIM_INPUTS["elevation"]["description"] + f' [{SIM_INPUTS["elevation"]["units"]}]'),
+                description=SIM_INPUTS["elevation"]["description"] + f' [{SIM_INPUTS["elevation"]["units"]}]',
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=True,
             )
@@ -281,7 +286,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterBoolean(
                 name=self.CROWN,
-                description="Enable Crown Fire behavior",
+                description=self.tr("Enable Crown Fire behavior"),
                 defaultValue=False,
                 optional=False,
             )
@@ -298,7 +303,10 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterNumber(
                 name=self.NSIM,
-                description="\n================\nIGNITION SECTION\n\nNumber of simulations",
+                description="\n================\n"
+                + self.tr("IGNITION SECTION")
+                + "\n\n"
+                + self.tr("Number of simulations"),
                 type=QgsProcessingParameterNumber.Integer,
                 defaultValue=3,
                 optional=False,
@@ -318,7 +326,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.IGNIPROBMAP,
-                description=self.tr(SIM_INPUTS["py"]["description"] + f' [{SIM_INPUTS["py"]["units"]}]'),
+                description=SIM_INPUTS["py"]["description"] + f' [{SIM_INPUTS["py"]["units"]}]',
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=True,
             )
@@ -333,7 +341,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             #     allowMultipart=False,
             QgsProcessingParameterVectorLayer(
                 name=self.IGNIPOINT,
-                description="Single point vector layer (requires generation mode 2)",
+                description=self.tr("Single point vector layer (requires generation mode 2)"),
                 types=[QgsProcessing.TypeVectorPoint],
                 defaultValue=None,
                 optional=True,
@@ -342,7 +350,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterNumber(
                 name=self.IGNIRADIUS,
-                description="Radius around single point layer (requires generation mode 2)",
+                description=self.tr("Radius around single point layer (requires generation mode 2)"),
                 type=QgsProcessingParameterNumber.Integer,
                 defaultValue=0,
                 optional=True,
@@ -354,7 +362,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterEnum(
                 name=self.WEATHER_MODE,
-                description=self.tr("\n================\nWEATHER SECTION\n\nsource mode"),
+                description="\n================\n" + self.tr("WEATHER SECTION") + "\n\n" + self.tr("source mode"),
                 options=self.weather_modes,
                 allowMultiple=False,
                 defaultValue=0,
@@ -364,7 +372,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.WEAFILE,
-                description="Single weather file scenario (requires source 0)",
+                description=self.tr("Single weather file scenario (requires source 0)"),
                 behavior=QgsProcessingParameterFile.File,
                 extension="csv",
                 defaultValue=str(weafile) if weafile.is_file() else None,
@@ -375,7 +383,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.WEADIR,
-                description="From multiple weathers in a directory (requires source 1)",
+                description=self.tr("From multiple weathers in a directory (requires source 1)"),
                 behavior=QgsProcessingParameterFile.Folder,
                 extension="",
                 defaultValue=None,
@@ -386,7 +394,9 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterNumber(
                 name=self.FMC,
-                description="Foliar Moisture Content [40%...200%] (requires Crown fire; Scott & Burgan or Kitral Fuel Model)",
+                description=self.tr(
+                    "Foliar Moisture Content [40%...200%] (requires Crown fire; Scott & Burgan or Kitral Fuel Model)"
+                ),
                 type=QgsProcessingParameterNumber.Integer,
                 defaultValue=66,
                 optional=False,
@@ -397,7 +407,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterNumber(
                 name=self.LDFMCS,
-                description=(
+                description=self.tr(
                     "Live & Dead Fuel Moisture Content Scenario [1=dry..4=moist] (requires Scott & Burgan Fuel Model)"
                 ),
                 type=QgsProcessingParameterNumber.Integer,
@@ -412,8 +422,13 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterNumber(
                 name=self.SIM_THREADS,
                 description=(
-                    "\n===================\nRUN CONFIGURATION\nsimulation cpu threads (proportional to overall load to the computer by controlling"
-                    " number of simultaneous simulations)"
+                    "\n===================\n"
+                    + self.tr("RUN CONFIGURATION")
+                    + "\n"
+                    + self.tr(
+                        "simulation cpu threads (proportional to overall load to the computer by controlling"
+                        " number of simultaneous simulations)"
+                    )
                     # "[check Advanced>Algorithm Settings alternative settings])"
                 ),
                 type=QgsProcessingParameterNumber.Integer,
@@ -426,7 +441,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterNumber(
                 name=self.RNG_SEED,
-                description="Seed for the random number generator",
+                description=self.tr("Seed for the random number generator"),
                 type=QgsProcessingParameterNumber.Integer,
                 defaultValue=123,
                 optional=False,
@@ -438,7 +453,10 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterEnum(
                 name=self.OUTPUTS,
-                description=self.tr("\n================\nOUTPUTS SECTION\n\noptions (click '...' button on the right)"),
+                description="\n================\n"
+                + self.tr("OUTPUTS SECTION")
+                + "\n\n"
+                + self.tr("options (click '...' button on the right)"),
                 options=[item["name"] + item["suffix"] if "suffix" in item else item["name"] for item in SIM_OUTPUTS],
                 allowMultiple=True,
                 defaultValue=[
@@ -453,7 +471,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterBoolean(
                 name=self.INSTANCE_IN_PROJECT,
-                description=(
+                description=self.tr(
                     "Override instance directory to '$(Project Home)/firesim_yymmdd_HHMMSS' (project must be open and"
                     " saved locally)"
                 ),
@@ -464,7 +482,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFolderDestination(
                 name=self.INSTANCE_DIR,
-                description="Instance directory (must be empty)",
+                description=self.tr("Instance directory (must be empty)"),
                 defaultValue=None,
                 optional=True,
                 createByDefault=True,
@@ -473,7 +491,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterBoolean(
                 name=self.RESULTS_IN_INSTANCE,
-                description="Override results directory to '$(instance directory)/results'",
+                description=self.tr("Override results directory to '$(instance directory)/results'"),
                 defaultValue=True,
                 optional=False,
             )
@@ -481,7 +499,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFolderDestination(
                 name=self.RESULTS_DIR,
-                description="Results directory (must be empty)",
+                description=self.tr("Results directory (must be empty)"),
                 defaultValue=None,
                 optional=True,
                 createByDefault=True,
@@ -490,14 +508,14 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         # advanced
         qpps = QgsProcessingParameterString(
             name=self.ADD_ARGS,
-            description="Append additional command-line parameters (i.e., '--verbose', use with caution!)",
+            description=self.tr("Append additional command-line parameters (i.e., '--verbose', use with caution!)"),
             optional=True,
         )
         qpps.setFlags(qpps.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(qpps)
         qppb = QgsProcessingParameterBoolean(
             name=self.DRYRUN,
-            description="(dry run) Don't simulate! Build instance folder, print the command to run, stop!",
+            description=self.tr("(dry run) Don't simulate! Build instance folder, print the command to run, stop!"),
             defaultValue=False,
             optional=True,
         )
@@ -506,24 +524,24 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
 
     def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
         if parameters[self.IGNITION_MODE] == 1 and parameters[self.IGNIPROBMAP] is None:
-            return False, f"{self.IGNIPROBMAP} cant be None if {self.IGNITION_MODE} generation is 1"
+            return False, "%s can't be None if %s generation is 1" % (self.IGNIPROBMAP, self.IGNITION_MODE)
         if parameters[self.IGNITION_MODE] == 2 and parameters[self.IGNIPOINT] is None:
-            return False, f"{self.IGNIPOINT} cant be None if {self.IGNITION_MODE} generation is 2"
+            return False, "%s can't be None if %s generation is 2" % (self.IGNIPOINT, self.IGNITION_MODE)
 
         weafile = self.parameterAsFile(parameters, self.WEAFILE, context)
         if parameters[self.WEATHER_MODE] == 0 and weafile == "":
-            return False, f"{self.WEAFILE} cant be None if {self.WEATHER_MODE} source is 0"
+            return False, "%s can't be None if %s source is 0" % (self.WEAFILE, self.WEATHER_MODE)
 
         weadir = self.parameterAsFile(parameters, self.WEADIR, context)
         if parameters[self.WEATHER_MODE] in [1, 2] and weadir == "":
-            return False, f"{self.WEADIR} cant be None if {self.WEATHER_MODE} source is 1 or 2"
+            return False, "%s can't be None if %s source is 1 or 2" % (self.WEADIR, self.WEATHER_MODE)
 
         rasters = get_rasters(self, parameters, context)
         fuels = rasters.pop("fuels")
         fuels_props = get_qgs_raster_properties(fuels)
         fuel_driver = get_gdal_driver_shortname(fuels)
         if fuel_driver not in ["AAIGrid", "GTiff"]:
-            return False, f"fuel raster is not AAIGrid nor GTiff, got {fuel_driver}"
+            return False, "fuel raster format is not AAIGrid nor GTiff, got %s" % fuel_driver
         for k, v in rasters.items():
             if v is None:
                 continue

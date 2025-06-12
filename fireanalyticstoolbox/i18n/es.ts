@@ -2,6 +2,19 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="es">
 <context>
+    <name>@default</name>
+    <message>
+        <location filename="../config.py" line="21"/>
+        <source>Fuel</source>
+        <translation>Combustible</translation>
+    </message>
+    <message>
+        <location filename="../config.py" line="22"/>
+        <source>Elevation</source>
+        <translation>Elevación</translation>
+    </message>
+</context>
+<context>
     <name>BaseContext</name>
     <message>
         <location filename="../algorithm_deprecated.py" line="79"/>
@@ -31,21 +44,16 @@
         <translation>Semilla del generador de números aleatorios para el muestreo. Se usa si K no está configurado.</translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="1557"/>
-        <source>Output raster</source>
-        <translation type="obsolete">Raster de salida</translation>
-    </message>
-    <message>
         <location filename="../algorithm_postsimulation.py" line="1493"/>
         <source>Base raster (normally fuel or elevation) to get the geotransform</source>
         <comment>BaseContext</comment>
-        <translation type="unfinished">Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
+        <translation>Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="1557"/>
         <source>Output raster</source>
         <comment>BaseContext</comment>
-        <translation type="unfinished">Raster de salida</translation>
+        <translation>Raster de salida</translation>
     </message>
 </context>
 <context>
@@ -63,24 +71,19 @@
     <message>
         <location filename="../algorithm_postsimulation.py" line="1259"/>
         <source>burn probability</source>
-        <translation type="unfinished">probabilidad de quema</translation>
-    </message>
-    <message>
-        <location filename="../algorithm_postsimulation.py" line="1259"/>
-        <source>Output raster</source>
-        <translation type="obsolete">Raster de salida</translation>
+        <translation>probabilidad de quema</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="1238"/>
         <source>Base raster (normally fuel or elevation) to get the geotransform</source>
         <comment>BaseContext</comment>
-        <translation type="unfinished">Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
+        <translation>Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="1259"/>
         <source>Output raster</source>
         <comment>BaseContext</comment>
-        <translation type="unfinished">Raster de salida</translation>
+        <translation>Raster de salida</translation>
     </message>
 </context>
 <context>
@@ -108,22 +111,22 @@
     <message>
         <location filename="../algorithm_clusterize.py" line="134"/>
         <source>Minimum surface [pixels]</source>
-        <translation type="unfinished">Superficie mínima [píxeles]</translation>
+        <translation>Superficie mínima [píxeles]</translation>
     </message>
     <message>
         <location filename="../algorithm_clusterize.py" line="88"/>
         <source>Input rasters</source>
-        <translation type="unfinished">Rasters de entrada</translation>
+        <translation>Rasters de entrada</translation>
     </message>
     <message>
         <location filename="../algorithm_clusterize.py" line="183"/>
         <source>Output raster</source>
-        <translation type="unfinished">Raster de salida</translation>
+        <translation>Raster de salida</translation>
     </message>
     <message>
         <location filename="../algorithm_clusterize.py" line="190"/>
         <source>Output polygons</source>
-        <translation type="unfinished">Polígonos de salida</translation>
+        <translation>Polígonos de salida</translation>
     </message>
 </context>
 <context>
@@ -131,17 +134,12 @@
     <message>
         <location filename="../algorithm_postsimulation.py" line="1711"/>
         <source>Protection Value Raster (get values &amp; geotransform)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../algorithm_postsimulation.py" line="1732"/>
-        <source>Output raster</source>
-        <translation type="obsolete">Raster de salida</translation>
+        <translation>Raster de valor de protección (usa valores y geotransformación)</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="1742"/>
         <source>Maximum number of threads to use simultaneously</source>
-        <translation type="unfinished"></translation>
+        <translation>Número máximo de hilos a usar simultáneamente</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="1930"/>
@@ -161,13 +159,27 @@
             - &lt;b&gt;Scaling&lt;/b&gt; Scale every pixel by burn count (default true); or all pixels by number of simulations (false)
             For &lt;i&gt;fraction of times pixels were burned&lt;/i&gt; use the false options, even with burn probability as the protection value
             </source>
-        <translation type="unfinished"></translation>
+        <translation>Esta métrica mezcla un raster de valor de protección definido por el usuario con la historia de propagación del fuego de cada simulación (el gráfico de propagación). Usando el hecho de que el valor de un píxel también debería incluir los valores de los píxeles aguas abajo (o sucesores en su árbol de propagación del fuego); En el sentido de que proteger ese píxel también protege donde el fuego habría ido si no se hubiera protegido&lt;br&gt;
+	    &lt;a href=&quot;https://doi.org/10.1016/j.cor.2021.105252&quot;&gt;https://doi.org/10.1016/j.cor.2021.105252&lt;/a&gt;&lt;br&gt;
+	    &lt;b&gt;Para ejecutar:&lt;/b&gt;&lt;br&gt;
+	    1. Selecciona un raster de valor de protección 
+		- Cualquier tipo numérico funciona
+		- NODATA se mapea a valor 0
+		- En un sentido relativo, números negativos significan que quieres que se quemen / no protegidos
+	    2. Primero genera el algoritmo del gráfico de propagación que genera el archivo messages.pickle &lt;i&gt;(omitir mostrarlos si son demasiadas simulaciones y períodos)&lt;/i&gt; por defecto junto a los archivos messages.csv originales
+	    3. Selecciona el archivo messages.pickle
+	    &lt;b&gt;Opciones avanzadas:&lt;/b&gt;&lt;br&gt;
+	    - &lt;b&gt;Hilos&lt;/b&gt; Número máximo de hilos a usar simultáneamente. ¡No funciona en Windows! (usa linux para una paralelización seria)
+	    Para mantener la compatibilidad del &lt;i&gt;valor de protección&lt;/i&gt; usa:
+	    - &lt;b&gt;Relleno sin quemar&lt;/b&gt; Incluir valores originales de protección donde no se vio fuego (predeterminado verdadero)
+	    - &lt;b&gt;Escalado&lt;/b&gt; Escalar cada píxel por cuenta de quemaduras (predeterminado verdadero); o todos los píxeles por número de simulaciones (falso)
+		Para usar la &lt;i&gt;fracción de veces que los píxeles fueron quemados&lt;/i&gt;, usa las opciones falsas, incluso con probabilidad de quemadura como valor de protección</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="1732"/>
         <source>Output raster</source>
         <comment>BaseContext</comment>
-        <translation type="unfinished">Raster de salida</translation>
+        <translation>Raster de salida</translation>
     </message>
 </context>
 <context>
@@ -175,12 +187,12 @@
     <message>
         <location filename="../algorithm_clusterize.py" line="330"/>
         <source>Polygonize Multiple Rasters</source>
-        <translation type="unfinished"></translation>
+        <translation>Polygonizar múltiples rasters</translation>
     </message>
     <message>
         <location filename="../algorithm_clusterize.py" line="333"/>
         <source>Utils</source>
-        <translation type="unfinished"></translation>
+        <translation>Utilidades</translation>
     </message>
     <message>
         <location filename="../algorithm_clusterize.py" line="351"/>
@@ -210,65 +222,53 @@
 
         In depth instructions can be found &lt;a href=&quot;https://fire2a.github.io/fire2a-lib/fire2a/agglomerative_clustering.html&quot;&gt;here&lt;/a&gt;
         </source>
-        <translation type="unfinished"></translation>
+        <translation>&lt;h1&gt; Agrupación automática de diferentes rasters &lt;/h1&gt;
+	&lt;h2&gt; Descripción general &lt;/h2&gt;
+	Una tubería de scikit-learn que:
+	1. Maneja nodata con &lt;a href=&quot;https://scikit-learn.org/stable/modules/generated/sklearn.impute.SimpleImputer.html&quot;&gt;SimpleImputer&lt;/a&gt;
+	2. Escala los datos con &lt;a href=&quot;https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html&quot;&gt;StandardScaler&lt;/a&gt;, &lt;a href=&quot;https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.RobustScaler.html&quot;&gt;RobustScaler&lt;/a&gt; que elimina valores atípicos o &lt;a href=&quot;https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html&quot;&gt;OneHotEncoder&lt;/a&gt; para datos categóricos como modelos de combustible.
+	3. Reescala todas las observaciones a [0, 1], luego multiplica una priorización (peso) a cada raster.
+	4. Agrupa el mapa usando el algoritmo de agrupamiento &lt;a href=&quot;https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AgglomerativeClustering.html&quot;&gt;Agglomerative&lt;/a&gt;.
+	&lt;h2&gt; Uso &lt;/h2&gt;
+	1. Selecciona los rasters: nota que puedes arrastrar y soltar para &lt;i&gt;reordenarlos&lt;/i&gt;.
+	2. Opcionalmente completa la matriz &lt;i&gt;en el mismo orden&lt;/i&gt; que los rasters seleccionados, con
+	- scaling_strategy = [&quot;standard&quot;, &quot;robust&quot;, &quot;onehot&quot;] (predeterminado es &quot;standard&quot;)
+	- no_data_strategy = [&quot;mean&quot;, &quot;median&quot;, &quot;most_frequent&quot;, &quot;constant&quot;] (predeterminado es &quot;mean&quot;)
+	- fill_value = cualquier número (solo para &quot;constant&quot; no_data_strategy) (predeterminado es 0)
+	- weight = cualquier número (predeterminado
+	</translation>
     </message>
 </context>
 <context>
     <name>FireSimulatorAlgorithm</name>
     <message>
-        <location filename="../algorithm_simulator.py" line="206"/>
-        <source>==================
-LANDSCAPE SECTION
-
-Surface fuel model</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../algorithm_simulator.py" line="289"/>
+        <location filename="../algorithm_simulator.py" line="294"/>
         <source>
 Firebreaks raster (1=firebreak)</source>
-        <translation type="unfinished"></translation>
+        <translation>Raster de cortafuegos (1=cortafuego)</translation>
     </message>
     <message>
-        <location filename="../algorithm_simulator.py" line="309"/>
+        <location filename="../algorithm_simulator.py" line="317"/>
         <source>Generation mode</source>
-        <translation type="unfinished"></translation>
+        <translation>Modo de generación</translation>
     </message>
     <message>
-        <location filename="../algorithm_simulator.py" line="354"/>
-        <source>
-================
-WEATHER SECTION
-
-source mode</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../algorithm_simulator.py" line="438"/>
-        <source>
-================
-OUTPUTS SECTION
-
-options (click &apos;...&apos; button on the right)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../algorithm_simulator.py" line="733"/>
+        <location filename="../algorithm_simulator.py" line="751"/>
         <source>Single weather file scenario requires a file!</source>
-        <translation type="unfinished"></translation>
+        <translation>Un escenario de tiempo/clima único requiere un archivo!</translation>
     </message>
     <message>
-        <location filename="../algorithm_simulator.py" line="747"/>
+        <location filename="../algorithm_simulator.py" line="765"/>
         <source>Multiple weathers requires a directory with Weather[0-9]*.csv files!</source>
-        <translation type="unfinished"></translation>
+        <translation>Múltiples escenarios de tiempo/clima requieren un directorio con archivos numerados Weather[0-9]*.csv!</translation>
     </message>
     <message>
-        <location filename="../algorithm_simulator.py" line="946"/>
+        <location filename="../algorithm_simulator.py" line="964"/>
         <source>Cell2 Fire Simulator</source>
         <translation>Simulador de incendio por celdas</translation>
     </message>
     <message>
-        <location filename="../algorithm_simulator.py" line="975"/>
+        <location filename="../algorithm_simulator.py" line="993"/>
         <source>
             See documentation:
             &lt;a href=https://fire2a.github.io/docs/qgis-toolbox/algo_simulator.html&gt;This dialog&lt;/a&gt;
@@ -276,7 +276,138 @@ options (click &apos;...&apos; button on the right)</source>
             &lt;font color=&quot;red&quot;&gt;Warning: GeoTiff(.tif) support (in development) limited to only reading the fuels layer!&lt;/font&gt; If planning to use more layers, transform them to AIIGrid(.asc) format!
             &lt;font color=&quot;orange&quot;&gt;Warning: Kitral cbh and cbd rasters must use nodata -9999&lt;/font&gt;
             </source>
-        <translation type="unfinished"></translation>
+        <translation>
+	    Ver documentación:
+	    &lt;a href=https://fire2a.github.io/docs/qgis-toolbox/algo_simulator.html&gt;Este diálogo&lt;/a&gt;
+	    &lt;a href=https://fire2a.github.io/docs/Cell2FireW&gt;Cell2FireW&lt;/a&gt;
+	    &lt;font color=&quot;red&quot;&gt;Advertencia: Soporte para GeoTiff(.tif) (en desarrollo) limitado a solo leer la capa de combustibles!&lt;/font&gt; Si planeas usar más capas, ¡transformalas al formato AIIGrid(.asc)!
+	    &lt;font color=&quot;orange&quot;&gt;Advertencia: Los rasters Kitral cbh y cbd deben usar nodata -9999&lt;/font&gt;
+	    </translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="206"/>
+        <source>LANDSCAPE SECTION</source>
+        <translation>SECCIÓN DEL PAISAJE</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="206"/>
+        <source>Surface fuel model</source>
+        <translation>Modelo de combustible superficial</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="226"/>
+        <source>Style (paint) fuel raster with selected surface fuel model (native:setlayerstyle)</source>
+        <translation>Dar estilo (pintar) raster de combustible con el modelo de combustible superficial seleccionado (native:setlayerstyle)</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="286"/>
+        <source>Enable Crown Fire behavior</source>
+        <translation>Habilitar comportamiento de fuego de copa</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="303"/>
+        <source>IGNITION SECTION</source>
+        <translation>SECCIÓN DE IGNICIÓN</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="303"/>
+        <source>Number of simulations</source>
+        <translation>Número de simulaciones</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="334"/>
+        <source>Single point vector layer (requires generation mode 2)</source>
+        <translation>Capa vectorial con un punto (requiere modo de generación 2)</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="350"/>
+        <source>Radius around single point layer (requires generation mode 2)</source>
+        <translation>Radio alrededor de la capa con un punto (requiere modo de generación 2)</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="362"/>
+        <source>WEATHER SECTION</source>
+        <translation>SECCIÓN DEL TIEMPO/CLIMA</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="362"/>
+        <source>source mode</source>
+        <translation>modo de origen</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="372"/>
+        <source>Single weather file scenario (requires source 0)</source>
+        <translation>Escenario de un único archivo de tiempo/clima (requiere origen 0)</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="383"/>
+        <source>From multiple weathers in a directory (requires source 1)</source>
+        <translation>De múltiples escenarios de tiempo/clima en un directorio (requiere origen 1)</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="394"/>
+        <source>Foliar Moisture Content [40%...200%] (requires Crown fire; Scott &amp; Burgan or Kitral Fuel Model)</source>
+        <translation>Contenido de humedad foliar [40%...200%] (requiere fuego de copa; Modelo de Combustible Scott &amp; Burgan o Kitral)</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="407"/>
+        <source>Live &amp; Dead Fuel Moisture Content Scenario [1=dry..4=moist] (requires Scott &amp; Burgan Fuel Model)</source>
+        <translation>Contenido de humedad de combustible vivo y muerto [1=seco..4=húmedo] (requiere Modelo de Combustible Scott &amp; Burgan)</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="421"/>
+        <source>RUN CONFIGURATION</source>
+        <translation>CONFIGURACIÓN DE EJECUCIÓN</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="421"/>
+        <source>simulation cpu threads (proportional to overall load to the computer by controlling number of simultaneous simulations)</source>
+        <translation>hilos de CPU para simular (es proporcional a la carga sobre el ordenador al controlar el número de simulaciones simultáneas)</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="441"/>
+        <source>Seed for the random number generator</source>
+        <translation>Semilla para el generador de números aleatorios</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="453"/>
+        <source>OUTPUTS SECTION</source>
+        <translation>SECCIÓN DE SALIDAS</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="453"/>
+        <source>options (click &apos;...&apos; button on the right)</source>
+        <translation>opciones (haz clic en el botón '...' a la derecha)</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="471"/>
+        <source>Override instance directory to &apos;$(Project Home)/firesim_yymmdd_HHMMSS&apos; (project must be open and saved locally)</source>
+        <translation>Reemplazar directorio de instancia a '$(Project Home)/firesim_yymmdd_HHMMSS' (el proyecto debe estar abierto y guardado localmente)</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="482"/>
+        <source>Instance directory (must be empty)</source>
+        <translation>Directorio de instancia (debe estar vacío)</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="491"/>
+        <source>Override results directory to &apos;$(instance directory)/results&apos;</source>
+        <translation>Reemplazar directorio de resultados a '$(directorio de instancia)/resultados'</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="499"/>
+        <source>Results directory (must be empty)</source>
+        <translation>Directorio de resultados (debe estar vacío)</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="509"/>
+        <source>Append additional command-line parameters (i.e., &apos;--verbose&apos;, use with caution!)</source>
+        <translation>Agregar parámetros adicionales a la línea de comandos (por ejemplo, '--verbose', ¡usar con precaución!)</translation>
+    </message>
+    <message>
+        <location filename="../algorithm_simulator.py" line="516"/>
+        <source>(dry run) Don&apos;t simulate! Build instance folder, print the command to run, stop!</source>
+        <translation>(dry run) ¡No simula! Construir la carpeta de instancia, imprimir el comando a ejecutar, ¡detener!</translation>
     </message>
 </context>
 <context>
@@ -284,12 +415,12 @@ options (click &apos;...&apos; button on the right)</source>
     <message>
         <location filename="../fireanalyticstoolbox_algorithm.py" line="67"/>
         <source>Input layer</source>
-        <translation type="unfinished"></translation>
+        <translation>Capa de entrada</translation>
     </message>
     <message>
         <location filename="../fireanalyticstoolbox_algorithm.py" line="76"/>
         <source>Output layer</source>
-        <translation type="unfinished"></translation>
+        <translation>Capa de salida</translation>
     </message>
 </context>
 <context>
@@ -305,17 +436,17 @@ options (click &apos;...&apos; button on the right)</source>
     <message>
         <location filename="../algorithm_deprecated.py" line="99"/>
         <source>Output ignition point(s) layer</source>
-        <translation type="unfinished"></translation>
+        <translation>Capa de salida con punto(s) de ignición</translation>
     </message>
     <message>
         <location filename="../algorithm_deprecated.py" line="188"/>
         <source>zdeprecated</source>
-        <translation type="unfinished"></translation>
+        <translation>zdeprecado</translation>
     </message>
     <message>
         <location filename="../algorithm_deprecated.py" line="197"/>
         <source>Ignition Points From LogFile</source>
-        <translation type="unfinished"></translation>
+        <translation>Puntos de ignición desde archivo de registro LogFile.txt</translation>
     </message>
 </context>
 <context>
@@ -323,23 +454,23 @@ options (click &apos;...&apos; button on the right)</source>
     <message>
         <location filename="../algorithm_postsimulation.py" line="123"/>
         <source>Output ignition point(s) layer</source>
-        <translation type="unfinished"></translation>
+        <translation>Capa de salida con punto(s) de ignición</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="199"/>
         <source>Simulator Post Processing</source>
-        <translation type="unfinished">Post procesamiento de simulaciones</translation>
+        <translation>Post procesamiento de simulación</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="208"/>
         <source>Ignition Points</source>
-        <translation type="unfinished"></translation>
+        <translation>Puntos de ignición</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="105"/>
         <source>Base raster (normally fuel or elevation) to get the geotransform</source>
         <comment>BaseContext</comment>
-        <translation type="unfinished">Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
+        <translation>Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
     </message>
 </context>
 <context>
@@ -376,7 +507,7 @@ After downloading, the file will be unzipped and opened in the file browser
     <message>
         <location filename="../algorithm_instance_downloader.py" line="71"/>
         <source>Output file</source>
-        <translation type="unfinished">Archivo de salida</translation>
+        <translation>Archivo de salida</translation>
     </message>
 </context>
 <context>
@@ -384,32 +515,32 @@ After downloading, the file will be unzipped and opened in the file browser
     <message>
         <location filename="../algorithm_match_aiigrids.py" line="52"/>
         <source>Raster to modify</source>
-        <translation type="unfinished"></translation>
+        <translation>Raster a modificar</translation>
     </message>
     <message>
         <location filename="../algorithm_match_aiigrids.py" line="60"/>
         <source>Raster to match to</source>
-        <translation type="unfinished"></translation>
+        <translation>Raster base para hacer coincidir/calzar</translation>
     </message>
     <message>
         <location filename="../algorithm_match_aiigrids.py" line="69"/>
         <source>CLI arguments</source>
-        <translation type="unfinished"></translation>
+        <translation>Argumentos de línea de commandos (CLI)</translation>
     </message>
     <message>
         <location filename="../algorithm_match_aiigrids.py" line="78"/>
         <source>Matched raster</source>
-        <translation type="unfinished"></translation>
+        <translation>Raster calzado</translation>
     </message>
     <message>
         <location filename="../algorithm_match_aiigrids.py" line="193"/>
         <source>Match AII Grids</source>
-        <translation type="unfinished"></translation>
+        <translation>Calzar AII Grids</translation>
     </message>
     <message>
         <location filename="../algorithm_match_aiigrids.py" line="196"/>
         <source>Utils</source>
-        <translation type="unfinished"></translation>
+        <translation>Utilidades</translation>
     </message>
     <message>
         <location filename="../algorithm_match_aiigrids.py" line="211"/>
@@ -417,7 +548,10 @@ After downloading, the file will be unzipped and opened in the file browser
             useful cli_args: -r {nearest,bilinear,cubic,cubicspline,lanczos,average,mode} (default nearest)&lt;br&gt;&lt;br&gt;
             not implemented: dealing with CRSs or nodatas.
             </source>
-        <translation type="unfinished"></translation>
+        <translation>Simplifica el uso de gdal translate para &lt;b&gt;recortar la extensión, luego redimensionar y reemplazar la geotransformación&lt;/b&gt; para hacer coincidir un raster ascii en otro&lt;br&gt;&lt;br&gt;
+	    argumentos útiles: -r {nearest,bilinear,cubic,cubicspline,lanczos,average,mode} (predeterminado nearest)&lt;br&gt;&lt;br&gt;
+	    no implementado: manejo de CRSs o nodatas.
+	    </translation>
     </message>
 </context>
 <context>
@@ -425,33 +559,33 @@ After downloading, the file will be unzipped and opened in the file browser
     <message>
         <location filename="../algorithm_postsimulation.py" line="586"/>
         <source>Output propagation digraph layer</source>
-        <translation type="unfinished"></translation>
+        <translation>Capa de salida del grafo dirigido de propagación</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="594"/>
         <source>Output pickled messages file (needed by BC or DPV metrics, defaults to results/Messages/messages.pickle)</source>
-        <translation type="unfinished"></translation>
+        <translation>Archivo de mensajes serializados (pickled) (necesario para las métricas BC o DPV, por defecto en resultados/Messages/messages.pickle)</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="712"/>
         <source>Simulator Post Processing</source>
-        <translation type="unfinished">Post procesamiento de simulaciones</translation>
+        <translation>Post procesamiento de simulación</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="721"/>
         <source>Propagation DiGraph</source>
-        <translation type="unfinished"></translation>
+        <translation>Grafo dirigido de propagación</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="730"/>
         <source>Warning: Uncheck &apos;Open output file after running algorithm&apos; if the graph is too big or your computer too slow.</source>
-        <translation type="unfinished"></translation>
+        <translation>Advertencia: Desmarca 'Abrir archivo de salida después de ejecutar el algoritmo' si el grafo es demasiado grande o tu ordenador es demasiado lento.</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="565"/>
         <source>Base raster (normally fuel or elevation) to get the geotransform</source>
         <comment>BaseContext</comment>
-        <translation type="unfinished">Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
+        <translation>Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
     </message>
 </context>
 <context>
@@ -459,42 +593,42 @@ After downloading, the file will be unzipped and opened in the file browser
     <message>
         <location filename="../algorithm_meteo.py" line="66"/>
         <source>Quantile of daily maximum temperature</source>
-        <translation type="unfinished"></translation>
+        <translation>Quantil de temperatura máxima diaria</translation>
     </message>
     <message>
         <location filename="../algorithm_meteo.py" line="77"/>
         <source>Start Hour</source>
-        <translation type="unfinished"></translation>
+        <translation>Hora de inicio</translation>
     </message>
     <message>
         <location filename="../algorithm_meteo.py" line="86"/>
         <source>Step resolution in minutes (time between rows) - Not implemented yet</source>
-        <translation type="unfinished"></translation>
+        <translation>Resolución del paso en minutos (tiempo entre filas) - Aún no implementado</translation>
     </message>
     <message>
         <location filename="../algorithm_meteo.py" line="96"/>
         <source>Lenght of each scenario (number of rows) - Implementing hourly weather scenarios only.</source>
-        <translation type="unfinished"></translation>
+        <translation>Largo de cada escenario (número de filas) - Implementa solo escenarios meteorológicos por hora (resolución 1 hora).</translation>
     </message>
     <message>
         <location filename="../algorithm_meteo.py" line="106"/>
         <source>Number of scenarios to generate</source>
-        <translation type="unfinished"></translation>
+        <translation>Número de escenarios a generar</translation>
     </message>
     <message>
         <location filename="../algorithm_meteo.py" line="117"/>
         <source>Output folder</source>
-        <translation type="unfinished"></translation>
+        <translation>Carpeta de salida</translation>
     </message>
     <message>
         <location filename="../algorithm_meteo.py" line="204"/>
         <source>Meteo Kitral</source>
-        <translation type="unfinished"></translation>
+        <translation>Meteo Kitral</translation>
     </message>
     <message>
         <location filename="../algorithm_meteo.py" line="207"/>
         <source>Utils</source>
-        <translation type="unfinished"></translation>
+        <translation>Utilidades</translation>
     </message>
 </context>
 <context>
@@ -502,22 +636,22 @@ After downloading, the file will be unzipped and opened in the file browser
     <message>
         <location filename="../algorithm_knapsack.py" line="655"/>
         <source>Input rasters</source>
-        <translation type="unfinished">Rasters de entrada</translation>
+        <translation>Rasters de entrada</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="666"/>
         <source>Raster Configuration Matrix (use same order than input rasters)</source>
-        <translation type="unfinished">Matriz de configuración de raster (usar el mismo orden que los rasters de entrada)</translation>
+        <translation>Matriz de configuración de raster (usar el mismo orden que los rasters de entrada)</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="676"/>
         <source>Raster Knapsack Output layer</source>
-        <translation type="unfinished"></translation>
+        <translation>Capa de salida del Knapsack</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="845"/>
         <source>Multi Objective Raster Knapsack</source>
-        <translation type="unfinished"></translation>
+        <translation>Knapsack de rasters multi objetivo</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="848"/>
@@ -527,7 +661,7 @@ After downloading, the file will be unzipped and opened in the file browser
     <message>
         <location filename="../algorithm_knapsack.py" line="863"/>
         <source>Optimizes a multi objective knapsack problem using layers as values and/or weights, returns a layer with the selected pixels.</source>
-        <translation type="unfinished"></translation>
+        <translation>Optimiza un problema de knapsack multi objetivo usando capas como valores y/o pesos, devuelve una capa con los píxeles seleccionados.</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="874"/>
@@ -556,7 +690,30 @@ After downloading, the file will be unzipped and opened in the file browser
             (**): There are specialized knapsack algorithms that solve in polynomial time, but not for every data type combination; hence using a MIP solver is the most flexible approach.
 
             </source>
-        <translation type="unfinished"></translation>
+        <translation>&lt;b&gt;1.&lt;/b&gt; Selecciona una lista de rasters a usar como valores (para maximizar o minimizar) o pesos (para ser limitados por la capacidad).
+	    (arrastrar para reordenar los rasters para que coincidan con la matriz)
+
+	    &lt;b&gt;2.&lt;/b&gt; Completa la hoja de datos de la matriz en el mismo orden que 1.:
+	    &lt;b&gt;- value_rescaling&lt;/b&gt;: minmax, onehot, standard, robust o pass para no reescalar.
+		&lt;a href=&quot;https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMax.html&quot;&gt;MinMax&lt;/a&gt; es el predeterminado si solo se proporciona un value_weight.
+		&lt;a href=&quot;https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html&quot;&gt;OneHotEncoder&lt;/a&gt; es para datos categóricos, por ejemplo, modelos de combustible.
+		MinMax y OneHot producen un rango [0,1], &lt;a href=&quot;https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html&quot;&gt;Standard Scaler&lt;/a&gt; (x - &amp;mu;) / &amp;sigma; y &lt;a href=&quot;https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.RobustScaler.html&quot;&gt;Robust Scaler&lt;/a&gt; (lo mismo sin outliers) no
+	    &lt;b&gt;- value_weight&lt;/b&gt;: Cualquier número real, aunque 0 no tiene sentido, &lt;i&gt;valores negativos son para minimizar en lugar de maximizar&lt;/i&gt;
+	    &lt;b&gt;- capacity_sense&lt;/b&gt;, ya sea &lt;i&gt;a lo sumo o a lo menos&lt;/i&gt;, usa cualquiera de: &quot;&amp;lt;=, &amp;le;, le, ub&quot; o &quot;&amp;gt;=, &amp;ge;, ge, lb&quot;, respectivamente.
+		&lt;b&gt;- capacity_ratio&lt;/b&gt;: Un número real, dentro de (-1,1). Internamente se multiplica por la &lt;i&gt;suma de todos los pesos de esa capa&lt;/i&gt;. Por ejemplo, 0.5 selecciona (a lo sumo o a lo menos) la mitad de los píxeles, si todos los pesos (valores de ese raster) son iguales.
+	    &lt;b&gt;3. [speed-up]&lt;/b&gt; Detén la depuración visual de tus cálculos desactivando la opción de gráficos en Parámetros Avanzados (escribir los gráficos puede tardar un tiempo).
+
+	    Se creará un nuevo raster con píxeles seleccionados, no seleccionados y no decididos. Los píxeles no decididos significan que el solucionador no pudo terminar completamente; modificar las opciones del solucionador puede mitigar este problema.
+
+	    El problema clásico del knapsack es NP-difícil, por lo que se utiliza un motor de MIP solver para encontrar &quot;casi&quot; la solución óptima (**), porque -a menudo- es asintóticamente difícil probar el valor óptimo. Por lo tanto, un gap predeterminado del 0.5% y un límite de tiempo de 5 minutos cortan la ejecución del solucionador. El usuario puede experimentar con estos parámetros para equilibrar entre precisión, velocidad y tamaño de instancia(*). En Windows, cerrar la ventana terminal en blanco abortará la ejecución.
+
+	    Al usar Pyomo, se pueden utilizar varios MIP solvers: CBC, GLPK, Gurobi, CPLEX o Ipopt; Si están accesibles a través de la ruta del sistema, de lo contrario el archivo ejecutable puede ser seleccionado por el usuario. La instalación de los solvers depende del usuario.
+
+	    Aunque la versión de Windows viene con binarios CBC sin firmar, por lo que sus usuarios pueden enfrentar una advertencia &quot;Windows protegió tu PC&quot;, por favor evita presionar el botón &quot;No ejecutar&quot;, sigue el enlace &quot;Más información&quot;, desplázate y presiona &quot;Ejecutar de todos modos&quot;. Sin embargo, cbc en Windows no admite multihilo, así que ignora esa advertencia (o cambia a Linux).
+
+	    (*): La complejidad se puede reducir enormemente al reescalar y/o redondear valores en enteros, o incluso mejor al reducir la resolución del raster (ver gdal translate resolution).
+	    (**): Existen algoritmos especializados en knapsack que resuelven en tiempo polinómico, pero no para cada combinación de tipo de datos; por lo tanto, usar un MIP solver es el enfoque más flexible.
+	    </translation>
     </message>
 </context>
 <context>
@@ -564,47 +721,47 @@ After downloading, the file will be unzipped and opened in the file browser
     <message>
         <location filename="../algorithm_knapsack.py" line="920"/>
         <source>Protected area layer</source>
-        <translation type="unfinished"></translation>
+        <translation>Capa de área protegida</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="929"/>
         <source>Strategy for the protected pixels</source>
-        <translation type="unfinished"></translation>
+        <translation>Estrategia para los píxeles protegidos</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="942"/>
         <source>Values layer (if blank 1&apos;s will be used)</source>
-        <translation type="unfinished"></translation>
+        <translation>Capa de valores (si está en blanco se usarán 1's)</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="951"/>
         <source>Weights layer (if blank 1&apos;s will be used)</source>
-        <translation type="unfinished"></translation>
+        <translation>Capa de pesos (si está en blanco se usarán 1's)</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="960"/>
         <source>Capacity ratio (1 = weight.sum)</source>
-        <translation type="unfinished"></translation>
+        <translation>Relación de capacidad (1 = suma de todos la capa de pesos)</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="973"/>
         <source>Raster Knapsack Output layer</source>
-        <translation type="unfinished"></translation>
+        <translation>Capa de salida del raster Knapsack</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="1213"/>
         <source>Raster Knapsack with Protected Area</source>
-        <translation type="unfinished"></translation>
+        <translation>raster Knapsack con área protegida</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="1216"/>
         <source>Decision Optimization</source>
-        <translation type="unfinished">Optimizador de decisiones</translation>
+        <translation>Optimizador de decisiones</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="1231"/>
         <source>Optimizes the knapsack problem by incorporating protected area (pixels) that the algorithm cannot select.</source>
-        <translation type="unfinished"></translation>
+        <translation>Optimiza el problema del knapsack incorporando un área protegida (píxeles) que el algoritmo no puede seleccionar.</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="1242"/>
@@ -624,7 +781,22 @@ After downloading, the file will be unzipped and opened in the file browser
                 Strategy 2 – Reselection prioritizing pixels neighboring the protected area:
                 This strategy involves first solving the classic knapsack problem using the provided value and weight layers. Pixels selected outside the protected area are retained, while those selected within the protected area are re-optimized by relocating them toward its border.
             </source>
-        <translation type="unfinished"></translation>
+        <translation>Optimiza el problema del knapsack incorporando un área protegida (píxeles) que el algoritmo no puede seleccionar.
+
+		&lt;b&gt;1. Selecciona la capa de píxeles protegidos:&lt;/b&gt;
+		Esta debe ser un raster completamente poblado con 0s y 1s. Los píxeles con un valor de 1 se tratarán como protegidos, mientras que aquellos con un valor de 0 se considerarán no protegidos.
+
+		Es crucial que el raster no contenga valores faltantes y solo valores binarios (0 y 1) para garantizar que el algoritmo funcione correctamente.
+		
+		&lt;b&gt;2. Elige la estrategia a aplicar a los píxeles protegidos:&lt;/b&gt;
+		Hay disponibles dos estrategias:
+
+		Estrategia 1 – Hacer que los píxeles protegidos no sean seleccionables:
+		Esta estrategia excluye los píxeles clasificados como protegidos de la selección y resuelve el problema del knapsack utilizando solo los píxeles no protegidos.
+
+		Estrategia 2 – Re-selección priorizando los píxeles vecinos al área protegida:
+		Esta estrategia implica resolver primero el clásico problema del knapsack utilizando las capas de valor y peso proporcionadas. Los píxeles seleccionados fuera del área protegida se mantienen, mientras que aquellos seleccionados dentro del área protegida se re-optimizan trasladándolos hacia su borde.
+	    </translation>
     </message>
 </context>
 <context>
@@ -632,47 +804,47 @@ After downloading, the file will be unzipped and opened in the file browser
     <message>
         <location filename="../algorithm_treatment.py" line="757"/>
         <source>Input Polygons Layer</source>
-        <translation type="unfinished"></translation>
+        <translation>Capa de polígonos de entrada</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="765"/>
         <source>Attribute table field name for {self.IN_TRT}</source>
-        <translation type="unfinished"></translation>
+        <translation>Atributo de la tabla de atributos para {self.IN_TRT}</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="779"/>
         <source>Attribute table field name for {field_value} [0s if not provided]</source>
-        <translation type="unfinished"></translation>
+        <translation>Atributo de la tabla de atributos para {field_value} [0s si no se proporciona]</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="792"/>
         <source>Treatments table (fid,treatment,value,value/m2,cost,cost/m2)</source>
-        <translation type="unfinished"></translation>
+        <translation>Tabla de tratamientos, cabecera:(fid,treatment,value,value/m2,cost,cost/m2)</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="801"/>
         <source>Total Area</source>
-        <translation type="unfinished"></translation>
+        <translation>Área total</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="813"/>
         <source>Total Budget</source>
-        <translation type="unfinished"></translation>
+        <translation>Presupuesto total</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="1028"/>
         <source>Polygon Treatment</source>
-        <translation type="unfinished"></translation>
+        <translation>Tratamiento de polígonos</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="829"/>
         <source>Set invalid geometry check to GeometrySkipInvalid (more options clicking the wrench on the input poly layer)</source>
-        <translation type="unfinished"></translation>
+        <translation>Fijar opción GeometrySkipInvalid para verificación de geometría inválida (más opciones haciendo clic en ícono de llave-inglesa en la capa de polígonos de entrada)</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="1031"/>
         <source>Decision Optimization</source>
-        <translation type="unfinished">Optimizador de decisiones</translation>
+        <translation>Optimizador de decisiones</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="1047"/>
@@ -692,7 +864,22 @@ After downloading, the file will be unzipped and opened in the file browser
             &lt;br&gt;
             &lt;br&gt;
             sample: &lt;a href=&apos;</source>
-        <translation type="unfinished"></translation>
+        <translation>&lt;b&gt;Objetivo:&lt;/b&gt; Maximizar el valor cambiado de los polígonos tratados&lt;br&gt; 
+	    &lt;b&gt;Decisiones:&lt;/b&gt; Qué tratamiento aplicar a cada polígono (o sin cambio)&lt;br&gt;
+	    &lt;b&gt;Restricciones:&lt;/b&gt;&lt;br&gt;
+	    (a) costos fijos+área menores que el presupuesto&lt;br&gt;
+	    (b) área tratada menor que el área total&lt;br&gt; 
+	    &lt;b&gt;Entradas:&lt;/b&gt;&lt;br&gt;
+	    (i) Una capa de polígonos con atributos &lt;b&gt;actuales&lt;/b&gt;: [fid],&lt;b&gt;treatment, value, value/m2&lt;/b&gt;&lt;br&gt;
+	    (ii) Una tabla .csv definiendo tratamientos &lt;b&gt;objetivo&lt;/b&gt;: &lt;b&gt;fid, treatment, value, value/m2, cost, cost/m2&lt;/b&gt; (usar estos nombres de columna)&lt;br&gt;
+	    - fid es el id de la entidad de cada polígono así que se da en la tabla de atributos, pero debe especificarse en la tabla .csv&lt;br&gt;
+	    - tratamiento actual y objetivo son solo cadenas, pero cada polígono necesita al menos un tratamiento factible (una fila)&lt;br&gt;
+	    - valores actuales y objetivos[/m2] pesan hacia el objetivo cuando no hay cambio (mantener actual) o se recomienda un tratamiento objetivo&lt;br&gt;
+	    (iii) &lt;b&gt;Presupuesto&lt;/b&gt; (mismas unidades que los costos)&lt;br&gt;
+	    (iv) &lt;b&gt;Área&lt;/b&gt; (mismas unidades que la geometría de los polígonos)&lt;br&gt;
+	    &lt;br&gt;
+	    &lt;br&gt;
+	    ejemplo: &lt;a href='</translation>
     </message>
 </context>
 <context>
@@ -700,47 +887,47 @@ After downloading, the file will be unzipped and opened in the file browser
     <message>
         <location filename="../algorithm_knapsack.py" line="71"/>
         <source>Input Polygons Layer</source>
-        <translation type="unfinished"></translation>
+        <translation>Capa de polígonos de entrada</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="79"/>
         <source>Attribute table field name for VALUE (if blank 1&apos;s will be used)</source>
-        <translation type="unfinished"></translation>
+        <translation>Atributo de la tabla de atributos para VALUE (si está en blanco se usarán 1's)</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="92"/>
         <source>Attribute table field name for WEIGHT (if blank polygon&apos;s area will be used)</source>
-        <translation type="unfinished"></translation>
+        <translation>Atributo de la tabla de atributos para WEIGHT (si está en blanco se usará el área del polígono)</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="105"/>
         <source>Capacity ratio (1 = weight.sum)</source>
-        <translation type="unfinished"></translation>
+        <translation>Ratio de capacidad (1 = suma de todos los pesos)</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="117"/>
         <source>Polygon Knapsack Output Layer</source>
-        <translation type="unfinished"></translation>
+        <translation>Capa de salida del Knapsack de polígonos</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="119"/>
         <source>Set invalid geometry check to GeometrySkipInvalid (more options clicking the wrench on the input poly layer)</source>
-        <translation type="unfinished"></translation>
+        <translation>Fijar opción GeometrySkipInvalid para verificación de geometría inválida (más opciones haciendo clic en ícono de llave-inglesa en la capa de polígonos de entrada)</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="299"/>
         <source>Polygon Knapsack</source>
-        <translation type="unfinished"></translation>
+        <translation>Knapsack de polígonos</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="302"/>
         <source>Decision Optimization</source>
-        <translation type="unfinished">Optimizador de decisiones</translation>
+        <translation>Optimizador de decisiones</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="317"/>
         <source>Optimizes the classical knapsack problem using polygons with values and/or weights attributes, returns a polygon layer with the selected polygons.</source>
-        <translation type="unfinished"></translation>
+        <translation>Optimiza el clásico problema de la mochila &quot;Knapsack&quot; usando polígonos con atributos de valores y/o pesos, devuelve una capa de polígonos con los polígonos seleccionados.</translation>
     </message>
 </context>
 <context>
@@ -748,7 +935,7 @@ After downloading, the file will be unzipped and opened in the file browser
     <message>
         <location filename="../algorithm_postsimulation.py" line="515"/>
         <source>Bundle</source>
-        <translation type="unfinished"></translation>
+        <translation>Paquete</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="533"/>
@@ -761,13 +948,21 @@ After downloading, the file will be unzipped and opened in the file browser
             To process but not display them, use Propagation DiGraph algorithm directly, unchecking &apos;Open output file after running algorithm&apos;&lt;br&gt;&lt;br&gt;
             &lt;i&gt;The visualization alternative is &lt;b&gt;Propagation Fire Scars&lt;/b&gt;. Or even &lt;b&gt;Final Fire Scar&lt;/b&gt;, recommended for very large simulations&lt;/i&gt;
             </source>
-        <translation type="unfinished"></translation>
+        <translation>Este algoritmo intenta cargar todo desde un directorio de resultados de simulación, de manera conveniente pero más lenta que seleccionar uno de los siguientes algoritmos en el grupo &lt;b&gt;PostProcesamiento&lt;/b&gt;. Consulta cada uno para obtener más detalles.
+
+	    Aunque la salida del &lt;b&gt;Grafo Dirigido de Propagación&lt;/b&gt; es fundamental para métricas de riesgo como DPV y BC: &lt;b&gt;Advertencia: Habilitarlo aquí puede colgar tu sistema&lt;/b&gt;, alrededor de 300.000 flechas es manejable para una laptop regular&lt;br&gt;
+	    Es más seguro contar antes de ejecutar: Ve a la carpeta results/Messages:&lt;br&gt;
+	     - usando bash $ wc -l Messages*csv&lt;br&gt;
+	     - usando PowerShell &gt; Get-Content Messages*.csv | Measure-Object -Line&lt;br&gt;
+	    Para procesarlos pero no mostrarlos, usa el algoritmo Grafo Dirigido de Propagación directamente, desmarcando 'Abrir archivo de salida después de ejecutar el algoritmo'&lt;br&gt;&lt;br&gt;
+	    &lt;i&gt;La alternativa de visualización es &lt;b&gt;Cicatrices de Fuego por Propagación&lt;/b&gt;. O incluso &lt;b&gt;Cicatriz Final del Fuego&lt;/b&gt;, recomendado para simulaciones muy grandes&lt;/i&gt;
+	</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="225"/>
         <source>Base raster (normally fuel or elevation) to get the geotransform</source>
         <comment>BaseContext</comment>
-        <translation type="unfinished">Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
+        <translation>Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
     </message>
 </context>
 <context>
@@ -775,27 +970,27 @@ After downloading, the file will be unzipped and opened in the file browser
     <message>
         <location filename="../algorithm_knapsack.py" line="340"/>
         <source>Values layer (if blank 1&apos;s will be used)</source>
-        <translation type="unfinished"></translation>
+        <translation>Capa de valores (si está en blanco se usarán 1's)</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="349"/>
         <source>Weights layer (if blank 1&apos;s will be used)</source>
-        <translation type="unfinished"></translation>
+        <translation>Capa de pesos (si está en blanco se usarán 1's)</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="358"/>
         <source>Capacity ratio (1 = weight.sum)</source>
-        <translation type="unfinished"></translation>
+        <translation>Ratio de capacidad (1 = suma de todos los pesos)</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="371"/>
         <source>Raster Knapsack Output layer</source>
-        <translation type="unfinished"></translation>
+        <translation>Capa de salida del Knapsack raster</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="555"/>
         <source>Raster Knapsack</source>
-        <translation type="unfinished"></translation>
+        <translation>Raster Knapsack</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="558"/>
@@ -805,7 +1000,7 @@ After downloading, the file will be unzipped and opened in the file browser
     <message>
         <location filename="../algorithm_knapsack.py" line="573"/>
         <source>Optimizes the classical knapsack problem using layers as values and/or weights, returns a layer with the selected pixels.</source>
-        <translation type="unfinished"></translation>
+        <translation>Optimiza el clásico problema de la mochila &quot;Knapsack&quot; usando capas como valores y/o pesos, devuelve una capa con los píxeles seleccionados.</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="584"/>
@@ -835,7 +1030,32 @@ After downloading, the file will be unzipped and opened in the file browser
                 - Weights: The layer, that contains the value that you want to protect and that is affected also by the fuel treatments (e.g., animal habitat).
             If you want to determine where to allocate fuel treatments through out the landscape to protect and specific value that is affected by both, the fire and the fuel treatments use: 
             </source>
-        <translation type="unfinished"></translation>
+        <translation>Al seleccionar una capa de Valores y/o una capa de Pesos, y estableciendo el límite en la capacidad total, se crea una capa que maximiza la suma de los valores de los píxeles seleccionados.
+
+	    Se generará un nuevo raster (por defecto .gpkg) que mostrará los píxeles seleccionados en rojo y los no seleccionados en verde (valores 1, 0 y no-data=-1).
+
+	    La restricción de capacidad se establece eligiendo una relación (entre 0 y 1), que multiplica la suma de todos los pesos (excepto no-data). Por lo tanto, 1 selecciona todos los píxeles que no son no-data en ambas capas.
+
+	    Este problema del knapsack raster es NP-difícil, por lo que se utiliza un motor de MIP solver para encontrar &quot;casi&quot; la solución óptima (**), porque -a menudo- es asintóticamente difícil probar el valor óptimo. Por lo tanto, un gap predeterminado del 0.5% y un límite de tiempo de 5 minutos cortan la ejecución del solucionador. El usuario puede experimentar con estos parámetros para equilibrar entre precisión, velocidad y tamaño de instancia(*). En Windows, cerrar la ventana terminal en blanco abortará la ejecución.
+
+	    Al usar Pyomo, se pueden utilizar varios MIP solvers: CBC, GLPK, Gurobi, CPLEX o Ipopt; Si están accesibles a través de la ruta del sistema, de lo contrario el archivo ejecutable puede ser seleccionado por el usuario. La instalación de los solvers depende del usuario.
+
+	    Aunque la versión de Windows viene con binarios CBC sin firmar, por lo que sus usuarios pueden enfrentar una advertencia &quot;Windows protegió tu PC&quot;, por favor evita presionar el botón &quot;No ejecutar&quot;, sigue el enlace &quot;Más información&quot;, desplázate y presiona &quot;Ejecutar de todos modos&quot;. Sin embargo, cbc en Windows no admite multihilo, así que ignora esa advertencia (o cambia a Linux).
+
+	    (*): La complejidad se puede reducir enormemente al reescalar y/o redondear valores en enteros, o incluso mejor al reducir la resolución del raster (ver gdal translate resolution).
+	(**): Existen algoritmos especializados en knapsack que resuelven en tiempo polinómico, pero no para cada combinación de tipo de datos; por lo tanto, usar un MIP solver es el enfoque más flexible.
+
+	    ----
+
+	    CASO DE USO:
+
+	    Si deseas determinar dónde asignar tratamientos de combustible en todo el paisaje para proteger un valor específico que se ve afectado tanto por el fuego como por los tratamientos de combustible, utiliza lo siguiente:
+
+		- Valores: Capa de Valor de Protección Descendente calculada con el valor respectivo que deseas proteger.
+
+		- Pesos: La capa que contiene el valor que deseas proteger y que también se ve afectado por los tratamientos de combustible (por ejemplo, hábitat animal).
+	    Si deseas determinar dónde asignar tratamientos de combustible en todo el paisaje para proteger un valor específico que se ve afectado tanto por el fuego como por los tratamientos de combustible, utiliza:
+	    </translation>
     </message>
 </context>
 <context>
@@ -843,27 +1063,27 @@ After downloading, the file will be unzipped and opened in the file browser
     <message>
         <location filename="../algorithm_treatment.py" line="488"/>
         <source>Raster layer for {raster}</source>
-        <translation type="unfinished"></translation>
+        <translation>Capa raster para {raster}</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="498"/>
         <source>Treatments Matrix (csv)</source>
-        <translation type="unfinished"></translation>
+        <translation>Matriz de tratamientos (csv)</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="507"/>
         <source>Total Area</source>
-        <translation type="unfinished"></translation>
+        <translation>Área total</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="518"/>
         <source>Total Budget</source>
-        <translation type="unfinished"></translation>
+        <translation>Presupuesto total</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="682"/>
         <source>Raster Treatment</source>
-        <translation type="unfinished"></translation>
+        <translation>Raster de Tratamientos</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="701"/>
@@ -885,7 +1105,24 @@ After downloading, the file will be unzipped and opened in the file browser
             - raster no data == -1 &lt;br&gt;
             &lt;br&gt;
             sample: &lt;a href=&apos;</source>
-        <translation type="unfinished"></translation>
+        <translation>&lt;b&gt;Objetivo:&lt;/b&gt; Maximizar el valor cambiado del raster tratado&lt;br&gt; 
+	    &lt;b&gt;Decisiones:&lt;/b&gt; Qué tratamiento aplicar a cada píxel (o sin cambio)&lt;br&gt;
+	    &lt;b&gt;Restricciones:&lt;/b&gt;&lt;br&gt;
+	    (a) costo de tratamiento * área del píxel menos que el presupuesto&lt;br&gt;
+	    (b) área tratada menor que el área total&lt;br&gt; 
+	    &lt;b&gt;Entradas:&lt;/b&gt;&lt;br&gt;
+	    (i) Una tabla cuadrada .csv de &lt;b&gt;costos de transformación de tratamientos(/m2)&lt;/b&gt; (define la codificación de índices)&lt;br&gt;
+	    (ii) Una capa raster con valores de índice de &lt;b&gt;tratamientos actuales&lt;/b&gt; (codificados: 0..número de tratamientos-1)&lt;br&gt;
+	    (iii) Una capa raster con &lt;b&gt;valores actuales&lt;/b&gt;&lt;br&gt;
+	    (iv) Una capa raster multibanda con &lt;b&gt;valores objetivo&lt;/b&gt; (número de tratamientos == número de bandas)&lt;br&gt;
+	    (vi) &lt;b&gt;Presupuesto&lt;/b&gt; (mismas unidades que los costos)&lt;br&gt;
+	    (vii) &lt;b&gt;Área&lt;/b&gt; (mismas unidades que el tamaño del píxel del raster)&lt;br&gt;
+	    &lt;br&gt;
+	    - la consistencia entre rasters depende del usuario&lt;br&gt;
+	    - los rasters &quot;deben guardarse en disco (para que las capas tengan un publicSource != )&quot;&lt;br&gt;
+	    - no-data del raster == -1 &lt;br&gt;
+	    &lt;br&gt;
+	    ejemplo: &lt;a href='</translation>
     </message>
 </context>
 <context>
@@ -893,47 +1130,47 @@ After downloading, the file will be unzipped and opened in the file browser
     <message>
         <location filename="../algorithm_treatment.py" line="81"/>
         <source>Raster layer for {raster}</source>
-        <translation type="unfinished"></translation>
+        <translation>Capa raster para {raster}</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="91"/>
         <source>Treatments transformation costs (csv)</source>
-        <translation type="unfinished"></translation>
+        <translation>Matriz de costos de transformación de tratamientos (csv)</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="100"/>
         <source>Total Area</source>
-        <translation type="unfinished"></translation>
+        <translation>Área total</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="111"/>
         <source>Total Budget</source>
-        <translation type="unfinished"></translation>
+        <translation>Presupuesto total</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="123"/>
         <source>Treatment areas &amp; budget (csv)</source>
-        <translation type="unfinished"></translation>
+        <translation>Áreas de tratamiento y presupuesto (csv)</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="134"/>
         <source>Teams on_cost, area, budget and abilities (csv)</source>
-        <translation type="unfinished"></translation>
+        <translation>Equipos: costo fijo, área, presupuesto y habilidades (csv headers: on_cost, area, budget, abilities)</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="145"/>
         <source>Raster tReatment</source>
-        <translation type="unfinished"></translation>
+        <translation>Raster de tRatamiento</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="148"/>
         <source>Raster tEam</source>
-        <translation type="unfinished"></translation>
+        <translation>Raster de Equipos</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="405"/>
         <source>Raster Treatment Team</source>
-        <translation type="unfinished"></translation>
+        <translation>Tratamiento con Equipos usando Rasters</translation>
     </message>
     <message>
         <location filename="../algorithm_treatment.py" line="424"/>
@@ -963,7 +1200,31 @@ After downloading, the file will be unzipped and opened in the file browser
             - raster no data == -1 &lt;br&gt;
             &lt;br&gt;
             sample: &lt;a href=&apos;</source>
-        <translation type="unfinished"></translation>
+        <translation>&lt;b&gt;Objetivo:&lt;/b&gt; Maximizar el valor cambiado del raster tratado&lt;br&gt; 
+	    &lt;b&gt;Decisiones:&lt;/b&gt; Qué tratamiento aplicar por qué equipo a cada píxel (o sin cambio)&lt;br&gt;
+	    &lt;b&gt;Restricciones:&lt;/b&gt;&lt;br&gt;
+	    (a) todo costo de tratamiento * área del píxel(pxa) + costo fijo del equipo es menor que &lt;b&gt;Presupuesto&lt;/b&gt;&lt;br&gt;
+	    (b) costo de tratamiento * pxa es menor que &lt;b&gt;presupuesto por tratamiento&lt;/b&gt;&lt;br&gt;
+	    (c) costo de tratamiento * pxa es menor que &lt;b&gt;presupuesto por equipo&lt;/b&gt;&lt;br&gt;
+	    (d) toda el área tratada menor que total &lt;b&gt;Área&lt;/b&gt;&lt;br&gt; 
+	    (e) área tratada menor que &lt;b&gt;área por tratamiento&lt;/b&gt;&lt;br&gt; 
+	    (f) área tratada menor que &lt;b&gt;área por equipo&lt;/b&gt;&lt;br&gt; 
+	    (g) como máximo un tratamiento por un equipo por píxel&lt;br&gt;
+	    (h) vinculación entre variables de tratamiento (h,w,r,e) y equipos activos (e)&lt;br&gt;
+	    &lt;b&gt;Entradas:&lt;/b&gt;&lt;br&gt;
+	    (i) Una tabla cuadrada .csv de &lt;b&gt;costos de transformación de tratamientos(/m2)&lt;/b&gt; (define la codificación de índices)&lt;br&gt;
+	    (ii) Una capa raster con valores indexados de &lt;b&gt;tratamientos actuales&lt;/b&gt; (codificados: 0..número de tratamientos-1)&lt;br&gt;
+	    (iii) Una capa raster con &lt;b&gt;valores actuales&lt;/b&gt;&lt;br&gt;
+	    (iv) Una capa raster multibanda con &lt;b&gt;valores objetivo&lt;/b&gt; (número de tratamientos == número de bandas)&lt;br&gt;
+	    (vi) &lt;b&gt;Presupuesto&lt;/b&gt; (mismas unidades que los costos)&lt;br&gt;
+	    (vii) &lt;b&gt;Área&lt;/b&gt; (mismas unidades que el tamaño del píxel del raster)&lt;br&gt;
+	    (viii) Una tabla .csv para cada &lt;b&gt;costo fijo del equipo, área, presupuesto y habilidades&lt;/b&gt; (1s es capaz)&lt;br&gt;
+            &lt;br&gt;
+	    - la consistencia entre rasters depende del usuario&lt;br&gt;
+	    - los rasters &quot;deben guardarse en disco (para que las capas tengan un publicSource != )&quot;&lt;br&gt;
+	    - no-data del raster == -1 &lt;br&gt;
+	    &lt;br&gt;
+	    ejemplo: &lt;a href='</translation>
     </message>
 </context>
 <context>
@@ -976,12 +1237,12 @@ After downloading, the file will be unzipped and opened in the file browser
     <message>
         <location filename="../algorithm_raster_tutorial.py" line="42"/>
         <source>Input Raster %s</source>
-        <translation>Raster %s de entradash</translation>
+        <translation>Raster %s de entrada</translation>
     </message>
     <message>
         <location filename="../algorithm_raster_tutorial.py" line="43"/>
         <source>Output Raster</source>
-        <translation type="unfinished"></translation>
+        <translation>Raster de salida</translation>
     </message>
 </context>
 <context>
@@ -989,24 +1250,26 @@ After downloading, the file will be unzipped and opened in the file browser
     <message>
         <location filename="../algorithm_sandbox.py" line="208"/>
         <source>Input File</source>
-        <translation type="unfinished"></translation>
+        <translation>Archivo de entrada</translation>
     </message>
     <message>
         <location filename="../algorithm_sandbox.py" line="417"/>
         <source>AASandbox</source>
-        <translation type="unfinished"></translation>
+        <translation>AAZonaDePruebas</translation>
     </message>
     <message>
         <location filename="../algorithm_sandbox.py" line="448"/>
         <source>This is an example algorithm that takes a vector layer and creates a new identical one.</source>
-        <translation type="unfinished"></translation>
+        <translation>Este es un algoritmo de ejemplo que toma una capa vectorial y crea una nueva idéntica.</translation>
     </message>
     <message>
         <location filename="../algorithm_sandbox.py" line="455"/>
         <source>This is an example algorithm that takes a vector layer and creates a new identical one.
         It is meant to be used as an example of how to create your own algorithms and explain methods and variables used to do it. An algorithm like this will be available in all elements, and there is not need for additional work.
         All Processing algorithms should extend the QgsProcessingAlgorithm class.</source>
-        <translation type="unfinished"></translation>
+        <translation>Este es un algoritmo de ejemplo que toma una capa vectorial y crea una nueva idéntica.
+	Su propósito es ser utilizado como ejemplo de cómo crear tus propios algoritmos y explicar los métodos y variables utilizados para hacerlo. Un algoritmo como este estará disponible en todos los elementos, y no se requiere trabajo adicional.
+	Todos los algoritmos de procesamiento deben extender la clase QgsProcessingAlgorithm.</translation>
     </message>
 </context>
 <context>
@@ -1014,22 +1277,22 @@ After downloading, the file will be unzipped and opened in the file browser
     <message>
         <location filename="../algorithm_postsimulation.py" line="1032"/>
         <source>Output final scar raster</source>
-        <translation type="unfinished"></translation>
+        <translation>Salida raster de cicatriz final</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="1040"/>
         <source>Output propagation scars polygons</source>
-        <translation type="unfinished"></translation>
+        <translation>Salida de polígonos de cicatrices de propagación</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="1049"/>
         <source>Output burn probability raster</source>
-        <translation type="unfinished">Salida raster de probabilidad de quema</translation>
+        <translation>Salida raster de probabilidad de quema</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="1195"/>
         <source>Fire Scar</source>
-        <translation type="unfinished"></translation>
+        <translation>Cicatriz de fuego</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="1198"/>
@@ -1047,36 +1310,39 @@ After downloading, the file will be unzipped and opened in the file browser
             C. &lt;b&gt;Skip this output altogether by clicking the option button &apos;...&apos; and selecting Skip Output&lt;/b&gt;
 
             &lt;i&gt;If the Bundle algorithm failed for you, this propagation output is the most likely cause...&lt;/i&gt;</source>
-        <translation type="unfinished"></translation>
+        <translation> - La cicatriz de fuego &lt;b&gt;Muestra&lt;/b&gt; es cualquiera de los archivos ForestGrid; con ella se realizará una búsqueda de patrones para todos los Grids(cualquier dígito)/ForestGrid(cualquier dígito).csv.
+	    - La cicatriz de fuego &lt;b&gt;Final&lt;/b&gt; salida raster necesita simulaciones ejecutadas con la opción Cicatriz Final del Fuego, cada banda es una simulación
+	    - La cicatriz de fuego &lt;b&gt;Probabilidad de Quema&lt;/b&gt; salida raster es la media de todas las simulaciones, requiere &gt;1 simulaciones
+	    - La cicatriz de fuego &lt;b&gt;Propagación&lt;/b&gt; Polígonos de salida acumula rasters en memoria con geometría fija y poligonizados (4 pasos); atribuyendo a cada uno su: simulación, período, perímetro y área. Se sabe que falla en algunas versiones de qgis, sistemas operativos o hardware con poca RAM. Mitigaciones:
+	    A. Cambiar el formato predeterminado .gpkg a .shp o probar otro
+	    B. Usar las opciones avanzadas para ajustar o deshabilitar la opción de geometrías fijas
+	    C. &lt;b&gt;Omitir esta salida por completo haciendo clic en el botón de opción '...' y seleccionando Omitir Salida&lt;/b&gt;
+
+	    &lt;i&gt;Si el algoritmo Bundle falló para ti, esta salida de propagación es la causa más probable...&lt;/i&gt;</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="1011"/>
         <source>Base raster (normally fuel or elevation) to get the geotransform</source>
         <comment>BaseContext</comment>
-        <translation type="unfinished">Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
+        <translation>Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
     </message>
 </context>
 <context>
     <name>StatisticSIMPP</name>
     <message>
         <location filename="../algorithm_postsimulation.py" line="805"/>
-        <source>Output raster</source>
-        <translation type="obsolete">Raster de salida</translation>
-    </message>
-    <message>
-        <location filename="../algorithm_postsimulation.py" line="805"/>
         <source>mean &amp; std</source>
-        <translation type="unfinished"></translation>
+        <translation>media y desviación estándar</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="945"/>
         <source>Simulator Post Processing</source>
-        <translation type="unfinished">Post procesamiento de simulaciones</translation>
+        <translation>Post procesamiento de simulaciónes</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="954"/>
         <source>Spatial Statistic</source>
-        <translation type="unfinished"></translation>
+        <translation>Estadística espacial</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="963"/>
@@ -1090,19 +1356,28 @@ After downloading, the file will be unzipped and opened in the file browser
 
             Check the &lt;a href=https://fire2a.github.io/docs/qgis-toolbox/algo_simulator.html#options&gt;table below&lt;a/&gt; for more info
             </source>
-        <translation type="unfinished"></translation>
+        <translation>
+	    Este algoritmo de post procesamiento, lee la salida cruda del simulador C2F-W y genera dos rasters.
+	    Uno tiene una banda por simulación, nombrada &quot;NombreEstadística&quot; (así N bandas para N simulaciones), por ejemplo, Longitud de Llama Superficial.
+
+	    El segundo tiene dos bandas correspondientes a la media y la desviación estándar, por ejemplo, &quot;Media&amp;DesvEst Tasa de Impacto de Propagación&quot;.
+	    La &lt;b&gt;estadística media&lt;/b&gt; suma, para cada píxel, sus valores divididos por el &lt;b&gt;conteo de quemados&lt;/b&gt;.
+	    La &lt;b&gt;desviación estándar&lt;/b&gt; divide contra &lt;b&gt;todas las simulaciones&lt;/b&gt;, no el conteo de quemados de cada píxel individual.
+
+	    Consulta la &lt;a href=https://fire2a.github.io/docs/qgis-toolbox/algo_simulator.html#options&gt;tabla a continuación&lt;a/&gt; para más información
+	    </translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="757"/>
         <source>Base raster (normally fuel or elevation) to get the geotransform</source>
         <comment>BaseContext</comment>
-        <translation type="unfinished">Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
+        <translation>Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="805"/>
         <source>Output raster</source>
         <comment>BaseContext</comment>
-        <translation type="unfinished">Raster de salida</translation>
+        <translation>Raster de salida</translation>
     </message>
 </context>
 <context>
