@@ -43,7 +43,10 @@ from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 
 from .algorithm_utils import write_log
-from .config import NAME
+from .config import aConfig
+
+aconfig = aConfig()
+NAME = aconfig.NAME
 
 plugin_dir = Path(__file__).parent
 assets_dir = Path(plugin_dir, "simulator")
@@ -79,7 +82,9 @@ class IgnitionPointsFromLogFileSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform"),
+                description=QCoreApplication.translate(
+                    "BaseContext", "Base raster (normally fuel or elevation) to get the geotransform"
+                ),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -176,8 +181,8 @@ class IgnitionPointsFromLogFileSIMPP(QgsProcessingAlgorithm):
         write_log(feedback, name=self.name())
         return {self.OUT_LAYER: dest_id}
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="IgnitionPointsFromLogFileSIMPP"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return IgnitionPointsFromLogFileSIMPP()
