@@ -394,7 +394,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
                 output_dict[stat["name"] + "Stats"] = stat_out["OutputRasterStats"]
 
         # grids
-        grids = [item for item in SIM_OUTPUTS if item["name"] == "Propagation Fire Scars"][0]
+        grids = [item for item in SIM_OUTPUTS if item["name"] == self.tr("Propagation Fire Scars")][0]
         if sample_file:= next(Path(results_dir).glob(grids["dir"] + "*" + sep + grids["file"] + "*" + grids["ext"]), None):  # fmt: skip
             scar_in_dict = {
                 "BaseLayer": base_raster,
@@ -480,7 +480,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
 
         # messages
         if self.parameterAsBool(parameters, self.MSGS, context):
-            msgs = [item for item in SIM_OUTPUTS if item["name"] == "Propagation Directed Graph"][0]
+            msgs = [item for item in SIM_OUTPUTS if item["name"] == self.tr("Propagation Directed Graph")][0]
             if sample_file := next(Path(results_dir, msgs["dir"]).glob(msgs["file"] + "*" + msgs["ext"]), None):
                 msg_out = processing.run(
                     "fire2a:propagationdigraph",
