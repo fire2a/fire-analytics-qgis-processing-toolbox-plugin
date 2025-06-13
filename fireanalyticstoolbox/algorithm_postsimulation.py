@@ -73,7 +73,12 @@ from qgis.PyQt.QtGui import QColor, QIcon
 from scipy import stats as scipy_stats
 
 from .algorithm_utils import get_output_raster_format, write_log
-from .config import NAME, SIM_OUTPUTS, STATS, TAG, jolo
+from .config import TAG, aConfig, jolo
+
+aconfig = aConfig()
+NAME = aconfig.NAME
+SIM_OUTPUTS = aconfig.SIM_OUTPUTS
+STATS = aconfig.STATS
 
 # from matplotlib import colormaps
 # from matplotlib.colors import to_rgba_array

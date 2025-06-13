@@ -43,7 +43,10 @@ from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 
 from .algorithm_utils import write_log
-from .config import NAME
+from .config import aConfig
+
+aconfig = aConfig()
+NAME = aconfig.NAME
 
 plugin_dir = Path(__file__).parent
 assets_dir = Path(plugin_dir, "simulator")

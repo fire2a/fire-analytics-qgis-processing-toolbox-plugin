@@ -55,15 +55,24 @@ from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 
 from .algorithm_utils import write_log
-from .config import NAME, SIM_INPUTS, SIM_OUTPUTS, STATS, TAG
+from .config import TAG, aConfig
 from .simulator.c2fqprocess import C2F
-
-output_args = [item["arg"] for item in SIM_OUTPUTS]
-output_names = [item["name"] for item in SIM_OUTPUTS]
-
 
 plugin_dir = Path(__file__).parent
 c2f_path = Path(plugin_dir, "simulator", "C2F", "Cell2Fire")
+
+
+aconfig = aConfig()
+SIM_INPUTS = aconfig.SIM_INPUTS
+NAME = aconfig.NAME
+SIM_OUTPUTS = aconfig.SIM_OUTPUTS
+STATS = aconfig.STATS
+QgsMessageLog.logMessage(f"{SIM_INPUTS=}", tag=TAG, level=Qgis.Info)
+QgsMessageLog.logMessage(f"{NAME=}", tag=TAG, level=Qgis.Info)
+QgsMessageLog.logMessage(f"{SIM_OUTPUTS=}", tag=TAG, level=Qgis.Info)
+QgsMessageLog.logMessage(f"{STATS=}", tag=TAG, level=Qgis.Info)
+output_args = [item["arg"] for item in SIM_OUTPUTS]
+output_names = [item["name"] for item in SIM_OUTPUTS]
 
 
 class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
