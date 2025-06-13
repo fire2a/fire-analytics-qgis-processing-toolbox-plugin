@@ -118,7 +118,9 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.IN_LOG,
-                description="Simulator log file (normally firesim_yymmdd_HHMMSS/results/IgnitionsHistory/ignitions_log.csv)",
+                description=self.tr(
+                    "Simulator log file (normally firesim_yymmdd_HHMMSS/results/IgnitionsHistory/ignitions_log.csv)"
+                ),
                 behavior=QgsProcessingParameterFile.File,
                 extension="csv",
                 defaultValue=None,
@@ -182,7 +184,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         )
         # layer = QgsProcessingUtils.mapLayerFromString(dest_id, context)
         layer_details = context.LayerDetails(
-            "Ignition Points",  # always name it as Ignition Points, alternative: layer.name()
+            self.tr("Ignition Points"),  # always name it as Ignition Points, alternative: layer.name()
             context.project(),
             dest_id,
             QgsProcessingUtils.LayerHint.Vector,
@@ -201,7 +203,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         return IgnitionPointsSIMPP()
 
     def group(self):
-        return self.tr("Simulator Post Processing")
+        return NAME["simpp"]
 
     def groupId(self):
         return "simulatorpostprocessing"
@@ -238,7 +240,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterBoolean(
                 name=self.MSGS,
-                description=("Enable propagation directed graph"),
+                description=self.tr("Enable propagation directed graph"),
                 defaultValue=False,
                 optional=True,
             )
@@ -246,7 +248,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterBoolean(
                 name=self.POLYSCARS,
-                description=("Enable propagation scars polygons"),
+                description=self.tr("Enable propagation scars polygons"),
                 defaultValue=False,
                 optional=True,
             )
@@ -256,7 +258,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.RESULTS_DIR,
-                description="Simulation Results directory (normally firesim_yymmdd_HHMMSS/results)",
+                description=self.tr("Simulation Results directory (normally firesim_yymmdd_HHMMSS/results)"),
                 behavior=QgsProcessingParameterFile.Folder,
                 defaultValue=project_path,
                 optional=False,
@@ -265,7 +267,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFolderDestination(
                 name=self.OUTPUT_DIR,
-                description="Output directory",
+                description=self.tr("Output directory"),
                 defaultValue=None,
                 optional=True,
                 createByDefault=True,
@@ -320,9 +322,9 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
                 is_child_algorithm=True,
             )
             layer_details = QgsProcessingContext.LayerDetails(
-                "Ignition Points",
+                self.tr("Ignition Points"),
                 context.project(),
-                "Ignition Points",
+                self.tr("Ignition Points"),
                 QgsProcessingUtils.LayerHint.Vector,
             )
             layer_details.groupName = NAME["layer_group"]
@@ -415,12 +417,12 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
             if scar_raster := scar_out.get("ScarRaster"):
                 # layer_details = context.layerToLoadOnCompletionDetails(scar_raster)
                 layer_details = context.LayerDetails(
-                    "Final Scars",
+                    self.tr("Final Scars"),
                     context.project(),
-                    "Final Scars",
+                    self.tr("Final Scars"),
                     QgsProcessingUtils.LayerHint.Raster,
                 )
-                layer_details.setPostProcessor(run_alg_styler_bin("Final Scars"))
+                layer_details.setPostProcessor(run_alg_styler_bin(self.tr("Final Scars")))
                 layer_details.forceName = True
                 layer_details.groupName = NAME["layer_group"]
                 layer_details.layerSortKey = 1
@@ -430,12 +432,12 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
             if bplayer := scar_out.get("BurnProbability"):
                 # layer_details = context.layerToLoadOnCompletionDetails(bplayer)
                 layer_details = context.LayerDetails(
-                    "BurnProbability",
+                    self.tr("BurnProbability"),
                     context.project(),
-                    "BurnProbability",
+                    self.tr("BurnProbability"),
                     QgsProcessingUtils.LayerHint.Raster,
                 )
-                layer_details.setPostProcessor(run_alg_styler("Burn Probability"))
+                layer_details.setPostProcessor(run_alg_styler(self.tr("Burn Probability")))
                 layer_details.forceName = True
                 layer_details.groupName = NAME["layer_group"]
                 layer_details.layerSortKey = 3
@@ -494,9 +496,9 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
                     is_child_algorithm=True,
                 )
                 layer_details = QgsProcessingContext.LayerDetails(
-                    "PropagationDirectedGraph",
+                    self.tr("PropagationDirectedGraph"),
                     context.project(),
-                    "PropagationDirectedGraph",
+                    self.tr("PropagationDirectedGraph"),
                     QgsProcessingUtils.LayerHint.Vector,
                 )
                 layer_details.groupName = NAME["layer_group"]
@@ -578,7 +580,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.IN_MSG,
-                description=(
+                description=self.tr(
                     "Sample Messages file (normally firesim_yymmdd_HHMMSS/results/Messages/MessagesFile01.csv)\nAll"
                     " ChosenName[0-9]*.csv files will be loaded"
                 ),
@@ -714,7 +716,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
         return MessagesSIMPP()
 
     def group(self):
-        return self.tr("Simulator Post Processing")
+        return NAME["simpp"]
 
     def groupId(self):
         return "simulatorpostprocessing"
@@ -771,7 +773,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.IN_STAT,
-                description=(
+                description=self.tr(
                     "Sample Spatial Statistic file (normally"
                     " firesim_yymmdd_HHMMSS/results/Statistic/statistic.asc)\nAll ChosenName[0-9]*.asc files will be"
                     " loaded\nKnown: "
@@ -1024,7 +1026,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.IN_SCAR,
-                description=(
+                description=self.tr(
                     "Sample Fire Scar file (normally"
                     " firesim_yymmdd_HHMMSS/results/Grids/Grids[0-9]*/ForestGrid[0-9]*.csv)"
                 ),
@@ -1061,7 +1063,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         )
         qppb = QgsProcessingParameterBoolean(
             name=self.IN_FIXGEOM,
-            description=("Fix geometries of the generated propagation polygons (native:fixgeometries)"),
+            description=self.tr("Fix geometries of the generated propagation polygons (native:fixgeometries)"),
             defaultValue=True,
             optional=True,
         )
@@ -1069,7 +1071,9 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         self.addParameter(qppb)
         qppn = QgsProcessingParameterNumber(
             name=self.IN_FIXGEOM_METHOD,
-            description=("Repair method passed to fix geometries (0:Linework, 1:Structure didn't work on MacOS)"),
+            description=self.tr(
+                "Repair method passed to fix geometries (0:Linework, 1:Structure didn't work on MacOS)"
+            ),
             defaultValue=0 if platform_system() == "Darwin" else 1,
             optional=True,
         )
@@ -1144,7 +1148,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
 
         if burn_prob_fname:
             if context.willLoadLayerOnCompletion(burn_prob_fname):
-                layer_name = "Burn Probability"
+                layer_name = self.tr("Burn Probability")
                 layer_details = context.LayerDetails(
                     layer_name,
                     context.project(),
@@ -1179,9 +1183,9 @@ class ScarSIMPP(QgsProcessingAlgorithm):
                         feedback.pushInfo(f"Fixing geometries done! {fix_geo_out}")
                         output_vector_file = fix_geo_out
             layer_details = context.LayerDetails(
-                "Propagation Scars",
+                self.tr("Propagation Scars"),
                 context.project(),
-                "Propagation Scars",
+                self.tr("Propagation Scars"),
                 QgsProcessingUtils.LayerHint.Vector,
             )
             layer_details.forceName = True
@@ -1251,7 +1255,7 @@ class BurnProbabilityMetric(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.IN_SCAR,
-                description=(
+                description=self.tr(
                     "Sample Fire Scar file (normally"
                     " firesim_yymmdd_HHMMSS/results/Grids/Grids[0-9]*/ForestGrid[0-9]*.csv)"
                 ),
@@ -1292,12 +1296,12 @@ class BurnProbabilityMetric(QgsProcessingAlgorithm):
         if bplayer := scar_out.get("BurnProbability"):
             # layer_details = context.layerToLoadOnCompletionDetails(bplayer)
             layer_details = context.LayerDetails(
-                "BurnProbability",
+                self.tr("BurnProbability"),
                 context.project(),
-                "BurnProbability",
+                self.tr("BurnProbability"),
                 QgsProcessingUtils.LayerHint.Raster,
             )
-            layer_details.setPostProcessor(run_alg_styler("Burn Probability"))
+            layer_details.setPostProcessor(run_alg_styler(self.tr("Burn Probability")))
             layer_details.forceName = True
             layer_details.groupName = NAME["layer_group"]
             layer_details.layerSortKey = 3
@@ -1506,7 +1510,7 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.IN,
-                description=(
+                description=self.tr(
                     "Pickled messages (normally generated by the Propagation Digraph Algorithm"
                     " results/Messages/messages.pickle)"
                 ),
