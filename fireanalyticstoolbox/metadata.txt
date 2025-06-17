@@ -24,6 +24,7 @@ repository=https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plug
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
 changelog=
+        v0.8.1: Cell2FireW update to v0.3.1. Instance downloader and other minor fixes.
 	v0.8.0: new protected areas firebreak optimization. macOS install dependencies fix.
 	v0.7.5: meteo algorithm implements temperature quantiles, fire2a-lib bump to v0.3.10
 	v0.7.4: missing toml python dependency in fire2a-lib bump to v0.3.9
