@@ -1,5 +1,6 @@
 #!python3
 
+
 def get_color_table(feedback, amin, amax, cm=colormaps.get("magma")):
     """set colormap for a band"""
     acm = (array(to_rgba_array(cm.colors)) * 255).astype(int)
@@ -20,6 +21,7 @@ def get_color_table(feedback, amin, amax, cm=colormaps.get("magma")):
 #         ret = colors.CreateColorRamp(i, tuple(acm[i]), i+1, tuple(acm[i+1]))
 #         feedback.pushDebugInfo(f"i: {i}, {tuple(acm[i])}, {i+1}, {tuple(acm[i+1])}, {ret}")
 #     return colors
+
 
 class RasterPostProcessor(QgsProcessingLayerPostProcessorInterface):
     def __init__(self, display_name, layer_color1, layer_color2):
@@ -47,6 +49,7 @@ class RasterPostProcessor(QgsProcessingLayerPostProcessorInterface):
         else:
             feedback.pushInfo(f"Layer not valid: {self.name}")
 
+
 class Renamer(QgsProcessingLayerPostProcessorInterface):
     def __init__(self, layer_name):
         self.name = layer_name
@@ -54,6 +57,7 @@ class Renamer(QgsProcessingLayerPostProcessorInterface):
 
     def postProcessLayer(self, layer, context, feedback):
         layer.setName(self.name)
+
 
 def run_alg_styler(display_name, layer_color1, layer_color2):
     """Create a New Post Processor class and returns it"""
@@ -93,23 +97,27 @@ def run_alg_styler(display_name, layer_color1, layer_color2):
 
     return LayerPostProcessor.create()
 
+
 def get_gdal_extensions():
     from osgeo import gdal
+
     ext = []
     for i in range(gdal.GetDriverCount()):
         drv = gdal.GetDriver(i)
         if drv.GetMetadataItem(gdal.DCAP_RASTER):
             print(drv.GetMetadataItem(gdal.DMD_LONGNAME), drv.GetMetadataItem(gdal.DMD_EXTENSIONS))
             if item := drv.GetMetadataItem(gdal.DMD_EXTENSIONS):
-                ext.extend(item.split(' '))
+                ext.extend(item.split(" "))
 
-def match_any_file_except(ext='xml'):
-    return f'*.[!{ext}]'
+
+def match_any_file_except(ext="xml"):
+    return f"*.[!{ext}]"
+
 
 class WeatherBuilder(QgsProcessingAlgorithm):
     """Cell2Fire"""
 
-    OUTPUT_FOLDER= "OutputFolder"
+    OUTPUT_FOLDER = "OutputFolder"
     OUTPUT_FOLDER_IN_CURRENT_PROJECT = "CreateOutputFolderInCurrentProject"
     FUEL_MODEL = "FuelModel"
     WEAFILE = "WeatherFile"
@@ -137,7 +145,7 @@ class WeatherBuilder(QgsProcessingAlgorithm):
                 defaultValue=str(weadistfile) if weadistfile.is_file() else None,
                 optional=True,
                 fileFilter="",
-                )
+            )
         )
         weascenfile = Path(project_path, "WeatherScenarios.csv")
         self.addParameter(

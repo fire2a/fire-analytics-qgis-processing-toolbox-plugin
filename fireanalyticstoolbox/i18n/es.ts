@@ -196,12 +196,12 @@
     <message>
         <location filename="../algorithm_postsimulation.py" line="1766"/>
         <source>Include original protection values where no fire was seen (default true)</source>
-	<translation>Incluir los valores de protección originales donde no fue visto fuego (predeterminado verdadero)</translation>
+        <translation>Incluir los valores de protección originales donde no fue visto fuego (predeterminado verdadero)</translation>
     </message>
     <message>
         <location filename="../algorithm_postsimulation.py" line="1774"/>
         <source>Scale every pixel by burn count (default true); or all pixels by number of simulations (false)</source>
-	<translation>Escalar cada píxel por cantidad de incendios vistos (predeterminado verdadero); o todos los píxeles por número de simulaciones (falso)</translation>
+        <translation>Escalar cada píxel por cantidad de incendios vistos (predeterminado verdadero); o todos los píxeles por número de simulaciones (falso)</translation>
     </message>
 </context>
 <context>
@@ -263,52 +263,52 @@
     <message>
         <location filename="../decision_optimization/doop.py" line="224"/>
         <source>Display the pyomo model in the console (disabled for rasters, can easily clog &amp; crash QGIS, use for debugging small models only!)</source>
-	<translation>Mostrar el modelo pyomo en la consola (deshabilitado para rasters, porque puede obstruir y bloquear QGIS fácilmente, ¡usar solo para depurar modelos pequeños!)</translation>
+        <translation>Mostrar el modelo pyomo en la consola (deshabilitado para rasters, porque puede obstruir y bloquear QGIS fácilmente, ¡usar solo para depurar modelos pequeños!)</translation>
     </message>
     <message>
         <location filename="../decision_optimization/doop.py" line="238"/>
         <source>LOCAL SOLVER</source>
-	<translation>SOLVER LOCAL</translation>
+        <translation>SOLVER LOCAL</translation>
     </message>
     <message>
         <location filename="../decision_optimization/doop.py" line="238"/>
         <source>Name: recommended options string [and executable STATUS]</source>
-	<translation>Nombre: cadena (de texto) de opciones recomendadas [y ESTADO del ejecutable]</translation>
+        <translation>Nombre: cadena (de texto) de opciones recomendadas [y ESTADO del ejecutable]</translation>
     </message>
     <message>
         <location filename="../decision_optimization/doop.py" line="257"/>
         <source>Override options_string (type a single space &apos; &apos; to not send any options to the solver)</source>
-	<translation>Reemplazar cadena (de texto) de opciones (escribe un único espacio &apos; &apos; para no enviar ninguna opción al solver)</translation>
+        <translation>Reemplazar cadena (de texto) de opciones (escribe un único espacio ' ' para no enviar ninguna opción al solver)</translation>
     </message>
     <message>
         <location filename="../decision_optimization/doop.py" line="266"/>
         <source>Set solver executable file [required if status is &apos;MUST SET EXECUTABLE&apos;]</source>
-	<translation>Fijar archivo ejecutable del solver [requerido si el estado es &apos;MUST SET EXECUTABLE&apos;]</translation>
+        <translation>Fijar archivo ejecutable del solver [requerido si el estado es 'MUST SET EXECUTABLE']</translation>
     </message>
     <message>
         <location filename="../decision_optimization/doop.py" line="276"/>
         <source>NEOS CLOUD SOLVER</source>
-	<translation>SOLVER NEOS CLOUD</translation>
+        <translation>SOLVER NEOS CLOUD</translation>
     </message>
     <message>
         <location filename="../decision_optimization/doop.py" line="276"/>
         <source>(not available for Pyomo+MsWindows)</source>
-	<translation>(no disponible para Pyomo+MsWindows)</translation>
+        <translation>(no disponible para Pyomo+MsWindows)</translation>
     </message>
     <message>
         <location filename="../decision_optimization/doop.py" line="276"/>
         <source>Registered email (visit https://neos-guide.org/)</source>
-	<translation>Correo electrónico registrado (visita https://neos-guide.org/)</translation>
+        <translation>Correo electrónico registrado (visita https://neos-guide.org/)</translation>
     </message>
     <message>
         <location filename="../decision_optimization/doop.py" line="289"/>
         <source>Solver name</source>
-	<translation>Nombre del solver</translation>
+        <translation>Nombre del solver</translation>
     </message>
     <message>
         <location filename="../decision_optimization/doop.py" line="305"/>
         <source>Custom options string</source>
-	<translation>Cadena (de texto) de opciones personalizada</translation>
+        <translation>Cadena (de texto) de opciones personalizada</translation>
     </message>
 </context>
 <context>
@@ -529,7 +529,7 @@ Firebreaks raster (1=firebreak)</source>
     <message>
         <location filename="../algorithm_deprecated.py" line="90"/>
         <source>Simulator log file (normally firesim_yymmdd_HHMMSS/results/LogFile.txt)</source>
-	<translation>Archivo de registro de simulación (normalmente firesim_yymmdd_HHMMSS/results/LogFile.txt)</translation>
+        <translation>Archivo de registro de simulación (normalmente firesim_yymmdd_HHMMSS/results/LogFile.txt)</translation>
     </message>
 </context>
 <context>
@@ -728,7 +728,7 @@ Todos los archivos similarmente llamados 'ChosenName[0-9]*.csv' serán cargados<
     <message>
         <location filename="../algorithm_meteo.py" line="57"/>
         <source>Where? Single point vector layer, else the center of the current map will be used.</source>
-	<translation>¿Dónde? Capa vectorial con un punto, de lo contrario se usará el centro del mapa actual.</translation>
+        <translation>¿Dónde? Capa vectorial con un punto, de lo contrario se usará el centro del mapa actual.</translation>
     </message>
 </context>
 <context>
@@ -818,12 +818,12 @@ Todos los archivos similarmente llamados 'ChosenName[0-9]*.csv' serán cargados<
     <message>
         <location filename="../algorithm_knapsack.py" line="679"/>
         <source>Write debugging plots to the same directory as the output layer, includes: observations, scaled values, capacity violin plots &amp; solution stats</source>
-	<translation>Escribir gráficos de depuración en el mismo directorio que la capa de salida, incluye: observaciones, valores escalados, gráficos de violín de capacidad y estadísticas de solución</translation>
+        <translation>Escribir gráficos de depuración en el mismo directorio que la capa de salida, incluye: observaciones, valores escalados, gráficos de violín de capacidad y estadísticas de solución</translation>
     </message>
     <message>
         <location filename="../algorithm_knapsack.py" line="689"/>
         <source>Relax excluding nodata values from any to all (layers containing nodata will exclude its pixel from the model)</source>
-	<translation>Relajar la exclusión de valores nodata de 'cualquier' capa a 'todas' (las capas que contienen nodata excluirán sus píxeles del modelo)</translation>
+        <translation>Relajar la exclusión de valores nodata de 'cualquier' capa a 'todas' (las capas que contienen nodata excluirán sus píxeles del modelo)</translation>
     </message>
 </context>
 <context>
@@ -1598,12 +1598,12 @@ Conocidos:</translation>
     <message>
         <location filename="../algorithm_scraps.py" line="137"/>
         <source>Two column csv file describing the number of times each scenario should be repeated</source>
-	<translation>Archivo csv de dos columnas que describe el número de veces que cada escenario debe repetirse</translation>
+        <translation>Archivo csv de dos columnas que describe el número de veces que cada escenario debe repetirse</translation>
     </message>
     <message>
         <location filename="../algorithm_scraps.py" line="151"/>
         <source>Weather Scenarios files</source>
-	<translation>Archivos de escenarios meteorológicos</translation>
+        <translation>Archivos de escenarios meteorológicos</translation>
     </message>
     <message>
         <location filename="../algorithm_scraps.py" line="162"/>
@@ -1614,7 +1614,7 @@ Conocidos:</translation>
     <message>
         <location filename="../algorithm_scraps.py" line="162"/>
         <source>(destructive action warning: empties contents if already exists)</source>
-	<translation>(advertencia de acción destructiva: vacía el contenido si ya existe)</translation>
+        <translation>(advertencia de acción destructiva: vacía el contenido si ya existe)</translation>
     </message>
 </context>
 <context>
@@ -1792,7 +1792,7 @@ Conocidos:</translation>
     <message>
         <location filename="../config.py" line="175"/>
         <source>Propagation Metrics</source>
-	<translation>Métricas de propagación</translation>
+        <translation>Métricas de propagación</translation>
     </message>
 </context>
 </TS>

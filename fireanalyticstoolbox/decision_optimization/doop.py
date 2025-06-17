@@ -58,7 +58,6 @@ NEOS_SOLVER = [
     "raposa",
     "snopt",
 ]
- 
 
 
 def init_ndarray(data, model, *args):
@@ -128,6 +127,7 @@ def qml_print(msg, qgs_message_log=None):
     else:
         print(msg)
 
+
 def add_cbc_to_path(qgs_message_log=None):
     """Add cbc to path if it is not already there"""
     if cbc := which("cbc.exe"):
@@ -144,15 +144,16 @@ def add_cbc_to_path(qgs_message_log=None):
         return
     qml_print("CBC SOLVER NOT available in path", qgs_message_log)
 
+
 def add_cplex_to_path(qgs_message_log=None):
-    if cplex:= which("cplex.exe"):
+    if cplex := which("cplex.exe"):
         qml_print(f"ready {cplex=}", qgs_message_log)
         return
-    try: 
-        programfiles = Path(environ.get('programfiles'))
-        if cplexstudio := sorted((programfiles / "IBM"/ "ILOG").glob("CPLEX*")):
+    try:
+        programfiles = Path(environ.get("programfiles"))
+        if cplexstudio := sorted((programfiles / "IBM" / "ILOG").glob("CPLEX*")):
             cplexstudio = cplexstudio[-1]
-            for apath in ["opl/bin/x64_win64","opl/oplide","cplex/bin/x64_win64","cpoptimizer/bin/x64_win64"]:
+            for apath in ["opl/bin/x64_win64", "opl/oplide", "cplex/bin/x64_win64", "cpoptimizer/bin/x64_win64"]:
                 bpath = cplexstudio / apath
                 if bpath.is_dir():
                     environ["PATH"] += pathsep + str(bpath)
@@ -163,7 +164,7 @@ def add_cplex_to_path(qgs_message_log=None):
             qml_print(f"ibm ilog CPLEX SOLVER not found in {programfiles=}", qgs_message_log)
     except Exception as e:
         qml_print(f"Adding ibm ilog CPLEX error, {e}", qgs_message_log)
-    if cplex:= which("cplex.exe"):
+    if cplex := which("cplex.exe"):
         qml_print(f"{cplex=}", qgs_message_log)
         return
     qml_print("ibm ilog CPLEX SOLVER NOT available in path", qgs_message_log)
