@@ -39,8 +39,8 @@ class aConfig:
             },
         }
 
-        self.STATS = [
-            {
+        self.STATS = {
+            "ros": {
                 "name": self.tr("Hit Rate Of Spread"),
                 "dir": "RateOfSpread",
                 "file": "ROSFile",
@@ -49,7 +49,7 @@ class aConfig:
                 "unit": "m/min",
                 "dtype": "float32",
             },
-            {
+            "flamelen": {
                 "name": self.tr("Surface Flame Length"),
                 "dir": "SurfaceFlameLength",
                 "file": "SurfaceFlameLength",
@@ -58,7 +58,7 @@ class aConfig:
                 "unit": "m",
                 "dtype": "float32",
             },
-            {
+            "surfintensity": {
                 "name": self.tr("Byram Surface Intensity"),
                 "dir": "SurfaceIntensity",
                 "file": "SurfaceIntensity",
@@ -67,7 +67,7 @@ class aConfig:
                 "unit": "kW/m",
                 "dtype": "float32",
             },
-            {
+            "crownscar": {
                 "name": self.tr("Crown Fire Scar"),
                 "dir": "CrownFire",
                 "file": "Crown",
@@ -76,7 +76,7 @@ class aConfig:
                 "unit": "bool",
                 "dtype": "int16",
             },
-            {
+            "crownconsumptionratio": {
                 "name": self.tr("Crown Fire Fuel Consumption Ratio"),
                 "dir": "CrownFractionBurn",
                 "file": "Cfb",
@@ -85,7 +85,7 @@ class aConfig:
                 "unit": "ratio",
                 "dtype": "float32",
             },
-            {
+            "surfaceburnfraction": {
                 "name": self.tr("Surface Burn Fraction"),
                 "suffix": self.tr(" (only Canada FBP)"),
                 "dir": "SurfFractionBurn",
@@ -95,7 +95,7 @@ class aConfig:
                 "unit": "ton",
                 "dtype": "float32",
             },
-            {
+            "crownintensity": {
                 "name": self.tr("Crown Intensity"),
                 "suffix": self.tr(" (only Spain S&B)"),
                 "dir": "CrownIntensity",
@@ -105,7 +105,7 @@ class aConfig:
                 "unit": "kW/m",
                 "dtype": "float32",
             },
-            {
+            "crownflamelen": {
                 "name": self.tr("Crown Flame Length"),
                 "suffix": self.tr(" (only Spain S&B)"),
                 "dir": "CrownFlameLength",
@@ -115,7 +115,7 @@ class aConfig:
                 "unit": "m",
                 "dtype": "float32",
             },
-            {
+            "maxflamelen": {
                 "name": self.tr("Max Flame Length"),
                 "suffix": self.tr(" (only Spain S&B)"),
                 "dir": "MaxFlameLength",
@@ -125,12 +125,12 @@ class aConfig:
                 "unit": "m",
                 "dtype": "float32",
             },
-        ]
+        }
 
         # NO CAMBIAR DE ORDEN
         # check algorithm_simulatior.py > FireSimulatorAlgorithm > postProcessing
-        self.SIM_OUTPUTS = [
-            {
+        self.SIM_OUTPUTS = {
+            "finalscar": {
                 "name": self.tr("Final Fire Scar"),
                 "dir": "Grids" + sep + "Grids",
                 "file": "ForestGrid",
@@ -138,7 +138,7 @@ class aConfig:
                 "arg": "final-grid",
                 "unit": "bool",
             },
-            {
+            "propagationscars": {
                 "name": self.tr("Propagation Fire Scars"),
                 "dir": "Grids" + sep + "Grids",
                 "file": "ForestGrid",
@@ -146,7 +146,7 @@ class aConfig:
                 "arg": "grids",
                 "unit": "bool",
             },
-            {
+            "propagationdigraph": {
                 "name": self.tr("Propagation Directed Graph"),
                 "dir": "Messages",
                 "file": "MessagesFile",
@@ -154,7 +154,7 @@ class aConfig:
                 "arg": "output-messages",
                 "unit": "simtime",
             },
-            {
+            "ignitionpoints": {
                 "name": self.tr("Ignition Points"),
                 "dir": "IgnitionsHistory",
                 "file": "ignitions_log",
@@ -162,8 +162,8 @@ class aConfig:
                 "arg": "ignitionsLog",
                 "unit": "cell_id",
             },
-        ]
-        self.SIM_OUTPUTS.extend(self.STATS)
+        }
+        self.SIM_OUTPUTS.update(self.STATS)
 
         METRICS = {
             "bp": self.tr("Burn Probability"),
@@ -172,13 +172,14 @@ class aConfig:
         }
         simpp = self.tr("Simulator Post Processing")
         simm = self.tr("Simulator Risk Metrics")
+        pm = self.tr("Propagation Metrics")
         self.NAME = {
             "simpp": simpp,
             "simm": simm,
             "layer_group": simpp + " Group",
-            "bc": METRICS["bc"] + self.tr(" Propagation Metric"),
-            "dpv": METRICS["dpv"] + self.tr(" Propagation Metric"),
-            "bp": METRICS["bp"] + self.tr(" Propagation Metric"),
+            "bc": METRICS["bc"] + " " + pm,
+            "dpv": METRICS["dpv"] + " " + pm,
+            "bp": METRICS["bp"] + " " + pm,
             "fuel_models": ["0. Scott & Burgan", "1. Kitral", "2. Canadian Forest Fire Behavior Prediction System"],
             "fuel_tables": ["spain_lookup_table.csv", "kitral_lookup_table.csv", "fbp_lookup_table.csv"],
             "ignition_modes": [

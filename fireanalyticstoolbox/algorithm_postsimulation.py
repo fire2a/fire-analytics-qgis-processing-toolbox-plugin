@@ -339,7 +339,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException(f"{log_file} not found or empty!")
 
         # stats
-        for stat in STATS:
+        for stat in STATS.values():
             if sample_file := next(Path(results_dir).glob(stat["dir"] + sep + stat["file"] + "*" + stat["ext"]), None):
                 stat_out = processing.run(
                     "fire2a:statistic",
@@ -395,8 +395,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
                 )
                 output_dict[stat["name"] + "Stats"] = stat_out["OutputRasterStats"]
 
-        # grids
-        grids = [item for item in SIM_OUTPUTS if item["name"] == self.tr("Propagation Fire Scars")][0]
+        grids = SIM_OUTPUTS["propagationscars"]
         if sample_file:= next(Path(results_dir).glob(grids["dir"] + "*" + sep + grids["file"] + "*" + grids["ext"]), None):  # fmt: skip
             scar_in_dict = {
                 "BaseLayer": base_raster,
@@ -482,7 +481,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
 
         # messages
         if self.parameterAsBool(parameters, self.MSGS, context):
-            msgs = [item for item in SIM_OUTPUTS if item["name"] == self.tr("Propagation Directed Graph")][0]
+            msgs = SIM_OUTPUTS["propagationdigraph"]
             if sample_file := next(Path(results_dir, msgs["dir"]).glob(msgs["file"] + "*" + msgs["ext"]), None):
                 msg_out = processing.run(
                     "fire2a:propagationdigraph",
@@ -769,7 +768,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
                 optional=False,
             )
         )
-        known = [item["dir"] + sep + item["file"] for item in STATS]
+        known = [item["dir"] + sep + item["file"] for item in STATS.values()]
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.IN_STAT,
@@ -843,13 +842,18 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
             raise QgsProcessingException(f"{stat_dir} does not contain any non-empty '{stat_name}[0-9]*{ext}' files")
         feedback.pushDebugInfo(f"{len(files)} files, first: {files[0]}...")
         # infer dimensional units
-        if unit := [item["unit"] for item in STATS if item["file"] == stat_name]:
+        # TODO since STATS list->dict
+        # get stat_name not from parameter but something like
+        # self.PARAM_INTERNAL_NAME = STATS.keys()[ ? ]
+        # unit = STATS['internal_name']["unit"] ?
+        if unit := [item["unit"] for item in STATS.values() if item["file"] == stat_name]:
             unit = unit[0]
         else:
             unit = None
 
+        # TODO idem
         final_name = ""
-        for item in STATS:
+        for item in STATS.values():
             feedback.pushDebugInfo(f"{item=}, {stat_name=}")
             if item["file"] == stat_name:
                 final_name = item["name"]

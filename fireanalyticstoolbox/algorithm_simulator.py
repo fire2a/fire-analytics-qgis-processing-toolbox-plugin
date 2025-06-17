@@ -71,8 +71,8 @@ QgsMessageLog.logMessage(f"{SIM_INPUTS=}", tag=TAG, level=Qgis.Info)
 QgsMessageLog.logMessage(f"{NAME=}", tag=TAG, level=Qgis.Info)
 QgsMessageLog.logMessage(f"{SIM_OUTPUTS=}", tag=TAG, level=Qgis.Info)
 QgsMessageLog.logMessage(f"{STATS=}", tag=TAG, level=Qgis.Info)
-output_args = [item["arg"] for item in SIM_OUTPUTS]
-output_names = [item["name"] for item in SIM_OUTPUTS]
+output_args = [item["arg"] for item in SIM_OUTPUTS.values()]
+output_names = [item["name"] for item in SIM_OUTPUTS.values()]
 
 
 class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
@@ -466,13 +466,14 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 + self.tr("OUTPUTS SECTION")
                 + "\n\n"
                 + self.tr("options (click '...' button on the right)"),
-                options=[item["name"] + item["suffix"] if "suffix" in item else item["name"] for item in SIM_OUTPUTS],
+                options=[
+                    item["name"] + item["suffix"] if "suffix" in item else item["name"] for item in SIM_OUTPUTS.values()
+                ],
                 allowMultiple=True,
                 defaultValue=[
                     i
-                    for i, item in enumerate(SIM_OUTPUTS)
-                    if item["name"]
-                    in ["Propagation Fire Scars", "Propagation Directed Graph", "Ignition Points", "Hit Rate Of Spread"]
+                    for i, key in enumerate(SIM_OUTPUTS)
+                    if key in ["propagationscars", "propagationdigraph", "ignitionpoints", "ros"]
                 ],
                 optional=True,
             )
@@ -898,17 +899,15 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             output_dict[name] = True
             feedback.pushDebugInfo(f"output: {name} True")
         #
-        for st in STATS:
+        for st in STATS.values():
             files = Path(results_dir, st["dir"]).glob(st["file"] + "[0-9]*")
             if sample_file := next(files, None):
                 output_dict[st["name"]] = str(sample_file)
             else:
                 output_dict[st["name"]] = None
 
-        # grid = SIM_OUTPUTS[0] 'Final Fire Scar'
-        grid = next(item for item in SIM_OUTPUTS if item["name"] == self.tr("Final Fire Scar"))
-        # final_grid = SIM_OUTPUTS[1] 'Propagation Fire Scars'
-        final_grid = next(item for item in SIM_OUTPUTS if item["name"] == self.tr("Propagation Fire Scars"))
+        grid = SIM_OUTPUTS["propagationscars"]
+        final_grid = SIM_OUTPUTS["finalscar"]
         files = Path(results_dir).glob(grid["dir"] + "[0-9]*" + sep + grid["file"] + "[0-9]*")
         if sample_file := next(files, None):
             output_dict[grid["name"]] = str(sample_file)
@@ -917,16 +916,14 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             output_dict[grid["name"]] = None
             output_dict[final_grid["name"]] = None
 
-        # msg = SIM_OUTPUTS[2] Propagation Directed Graph
-        msg = next(item for item in SIM_OUTPUTS if item["name"] == self.tr("Propagation Directed Graph"))
+        msg = SIM_OUTPUTS["propagationdigraph"]
         files = Path(results_dir, msg["dir"]).glob(msg["file"] + "*." + msg["ext"])
         if sample_file := next(files, None):
             output_dict[msg["name"]] = str(sample_file)
         else:
             output_dict[st["name"]] = None
 
-        # get the dictionary element with key name "Ignition Points"
-        igni_log = next(item for item in SIM_OUTPUTS if item["name"] == self.tr("Ignition Points"))
+        igni_log = SIM_OUTPUTS["ignitionpoints"]
         igni_file = Path(results_dir, igni_log["dir"], igni_log["file"] + "." + igni_log["ext"])
         if igni_file.is_file():
             output_dict[igni_log["name"]] = str(igni_file)
