@@ -129,7 +129,9 @@ class WeatherBuilder(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.WEAFILE,
-                description="Two column csv file describing the number of times each scenario should be repeated",
+                description=self.tr(
+                    "Two column csv file describing the number of times each scenario should be repeated"
+                ),
                 behavior=QgsProcessingParameterFile.File,
                 extension="csv",
                 defaultValue=str(weadistfile) if weadistfile.is_file() else None,
@@ -141,7 +143,7 @@ class WeatherBuilder(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.WEAFILE,
-                description="Weather Scenarios files",
+                description=self.tr("Weather Scenarios files"),
                 behavior=QgsProcessingParameterFile.File,
                 extension="csv",
                 defaultValue=str(weascenfile) if weascenfile.is_file() else None,
@@ -152,7 +154,9 @@ class WeatherBuilder(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFolderDestination(
                 name=self.OUTPUT_FOLDER,
-                description="Output directory (destructive action warning: empties contents if already exists)",
+                description=self.tr("Output directory", "BaseContext")
+                + " "
+                + self.tr("(destructive action warning: empties contents if already exists)"),
                 defaultValue=None,
                 optional=True,
                 createByDefault=True,

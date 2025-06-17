@@ -57,7 +57,9 @@ class MeteoAlgo(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 name=self.IN_LOCATION,
-                description="Where? Single point vector layer, else the center of the current map will be used.",
+                description=self.tr(
+                    "Where? Single point vector layer, else the center of the current map will be used."
+                ),
                 types=[QgsProcessing.TypeVectorPoint],
                 defaultValue=None,
                 optional=True,

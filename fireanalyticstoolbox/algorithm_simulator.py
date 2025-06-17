@@ -342,10 +342,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         )
         self.addParameter(
             # QgsProcessingParameterGeometry(
-            #     name=self.IGNIPOINT,
-            #     description="Single point vector layer (requires generation mode 2)",
-            #     defaultValue=None,
-            #     optional=True,
+            #     description=self.tr("Single point geometry (requires generation mode 2)"),
             #     geometryTypes=[Qgis.GeometryType.PointGeometry],  # Qgis.GeometryType(0)],
             #     allowMultipart=False,
             QgsProcessingParameterVectorLayer(

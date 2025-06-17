@@ -678,7 +678,9 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         )
         qppb = QgsProcessingParameterBoolean(
             name=self.PLOTS,
-            description="Write debugging plots to the same directory as the output layer, includes: observations, scaled values, capacity violin plots & solution stats",
+            description=self.tr(
+                "Write debugging plots to the same directory as the output layer, includes: observations, scaled values, capacity violin plots & solution stats"
+            ),
             defaultValue="True",
             optional=True,
         )
@@ -686,7 +688,9 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(qppb)
         qppb2 = QgsProcessingParameterBoolean(
             name=self.RELAXEXCLUDENODATA,
-            description="Relax excluding nodata values from any to all (layers containing nodata will exclude its pixel from the model)",
+            description=self.tr(
+                "Relax excluding nodata values from any to all (layers containing nodata will exclude its pixel from the model)"
+            ),
             defaultValue="False",
             optional=True,
         )

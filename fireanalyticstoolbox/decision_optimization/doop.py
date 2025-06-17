@@ -222,7 +222,9 @@ def pyomo_init_algorithm(self, config):
     # boolean parameter to display the model
     qppb = QgsProcessingParameterBoolean(
         name="DISPLAY_MODEL",
-        description="Display the pyomo model in the console (disabled for rasters, can easily clog & crash QGIS, use for debugging small models only!)",
+        description=self.tr(
+            "Display the pyomo model in the console (disabled for rasters, can easily clog & crash QGIS, use for debugging small models only!)"
+        ),
         defaultValue="False",
         optional=False,
     )
@@ -234,7 +236,10 @@ def pyomo_init_algorithm(self, config):
     # solver string combobox (enums
     qpps = QgsProcessingParameterString(
         name="SOLVER",
-        description="============\nLOCAL SOLVER\nName: recommended options string [and executable STATUS]",
+        description="============\n"
+        + self.tr("LOCAL SOLVER")
+        + "\n"
+        + self.tr("Name: recommended options string [and executable STATUS]"),
         # optional=True,
     )
     qpps.setMetadata(
@@ -269,7 +274,12 @@ def pyomo_init_algorithm(self, config):
     # NEOS
     qpps = QgsProcessingParameterString(
         name="NEOS_EMAIL",
-        description="============\nNEOS CLOUD SOLVER\n(not available for Pyomo+MsWindows)\nRegistered email (visit https://neos-guide.org/)",
+        description="============\n"
+        + self.tr("NEOS CLOUD SOLVER")
+        + "\n"
+        + self.tr("(not available for Pyomo+MsWindows)")
+        + "\n"
+        + self.tr("Registered email (visit https://neos-guide.org/)"),
         defaultValue="",
         optional=True,
     )
@@ -277,7 +287,7 @@ def pyomo_init_algorithm(self, config):
     self.addParameter(qpps)
     qpps = QgsProcessingParameterString(
         name="NEOS_SOLVER",
-        description="Solver name",
+        description=self.tr("Solver name"),
         defaultValue="cplex",
         optional=True,
     )

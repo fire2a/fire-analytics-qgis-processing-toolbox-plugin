@@ -82,9 +82,7 @@ class IgnitionPointsFromLogFileSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                description=QCoreApplication.translate(
-                    "BaseContext", "Base raster (normally fuel or elevation) to get the geotransform"
-                ),
+                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -92,7 +90,7 @@ class IgnitionPointsFromLogFileSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.IN_LOG,
-                description="Simulator log file (normally firesim_yymmdd_HHMMSS/results/LogFile.txt)",
+                description=self.tr("Simulator log file (normally firesim_yymmdd_HHMMSS/results/LogFile.txt)"),
                 behavior=QgsProcessingParameterFile.File,
                 extension="txt",
                 defaultValue=None,
