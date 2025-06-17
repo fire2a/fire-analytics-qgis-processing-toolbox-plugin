@@ -433,8 +433,8 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         """
         return "zexperimental"
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="SandboxAlgorithm"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return SandboxAlgorithm()

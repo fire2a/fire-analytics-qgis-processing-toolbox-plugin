@@ -4,12 +4,13 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 import numpy as np
-from processing.algs.gdal.GdalUtils import GdalUtils
-from qgis.core import (Qgis, QgsColorRampShader, QgsMessageLog, QgsPalettedRasterRenderer, QgsProcessingFeedback,
+from processing.algs.gdal.GdalUtils import GdalUtils  # type: ignore
+from qgis.core import QgsPalettedRasterRenderer  # type: ignore
+from qgis.core import (Qgis, QgsColorRampShader, QgsMessageLog, QgsProcessingFeedback,
                        QgsProcessingLayerPostProcessorInterface, QgsProcessingParameterRasterDestination,
                        QgsRasterBlock, QgsRasterFileWriter, QgsRasterShader, QgsSingleBandPseudoColorRenderer)
-from qgis.PyQt.QtCore import QByteArray
-from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtCore import QByteArray, QCoreApplication  # type: ignore
+from qgis.PyQt.QtGui import QColor  # type: ignore
 
 from .config import TAG
 
@@ -191,7 +192,8 @@ def write_log(feedback, name="", file_name=None):
         file_name = Path(NamedTemporaryFile(prefix=f"algorithm_{name}_log_", suffix=".html", delete=False).name)
     if not isinstance(file_name, Path):
         file_name = Path(file_name)
-    feedback.pushInfo(f"this output is written to: {file_name}")
+    msg = QCoreApplication.translate("Utils", "This output is written to")
+    feedback.pushInfo(f"{msg}: {file_name}")
     with open(file_name, "w") as f:
         f.write(feedback.htmlLog())
     text_file_name = file_name.with_suffix(".txt")

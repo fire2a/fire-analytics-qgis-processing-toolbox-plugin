@@ -30,8 +30,7 @@ __copyright__ = "(C) 2023 by Fernando Badilla Veliz - Fire2a.com"
 
 __revision__ = "$Format:%H$"
 
-from qgis.core import (QgsFeatureSink, QgsProcessing, QgsProcessingAlgorithm,
-                       QgsProcessingParameterFeatureSink,
+from qgis.core import (QgsFeatureSink, QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterFeatureSink,
                        QgsProcessingParameterFeatureSource)
 from qgis.PyQt.QtCore import QCoreApplication
 
@@ -147,8 +146,8 @@ class FireToolboxAlgorithm(QgsProcessingAlgorithm):
         """
         return "zexperimental"
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="FireToolboxAlgorithm"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return FireToolboxAlgorithm()

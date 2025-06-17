@@ -410,8 +410,8 @@ class RasterTreatmentTeamAlgorithm(QgsProcessingAlgorithm):
     def groupId(self):
         return "do"
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="RasterTreatmentTeamAlgorithm"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return RasterTreatmentTeamAlgorithm()
@@ -687,8 +687,8 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
     def groupId(self):
         return "do"
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="RasterTreatmentAlgorithm"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return RasterTreatmentAlgorithm()
@@ -1033,8 +1033,8 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
     def groupId(self):
         return "do"
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="PolyTreatmentAlgorithm"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return PolyTreatmentAlgorithm()

@@ -71,8 +71,11 @@ class InstanceDownloader(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFileDestination(
                 name=self.FILEDEST,
-                description=self.tr(
-                    "Output file [optional]\n"
+                description=self.tr("Output file")
+                + " ["
+                + self.tr("optional")
+                + "]\n"
+                + self.tr(
                     "- leave empty for using selected filename and temporary path\n"
                     "- if current project is saved its path will be used\n"
                     "- else use absolute filenaming (.zip extension is suggested)\n"
@@ -132,8 +135,8 @@ class InstanceDownloader(QgsProcessingAlgorithm):
     def displayName(self):
         return self.tr("Instance Downloader")
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="InstanceDownloader"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return InstanceDownloader()

@@ -7,8 +7,11 @@ self.assertTrue(image.save(os.path.join(temp_dir.path(), 'expected.png'), "PNG")
 from pathlib import Path
 
 import numpy as np
-from qgis.core import *
+from qgis.core import (Qgis, QgsProcessingAlgorithm, QgsProcessingException, QgsProcessingParameterRasterDestination,
+                       QgsProcessingParameterRasterLayer, QgsRasterBlock, QgsRasterFileWriter, QgsRasterLayer,
+                       QgsRasterPipe)
 from qgis.PyQt.QtCore import QByteArray  # , QVariant
+from qgis.PyQt.QtCore import QCoreApplication
 
 from .algorithm_utils import get_output_raster_format
 
@@ -36,8 +39,8 @@ class RasterTutorial(QgsProcessingAlgorithm):
         return f"(Check algorithm_raster_tutorial.py\nSupported raster formats by extension:\n{extension_list} {extension_vertical_list}"
 
     def initAlgorithm(self, config):
-        self.addParameter(QgsProcessingParameterRasterLayer(self.IN, "Input Raster"))
-        self.addParameter(QgsProcessingParameterRasterDestination(self.OUT, "Output Raster"))
+        self.addParameter(QgsProcessingParameterRasterLayer(self.IN, self.tr("Input Raster %s") % "hello"))
+        self.addParameter(QgsProcessingParameterRasterDestination(self.OUT, self.tr("Output Raster")))
 
     def checkParameterValues(self, parameters, context):
         src_raster = self.parameterAsRasterLayer(parameters, self.IN, context)
@@ -46,7 +49,8 @@ class RasterTutorial(QgsProcessingAlgorithm):
         dst_fname = self.parameterAsOutputLayer(parameters, self.OUT, context)
         dst_ext = Path(dst_fname).suffix[1:]
         if dst_ext not in QgsRasterFileWriter.supportedFormatExtensions(QgsRasterFileWriter.RasterFormatOptions()):
-            return False, f"Output raster format .{dst_ext} not supported"
+            # return False, f"Output raster format .{dst_ext} not supported"
+            return False, self.tr("Output raster format .%s not supported") % dst_ext
         if QgsRasterFileWriter.driverForExtension(dst_ext) == "":
             return False, f"Output raster extension .{dst_ext} not supported"
         return True, ""
@@ -57,6 +61,7 @@ class RasterTutorial(QgsProcessingAlgorithm):
         # INPUT
         src_raster = self.parameterAsRasterLayer(parameters, self.IN, context)
         # src_raster = iface.activeLayer()
+        src_raster = QgsRasterLayer(src_raster)  # ensure it is a QgsRasterLayer
         feedback.pushDebugInfo(f"src_raster: {src_raster}\n")
         # get data
         src_provider = src_raster.dataProvider()
@@ -148,6 +153,9 @@ class RasterTutorial(QgsProcessingAlgorithm):
 
         return {self.OUT: dst_fname}
 
+    def tr(self, string, context="RasterTutorial"):
+        return QCoreApplication.translate(context, string)
+
 
 def qgis2numpy_dtype(qgis_dtype: Qgis.DataType) -> np.dtype:
     """Conver QGIS data type to corresponding numpy data type
@@ -180,3 +188,4 @@ def qgis2numpy_dtype(qgis_dtype: Qgis.DataType) -> np.dtype:
         return np.float32
     if qgis_dtype == Qgis.DataType.Float64:
         return np.float64
+    raise ValueError("Unsupported QGIS data type: %s" % qgis_dtype)
