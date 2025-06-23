@@ -18,13 +18,14 @@ class aConfig:
         return QCoreApplication.translate(context, string)
 
     def __init__(self):
-        locale = QSettings().value("locale/userLocale")[0:2]
-        locale_path = Path(__file__).parent / "i18n" / f"{locale}.qm"
-
-        if locale_path.is_file():
-            translator = QTranslator()
-            translator.load(str(locale_path))
-            QCoreApplication.installTranslator(translator)
+        if qsetting := QSettings():
+            if userlocale := qsetting.value("locale/userLocale"):
+                locale = userlocale[0:2]
+                locale_path = Path(__file__).parent / "i18n" / f"{locale}.qm"
+                if locale_path.is_file():
+                    translator = QTranslator()
+                    translator.load(str(locale_path))
+                    QCoreApplication.installTranslator(translator)
 
         self.SIM_INPUTS = {
             "fuels": {"units": "categorical", "description": self.tr("Fuel")},
