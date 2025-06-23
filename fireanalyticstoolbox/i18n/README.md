@@ -1,5 +1,13 @@
 # QGIS QT Translation 
 
+## TL;DR
+1. update `tr("strings")` in the code.
+2. update `i18n/es.ts` with pylupdate5 `pylupdate5 **/*.py -ts i18n/es.ts`
+3. edit and translate `i18n/es.ts` with Qt Linguist (or manually, search for "unfinished")
+4. compile `ts -> qm` with `lrelease i18n/es.ts -qm i18n/es.qm`
+5. commit
+
+## INTRO
 0. tools
 
     pylupdate5 : busca tr('strings') en el código fuente y genera un archivo .ts
