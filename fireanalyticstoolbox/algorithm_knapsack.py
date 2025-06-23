@@ -935,8 +935,8 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
                 name=self.IN_STRAT,
                 description=self.tr("Strategy for the protected pixels"),
                 options=[
-                    "Make protected pixels unselectable",
-                    "Reselection prioritizing pixels neighboring the protected area",
+                    self.tr("Make protected pixels unselectable"),
+                    self.tr("Reselection prioritizing pixels neighboring the protected area"),
                 ],
                 allowMultiple=False,
                 defaultValue=0,
