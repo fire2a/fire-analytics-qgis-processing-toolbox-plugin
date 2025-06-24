@@ -80,6 +80,9 @@ NAME = aconfig.NAME
 SIM_OUTPUTS = aconfig.SIM_OUTPUTS
 STATS = aconfig.STATS
 
+itm = SIM_OUTPUTS["ignitionpoints"]
+igni_wea_path = Path(itm["dir"], itm["file"] + itm["ext"])
+
 # from matplotlib import colormaps
 # from matplotlib.colors import to_rgba_array
 
@@ -101,7 +104,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         log_file = Path(self.parameterAsString(parameters, self.IN_LOG, context))
         if not log_file.stat().st_size > 0:
             return False, f"{log_file} file is empty!"
-        ip_log = loadtxt(log_file, delimiter=",", skiprows=1, dtype=[("sim", int32), ("cellid", int32)])
+        ip_log = loadtxt(log_file, delimiter=",", skiprows=1, usecols=[0, 1], dtype=[("sim", int32), ("cellid", int32)])
         if len(ip_log) == 0:
             return False, f"{log_file} file contains only headers but no ignition points"
         return True, ""
@@ -118,9 +121,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.IN_LOG,
-                description=self.tr(
-                    "Simulator log file (normally firesim_yymmdd_HHMMSS/results/IgnitionsHistory/ignitions_log.csv)"
-                ),
+                description=self.tr("Simulator log file (normally firesim_yymmdd_HHMMSS/results/") + str(igni_wea_path),
                 behavior=QgsProcessingParameterFile.File,
                 extension="csv",
                 defaultValue=None,
@@ -144,7 +145,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         # ignition points csv log file
         log_csv = Path(self.parameterAsString(parameters, self.IN_LOG, context))
         feedback.pushDebugInfo(f"reading {log_csv=}")
-        ip_log = loadtxt(log_csv, delimiter=",", skiprows=1, dtype=[("sim", int32), ("cellid", int32)])
+        ip_log = loadtxt(log_csv, delimiter=",", skiprows=1, usecols=[0, 1], dtype=[("sim", int32), ("cellid", int32)])
         # create layer
         # fields
         fields = QgsFields()
@@ -301,8 +302,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         results_dir = Path(self.parameterAsString(parameters, self.RESULTS_DIR, context))
 
         # IgnitionPoints
-        # log_file = Path(results_dir, "LogFile.txt")
-        log_file = Path(results_dir, "IgnitionsHistory", "ignitions_log.csv")
+        log_file = Path(results_dir) / igni_wea_path
         if log_file.is_file() and log_file.stat().st_size > 0:
             feedback.pushDebugInfo(log_file.read_text())
             if out_is:
