@@ -1051,7 +1051,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 name=self.OUT_POLY,
-                description=self.tr("Output propagation scars polygons"),
+                description="Output propagation scars polygons",
                 type=QgsProcessing.TypeVectorPolygon,
                 optional=True,
                 createByDefault=True,

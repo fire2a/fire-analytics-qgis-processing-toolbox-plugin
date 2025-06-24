@@ -22,7 +22,7 @@ bump to beta, tag to release a beta, test in windows, remove beta, merge pull, t
 2. tag
 
     git tag -n2 | tail # show last tags
-    git tag -a v0.9.0-beta -m "255 translations + new log file + new C2FW"  && git push origin v0.9.0-beta                                                                                
+    git tag -a v0.9.0-beta -m "spanish + C2FWv0.4.1"  && git push origin v0.9.0-beta
     git tag --delete v0.9.0-beta && git push --delete origin v0.9.0-beta
 
 ## templates

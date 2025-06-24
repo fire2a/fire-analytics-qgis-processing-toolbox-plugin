@@ -1500,11 +1500,6 @@ All ChosenName[0-9]*.csv files will be loaded</source>
         <translation>Salida raster de cicatriz final</translation>
     </message>
     <message>
-        <location filename="../algorithm_postsimulation.py" line="1051"/>
-        <source>Output propagation scars polygons</source>
-        <translation>Salida de polígonos de cicatrices de propagación</translation>
-    </message>
-    <message>
         <location filename="../algorithm_postsimulation.py" line="1060"/>
         <source>Output burn probability raster</source>
         <translation>Salida raster de probabilidad de quema</translation>
