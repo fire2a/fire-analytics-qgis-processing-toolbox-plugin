@@ -6,7 +6,7 @@
 name=Fire Analytics Processing-Toolbox
 qgisMinimumVersion=3.34
 description=Wild & Forest fires simulation, prevention and insights related algorithms. Including a fire simulator, user valued risk metrics and prescriptive analytics via mathematical programming optimization to generate management recommendations
-version=0.9.0-beta2
+version=0.9.0-beta
 author=Fernando Badilla Veliz - Fire2a.com
 email=fbadilla@ing.uchile.cl
 
@@ -24,7 +24,7 @@ repository=https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plug
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
 changelog=
-	v0.9.0-beta2: traduccion 250 strings!
+	v0.9.0-beta: spanish traslation. C2F-W v0.4.1
 	v0.8.0: new protected areas firebreak optimization. macOS install dependencies fix.
 	v0.7.5: meteo algorithm implements temperature quantiles, fire2a-lib bump to v0.3.10
 	v0.7.4: missing toml python dependency in fire2a-lib bump to v0.3.9
