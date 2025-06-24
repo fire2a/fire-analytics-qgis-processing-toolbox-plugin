@@ -663,10 +663,10 @@ It replaces the following manual steps:
 	    useful cli_args: -r {nearest,bilinear,cubic,cubicspline,lanczos,average,mode} (default nearest)&lt;br&gt;&lt;br&gt;
 	    not implemented: dealing with CRSs or nodatas.
 	    </source>
-	    <translation>Simplifica el uso de gdal translate para &lt;b&gt;recortar la extensión, luego redimensionar y reemplazar la geotransformación&lt;/b&gt; para hacer coincidir un raster ascii en otro&lt;br&gt;&lt;br&gt;
+	<translation>Simplifica el uso de gdal translate para &lt;b&gt;recortar la extensión, luego redimensionar y reemplazar la geotransformación&lt;/b&gt; para hacer coincidir un raster ascii en otro&lt;br&gt;&lt;br&gt;
 		algunos argumentos útiles: -r {nearest,bilinear,cubic,cubicspline,lanczos,average,mode} (predeterminado nearest)&lt;br&gt;&lt;br&gt;
 		no implementado: manejo de CRS o nodatas.
-	    </translation>
+	</translation>
     </message>
 </context>
 <context>
