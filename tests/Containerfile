@@ -1,0 +1,100 @@
+FROM docker.io/qgis/qgis:latest
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y \
+        git \
+        g++-12 \
+        libboost-all-dev \
+        libeigen3-dev \
+        libtiff-dev \
+        python3-venv \
+        python3-pip \
+        make \
+        --no-install-recommends
+
+COPY build.sh .
+
+RUN chmod +x build.sh && ./build.sh
+
+ENV DISPLAY=:0
+
+CMD ["/bin/bash", "-c", "source /root/venv/bin/activate && qgis"]
+# CMD ["tail", "-f", "/dev/null"]
+
+name: Test Package
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        container: [
+          # 'qgis/qgis:latest_disco', python 3.7
+          # 'qgis/qgis:ltr-focal', python 3.8
+          'debian:bullseye-slim', # python 3.9
+          'qgis/qgis:ltr-jammy', # QGIS 3.40.4, Python 3.10.12
+          'qgis/qgis:ltr-lunar', # QGIS 3.34.6, Python 3.11.4
+          'qgis/qgis:ltr-noble', # QGIS 3.40.4, Python 3.12.3
+        ]
+
+    container:
+      image: ${{ matrix.container }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Cache apt packages & lists
+      if: matrix.container == 'debian:bullseye-slim'
+      uses: actions/cache@v4
+      with:
+        path: |
+          /var/cache/apt
+          /var/lib/apt/lists
+        key: ${{ matrix.container }}-apt-${{ hashFiles('.github/workflows/apt-packages.txt') }}
+        restore-keys: |
+          ${{ matrix.container }}-apt-
+
+    - name: Install QGIS and GRASS (Debian only)
+      if: matrix.container == 'debian:bullseye-slim'
+      run: |
+        DEBIAN_FRONTEND=noninteractive
+        apt-get update
+        apt-get install -y qgis qgis-plugin-grass
+
+    - name: Inspect
+      run: |
+        qgis --version
+        python3 -V
+        python3 -c "import osgeo; print(osgeo.__version__)"
+        echo $SHELL
+
+    - name: Install dependencies
+      run: |
+        apt-get install -y python3-venv
+        apt-get remove -y python3-pytest
+        python3 -m venv venv --system-site-packages
+        . venv/bin/activate
+        python3 -m pip install --upgrade pip setuptools wheel pytest
+        pip install --no-cache-dir -r requirements.txt
+      shell: bash
+
+    - name: Run tests
+      run: |
+        . venv/bin/activate
+        pytest
+      shell: bash
