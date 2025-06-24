@@ -67,12 +67,15 @@ SIM_INPUTS = aconfig.SIM_INPUTS
 NAME = aconfig.NAME
 SIM_OUTPUTS = aconfig.SIM_OUTPUTS
 STATS = aconfig.STATS
-QgsMessageLog.logMessage(f"{SIM_INPUTS=}", tag=TAG, level=Qgis.Info)
-QgsMessageLog.logMessage(f"{NAME=}", tag=TAG, level=Qgis.Info)
-QgsMessageLog.logMessage(f"{SIM_OUTPUTS=}", tag=TAG, level=Qgis.Info)
-QgsMessageLog.logMessage(f"{STATS=}", tag=TAG, level=Qgis.Info)
+# QgsMessageLog.logMessage(f"{SIM_INPUTS=}", tag=TAG, level=Qgis.Info)
+# QgsMessageLog.logMessage(f"{NAME=}", tag=TAG, level=Qgis.Info)
+# QgsMessageLog.logMessage(f"{SIM_OUTPUTS=}", tag=TAG, level=Qgis.Info)
+# QgsMessageLog.logMessage(f"{STATS=}", tag=TAG, level=Qgis.Info)
 output_args = [item["arg"] for item in SIM_OUTPUTS.values()]
 output_names = [item["name"] for item in SIM_OUTPUTS.values()]
+
+itm = SIM_OUTPUTS["ignitionpoints"]
+igni_wea_path = Path(itm["dir"], itm["file"] + "." + itm["ext"])
 
 
 class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
@@ -921,7 +924,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             output_dict[st["name"]] = None
 
         igni_log = SIM_OUTPUTS["ignitionpoints"]
-        igni_file = Path(results_dir, igni_log["dir"], igni_log["file"] + "." + igni_log["ext"])
+        igni_file = Path(results_dir) / igni_wea_path
         if igni_file.is_file():
             output_dict[igni_log["name"]] = str(igni_file)
         else:

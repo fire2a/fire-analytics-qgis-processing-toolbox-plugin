@@ -81,7 +81,7 @@ SIM_OUTPUTS = aconfig.SIM_OUTPUTS
 STATS = aconfig.STATS
 
 itm = SIM_OUTPUTS["ignitionpoints"]
-igni_wea_path = Path(itm["dir"], itm["file"] + itm["ext"])
+igni_wea_path = Path(itm["dir"], itm["file"] + "." + itm["ext"])
 
 # from matplotlib import colormaps
 # from matplotlib.colors import to_rgba_array
@@ -121,7 +121,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.IN_LOG,
-                description=self.tr("Simulator log file (normally firesim_yymmdd_HHMMSS/results/") + str(igni_wea_path),
+                description=self.tr(f"Simulator log file (normally firesim_yymmdd_HHMMSS/results/{igni_wea_path})"),
                 behavior=QgsProcessingParameterFile.File,
                 extension="csv",
                 defaultValue=None,

@@ -158,7 +158,7 @@ class aConfig:
             "ignitionpoints": {
                 "name": self.tr("Ignition Points"),
                 "dir": ".",
-                "file": "ignition_and_weather_log",
+                "file": "ignition_weather_log",
                 "ext": "csv",
                 "arg": "ignitionsLog",
                 "unit": "cell_id",

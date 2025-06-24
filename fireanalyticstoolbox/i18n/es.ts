@@ -550,15 +550,14 @@ Firebreaks raster (1=firebreak)</source>
 	<translation>Puntos de ignición</translation>
     </message>
     <message>
-	<location filename="../algorithm_postsimulation.py" line="110"/>
-	<source>Base raster (normally fuel or elevation) to get the geotransform</source>
-	<comment>BaseContext</comment>
-	<translation>Raster base para posicionar el resultado (normalmente fuels o elevacion)</translation>
+        <location filename="../algorithm_postsimulation.py" line="118"/>
+        <source>Simulator log file (normally firesim_yymmdd_HHMMSS/results/IgnitionsHistory/ignitions_log.csv)</source>
+        <translation type="obsolete">Archivo de registro de simulación (normalmente firesim_yymmdd_HHMMSS/results/IgnitionsHistory/ignitions_log.csv)</translation>
     </message>
     <message>
-	<location filename="../algorithm_postsimulation.py" line="118"/>
-	<source>Simulator log file (normally firesim_yymmdd_HHMMSS/results/IgnitionsHistory/ignitions_log.csv)</source>
-	<translation>Archivo de registro de simulación (normalmente firesim_yymmdd_HHMMSS/results/IgnitionsHistory/ignitions_log.csv)</translation>
+        <location filename="../algorithm_postsimulation.py" line="121"/>
+        <source>Simulator log file (normally firesim_yymmdd_HHMMSS/results/{igni_wea_path})</source>
+        <translation type="finished">Archivo de registro de simulación (normalmente firesim_yymmdd_HHMMSS/results/ignitions_weather_log.csv)</translation>
     </message>
 </context>
 <context>
