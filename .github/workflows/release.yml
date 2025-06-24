@@ -4,7 +4,9 @@ on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+-beta'
+      - 'v[0-9]+.[0-9]+.[0-9]+-\w+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-\w*[0-9]+'
+
 
 permissions:
   contents: write
@@ -25,7 +27,7 @@ jobs:
          git add fireanalyticstoolbox/metadata.txt
 
     - name: download cbc
-      uses: robinraju/release-downloader@v1.11
+      uses: robinraju/release-downloader@v1.12
       with:
         repository: "coin-or/Cbc"
         latest: true
@@ -36,7 +38,7 @@ jobs:
         zipBall: false
 
     - name: download cell2fire
-      uses: robinraju/release-downloader@v1.11
+      uses: robinraju/release-downloader@v1.12
       with:
         repository: "fire2a/C2F-W" 
         latest: true
@@ -64,7 +66,7 @@ jobs:
         git archive --output "fireanalyticstoolbox_${{ github.ref_name }}.zip" $astash fireanalyticstoolbox
 
     - name: Create Release
-      uses: ncipollo/release-action@v1.12.0
+      uses: ncipollo/release-action@v1.16.0
       with:
         artifacts: "fireanalyticstoolbox_${{ github.ref_name }}.zip"
         token: ${{ secrets.GITHUB_TOKEN }}
