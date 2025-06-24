@@ -198,8 +198,8 @@ class MatchAIIGrid(QgsProcessingAlgorithm):
     def groupId(self):
         return "utils"
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="MatchAIIGrid"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return MatchAIIGrid()
