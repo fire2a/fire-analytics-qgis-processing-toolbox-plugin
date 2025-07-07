@@ -77,10 +77,14 @@ class C2F(QProcess):
         # self.log_file.write('log_stat: ' + msg + '\n')
 
     def append_message(self, msg, stderr=False):
+        if "\t" in msg:
+            fmt_msg = f"<pre>{msg}</pre>"
+        else:
+            fmt_msg = msg
         if stderr:
             self.feedback.pushWarning(msg)
         else:
-            self.feedback.pushConsoleInfo(msg)
+            self.feedback.pushFormattedMessage(fmt_msg, msg)
         self.log_file.write(msg + "\n")
         new_sim = len(re_findall(match_this, msg))
         if new_sim > 0:
