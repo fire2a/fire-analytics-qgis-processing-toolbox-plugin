@@ -613,14 +613,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         # BUILD ARGS
         # output_options = [item["name"] for item in SIM_OUTPUTS]
         args = {key: None for key in output_args}
-        if fuel_model == 0:
-            args["sim"] = "S"
-        elif fuel_model == 1:
-            args["sim"] = "K"
-        elif fuel_model == 2:
-            args["sim"] = "C"
-        else:
-            raise QgsProcessingException(f"fuel_model {fuel_model} not supported")
+        args["sim"] = NAME["fuel_model_key"][fuel_model]
         args["nsims"] = self.parameterAsInt(parameters, self.NSIM, context)
         args["seed"] = self.parameterAsInt(parameters, self.RNG_SEED, context)
         args["nthreads"] = self.parameterAsInt(parameters, self.SIM_THREADS, context)

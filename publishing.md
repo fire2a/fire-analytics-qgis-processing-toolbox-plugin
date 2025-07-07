@@ -30,7 +30,7 @@ bump to beta, tag to release a beta, test in windows, remove beta, merge pull, t
 metadata.txt
 
     changelog
-        v0.8.1: Cell2FireW update to v0.3.1. Instance downloader and other minor fixes.
+      v0.10.0: Portugal fuel model using Cell2FireW v0.5.0
 
 	SAVE BEFORE INSTALL/UPDATE: A dialog asking permission to (pip) install python dependencies (fire2a-lib==0.3.10) will appear
 
@@ -40,13 +40,12 @@ dependencies_handler.txt
     enabled = True
 
 plugins.xml
-
-	<pyqgis_plugin name="Fire Analytics Processing-Toolbox" version="0.8.1" plugin_id="1029384756">
+	<pyqgis_plugin name="Fire Analytics Processing-Toolbox" version="0.10.0" plugin_id="1029384756">
 
 			SAVE BEFORE INSTALL/UPDATE: A dialog asking permission to (pip) install python dependencies (fire2a-lib==0.3.10) will appear]]></about>
 
-		<version>0.8.1</version>
+		<version>0.10.0</version>
 
-		<update_date>2024-07-03T06:06:06.066666+06:00</update_date>
+		<update_date>2024-07-07T12:00:00.066666+06:00</update_date>
 
-		<download_url>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases/download/v0.8.1/fireanalyticstoolbox_v0.8.1.zip</download_url>
+		<download_url>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases/download/v0.10.0/fireanalyticstoolbox_v0.10.0.zip</download_url>

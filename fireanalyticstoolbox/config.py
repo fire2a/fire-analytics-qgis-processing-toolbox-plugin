@@ -181,8 +181,24 @@ class aConfig:
             "bc": METRICS["bc"] + " " + pm,
             "dpv": METRICS["dpv"] + " " + pm,
             "bp": METRICS["bp"] + " " + pm,
-            "fuel_models": ["0. Scott & Burgan", "1. Kitral", "2. Canadian Forest Fire Behavior Prediction System"],
-            "fuel_tables": ["spain_lookup_table.csv", "kitral_lookup_table.csv", "fbp_lookup_table.csv"],
+            "fuel_models": [
+                "0. Scott & Burgan",
+                "1. Kitral",
+                "2. Canadian Forest Fire Behavior Prediction System",
+                "3. Portugal",
+            ],
+            "fuel_model_key": [
+                "S",
+                "K",
+                "C",
+                "P",
+            ],
+            "fuel_tables": [
+                "spain_lookup_table.csv",
+                "kitral_lookup_table.csv",
+                "fbp_lookup_table.csv",
+                "portugal_lookup_table.csv",
+            ],
             "ignition_modes": [
                 self.tr("0. Uniformly distributed random ignition point(s)"),
                 self.tr("1. Probability map distributed random ignition point(s)"),
