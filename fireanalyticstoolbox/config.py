@@ -187,6 +187,12 @@ class aConfig:
                 "2. Canadian Forest Fire Behavior Prediction System",
                 "3. Portugal",
             ],
+            "fuel_model_key": [
+                "S",
+                "K",
+                "C",
+                "P",
+            ],
             "fuel_tables": [
                 "spain_lookup_table.csv",
                 "kitral_lookup_table.csv",
