@@ -53,18 +53,19 @@ jobs:
         rm -f fireanalyticstoolbox/cbc/*.zip
         rm -rf fireanalyticstoolbox/cbc/include 
         rm -rf fireanalyticstoolbox/cbc/share
-        rm -f fireanalyticstoolbox/simulator/C2F/Cell2Fire/*.h
-        rm -f fireanalyticstoolbox/simulator/C2F/Cell2Fire/*.cpp
-        rm -f fireanalyticstoolbox/simulator/C2F/Cell2Fire/makefile*
+        rm -f fireanalyticstoolbox/simulator/C2F/Cell2Fire/makefile.*
         rm -f fireanalyticstoolbox/simulator/C2F/Cell2Fire/Cell2Fire.sln*
         rm -f fireanalyticstoolbox/simulator/C2F/Cell2Fire/Cell2Fire.vcxproj*
+        rm -rf fireanalyticstoolbox/simulator/C2F/Cell2Fire/WindowsTests
+        rm -rf fireanalyticstoolbox/simulator/C2F/container
+        rm -rf fireanalyticstoolbox/simulator/C2F/docs
         git add fireanalyticstoolbox/cbc
         git add fireanalyticstoolbox/simulator/C2F
         astash=`git stash create`
         git archive --output "fireanalyticstoolbox_${{ github.ref_name }}.zip" $astash fireanalyticstoolbox
 
     - name: Create Release
-      uses: ncipollo/release-action@v1.16.0
+      uses: ncipollo/release-action@v1.18.0
       with:
         artifacts: "fireanalyticstoolbox_${{ github.ref_name }}.zip"
         token: ${{ secrets.GITHUB_TOKEN }}

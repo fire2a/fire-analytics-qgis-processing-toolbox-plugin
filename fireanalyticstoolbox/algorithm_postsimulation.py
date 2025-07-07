@@ -73,7 +73,15 @@ from qgis.PyQt.QtGui import QColor, QIcon
 from scipy import stats as scipy_stats
 
 from .algorithm_utils import get_output_raster_format, write_log
-from .config import NAME, SIM_OUTPUTS, STATS, TAG, jolo
+from .config import TAG, aConfig, jolo
+
+aconfig = aConfig()
+NAME = aconfig.NAME
+SIM_OUTPUTS = aconfig.SIM_OUTPUTS
+STATS = aconfig.STATS
+
+itm = SIM_OUTPUTS["ignitionpoints"]
+igni_wea_path = Path(itm["dir"], itm["file"] + "." + itm["ext"])
 
 # from matplotlib import colormaps
 # from matplotlib.colors import to_rgba_array
@@ -96,7 +104,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         log_file = Path(self.parameterAsString(parameters, self.IN_LOG, context))
         if not log_file.stat().st_size > 0:
             return False, f"{log_file} file is empty!"
-        ip_log = loadtxt(log_file, delimiter=",", skiprows=1, dtype=[("sim", int32), ("cellid", int32)])
+        ip_log = loadtxt(log_file, delimiter=",", skiprows=1, usecols=[0, 1], dtype=[("sim", int32), ("cellid", int32)])
         if len(ip_log) == 0:
             return False, f"{log_file} file contains only headers but no ignition points"
         return True, ""
@@ -105,7 +113,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform"),
+                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -113,7 +121,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.IN_LOG,
-                description="Simulator log file (normally firesim_yymmdd_HHMMSS/results/IgnitionsHistory/ignitions_log.csv)",
+                description=self.tr(f"Simulator log file (normally firesim_yymmdd_HHMMSS/results/{igni_wea_path})"),
                 behavior=QgsProcessingParameterFile.File,
                 extension="csv",
                 defaultValue=None,
@@ -137,7 +145,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         # ignition points csv log file
         log_csv = Path(self.parameterAsString(parameters, self.IN_LOG, context))
         feedback.pushDebugInfo(f"reading {log_csv=}")
-        ip_log = loadtxt(log_csv, delimiter=",", skiprows=1, dtype=[("sim", int32), ("cellid", int32)])
+        ip_log = loadtxt(log_csv, delimiter=",", skiprows=1, usecols=[0, 1], dtype=[("sim", int32), ("cellid", int32)])
         # create layer
         # fields
         fields = QgsFields()
@@ -177,7 +185,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         )
         # layer = QgsProcessingUtils.mapLayerFromString(dest_id, context)
         layer_details = context.LayerDetails(
-            "Ignition Points",  # always name it as Ignition Points, alternative: layer.name()
+            self.tr("Ignition Points"),  # always name it as Ignition Points, alternative: layer.name()
             context.project(),
             dest_id,
             QgsProcessingUtils.LayerHint.Vector,
@@ -189,14 +197,14 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         write_log(feedback, name=self.name())
         return {self.OUT_LAYER: dest_id}
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="IgnitionPointsSIMPP"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return IgnitionPointsSIMPP()
 
     def group(self):
-        return self.tr("Simulator Post Processing")
+        return NAME["simpp"]
 
     def groupId(self):
         return "simulatorpostprocessing"
@@ -225,7 +233,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform"),
+                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -233,7 +241,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterBoolean(
                 name=self.MSGS,
-                description=("Enable propagation directed graph"),
+                description=self.tr("Enable propagation directed graph"),
                 defaultValue=False,
                 optional=True,
             )
@@ -241,7 +249,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterBoolean(
                 name=self.POLYSCARS,
-                description=("Enable propagation scars polygons"),
+                description=self.tr("Enable propagation scars polygons"),
                 defaultValue=False,
                 optional=True,
             )
@@ -251,7 +259,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.RESULTS_DIR,
-                description="Simulation Results directory (normally firesim_yymmdd_HHMMSS/results)",
+                description=self.tr("Simulation Results directory (normally firesim_yymmdd_HHMMSS/results)"),
                 behavior=QgsProcessingParameterFile.Folder,
                 defaultValue=project_path,
                 optional=False,
@@ -260,7 +268,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFolderDestination(
                 name=self.OUTPUT_DIR,
-                description="Output directory",
+                description=self.tr("Output directory", "BaseContext"),
                 defaultValue=None,
                 optional=True,
                 createByDefault=True,
@@ -294,8 +302,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
         results_dir = Path(self.parameterAsString(parameters, self.RESULTS_DIR, context))
 
         # IgnitionPoints
-        # log_file = Path(results_dir, "LogFile.txt")
-        log_file = Path(results_dir, "IgnitionsHistory", "ignitions_log.csv")
+        log_file = Path(results_dir) / igni_wea_path
         if log_file.is_file() and log_file.stat().st_size > 0:
             feedback.pushDebugInfo(log_file.read_text())
             if out_is:
@@ -315,9 +322,9 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
                 is_child_algorithm=True,
             )
             layer_details = QgsProcessingContext.LayerDetails(
-                "Ignition Points",
+                self.tr("Ignition Points"),
                 context.project(),
-                "Ignition Points",
+                self.tr("Ignition Points"),
                 QgsProcessingUtils.LayerHint.Vector,
             )
             layer_details.groupName = NAME["layer_group"]
@@ -332,7 +339,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException(f"{log_file} not found or empty!")
 
         # stats
-        for stat in STATS:
+        for stat in STATS.values():
             if sample_file := next(Path(results_dir).glob(stat["dir"] + sep + stat["file"] + "*" + stat["ext"]), None):
                 stat_out = processing.run(
                     "fire2a:statistic",
@@ -388,8 +395,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
                 )
                 output_dict[stat["name"] + "Stats"] = stat_out["OutputRasterStats"]
 
-        # grids
-        grids = [item for item in SIM_OUTPUTS if item["name"] == "Propagation Fire Scars"][0]
+        grids = SIM_OUTPUTS["propagationscars"]
         if sample_file:= next(Path(results_dir).glob(grids["dir"] + "*" + sep + grids["file"] + "*" + grids["ext"]), None):  # fmt: skip
             scar_in_dict = {
                 "BaseLayer": base_raster,
@@ -410,12 +416,12 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
             if scar_raster := scar_out.get("ScarRaster"):
                 # layer_details = context.layerToLoadOnCompletionDetails(scar_raster)
                 layer_details = context.LayerDetails(
-                    "Final Scars",
+                    self.tr("Final Scars"),
                     context.project(),
-                    "Final Scars",
+                    self.tr("Final Scars"),
                     QgsProcessingUtils.LayerHint.Raster,
                 )
-                layer_details.setPostProcessor(run_alg_styler_bin("Final Scars"))
+                layer_details.setPostProcessor(run_alg_styler_bin(self.tr("Final Scars")))
                 layer_details.forceName = True
                 layer_details.groupName = NAME["layer_group"]
                 layer_details.layerSortKey = 1
@@ -425,12 +431,12 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
             if bplayer := scar_out.get("BurnProbability"):
                 # layer_details = context.layerToLoadOnCompletionDetails(bplayer)
                 layer_details = context.LayerDetails(
-                    "BurnProbability",
+                    self.tr("BurnProbability"),
                     context.project(),
-                    "BurnProbability",
+                    self.tr("BurnProbability"),
                     QgsProcessingUtils.LayerHint.Raster,
                 )
-                layer_details.setPostProcessor(run_alg_styler("Burn Probability"))
+                layer_details.setPostProcessor(run_alg_styler(self.tr("Burn Probability")))
                 layer_details.forceName = True
                 layer_details.groupName = NAME["layer_group"]
                 layer_details.layerSortKey = 3
@@ -475,7 +481,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
 
         # messages
         if self.parameterAsBool(parameters, self.MSGS, context):
-            msgs = [item for item in SIM_OUTPUTS if item["name"] == "Propagation Directed Graph"][0]
+            msgs = SIM_OUTPUTS["propagationdigraph"]
             if sample_file := next(Path(results_dir, msgs["dir"]).glob(msgs["file"] + "*" + msgs["ext"]), None):
                 msg_out = processing.run(
                     "fire2a:propagationdigraph",
@@ -489,9 +495,9 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
                     is_child_algorithm=True,
                 )
                 layer_details = QgsProcessingContext.LayerDetails(
-                    "PropagationDirectedGraph",
+                    self.tr("PropagationDirectedGraph"),
                     context.project(),
-                    "PropagationDirectedGraph",
+                    self.tr("PropagationDirectedGraph"),
                     QgsProcessingUtils.LayerHint.Vector,
                 )
                 layer_details.groupName = NAME["layer_group"]
@@ -520,8 +526,8 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
     def groupId(self):
         return "simulatorpostprocessing"
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="PostSimulationAlgorithm"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return PostSimulationAlgorithm()
@@ -565,7 +571,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform"),
+                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -573,7 +579,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.IN_MSG,
-                description=(
+                description=self.tr(
                     "Sample Messages file (normally firesim_yymmdd_HHMMSS/results/Messages/MessagesFile01.csv)\nAll"
                     " ChosenName[0-9]*.csv files will be loaded"
                 ),
@@ -702,14 +708,14 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
     #     # layer.triggerRepaint()
     #     return {self.OUTPUT_LAYER: self.dest_id}
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="MessagesSIMPP"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return MessagesSIMPP()
 
     def group(self):
-        return self.tr("Simulator Post Processing")
+        return NAME["simpp"]
 
     def groupId(self):
         return "simulatorpostprocessing"
@@ -757,16 +763,16 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform"),
+                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
         )
-        known = [item["dir"] + sep + item["file"] for item in STATS]
+        known = [item["dir"] + sep + item["file"] for item in STATS.values()]
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.IN_STAT,
-                description=(
+                description=self.tr(
                     "Sample Spatial Statistic file (normally"
                     " firesim_yymmdd_HHMMSS/results/Statistic/statistic.asc)\nAll ChosenName[0-9]*.asc files will be"
                     " loaded\nKnown: "
@@ -796,7 +802,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterDestination(
                 name=self.OUTPUT_RASTER,
-                description=self.tr("Output raster"),
+                description=self.tr("Output raster", "BaseContext"),
                 # defaultValue=None,
                 # optional=False,
                 # createByDefault=True,
@@ -805,7 +811,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterDestination(
                 name=self.OUTPUT_RASTER_2,
-                description=self.tr("Output raster mean & std"),
+                description=self.tr("Output raster", "BaseContext") + " " + self.tr("mean & std"),
                 # defaultValue=None,
                 optional=True,
                 createByDefault=True,
@@ -836,13 +842,18 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
             raise QgsProcessingException(f"{stat_dir} does not contain any non-empty '{stat_name}[0-9]*{ext}' files")
         feedback.pushDebugInfo(f"{len(files)} files, first: {files[0]}...")
         # infer dimensional units
-        if unit := [item["unit"] for item in STATS if item["file"] == stat_name]:
+        # TODO since STATS list->dict
+        # get stat_name not from parameter but something like
+        # self.PARAM_INTERNAL_NAME = STATS.keys()[ ? ]
+        # unit = STATS['internal_name']["unit"] ?
+        if unit := [item["unit"] for item in STATS.values() if item["file"] == stat_name]:
             unit = unit[0]
         else:
             unit = None
 
+        # TODO idem
         final_name = ""
-        for item in STATS:
+        for item in STATS.values():
             feedback.pushDebugInfo(f"{item=}, {stat_name=}")
             if item["file"] == stat_name:
                 final_name = item["name"]
@@ -935,8 +946,8 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         write_log(feedback, name=self.name())
         return output_dict
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="StatisticSIMPP"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return StatisticSIMPP()
@@ -1011,7 +1022,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform"),
+                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -1019,7 +1030,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.IN_SCAR,
-                description=(
+                description=self.tr(
                     "Sample Fire Scar file (normally"
                     " firesim_yymmdd_HHMMSS/results/Grids/Grids[0-9]*/ForestGrid[0-9]*.csv)"
                 ),
@@ -1040,7 +1051,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 name=self.OUT_POLY,
-                description=self.tr("Output propagation scars polygons"),
+                description="Output propagation scars polygons",
                 type=QgsProcessing.TypeVectorPolygon,
                 optional=True,
                 createByDefault=True,
@@ -1056,7 +1067,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         )
         qppb = QgsProcessingParameterBoolean(
             name=self.IN_FIXGEOM,
-            description=("Fix geometries of the generated propagation polygons (native:fixgeometries)"),
+            description=self.tr("Fix geometries of the generated propagation polygons (native:fixgeometries)"),
             defaultValue=True,
             optional=True,
         )
@@ -1064,7 +1075,9 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         self.addParameter(qppb)
         qppn = QgsProcessingParameterNumber(
             name=self.IN_FIXGEOM_METHOD,
-            description=("Repair method passed to fix geometries (0:Linework, 1:Structure didn't work on MacOS)"),
+            description=self.tr(
+                "Repair method passed to fix geometries (0:Linework, 1:Structure didn't work on MacOS)"
+            ),
             defaultValue=0 if platform_system() == "Darwin" else 1,
             optional=True,
         )
@@ -1139,7 +1152,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
 
         if burn_prob_fname:
             if context.willLoadLayerOnCompletion(burn_prob_fname):
-                layer_name = "Burn Probability"
+                layer_name = self.tr("Burn Probability")
                 layer_details = context.LayerDetails(
                     layer_name,
                     context.project(),
@@ -1174,9 +1187,9 @@ class ScarSIMPP(QgsProcessingAlgorithm):
                         feedback.pushInfo(f"Fixing geometries done! {fix_geo_out}")
                         output_vector_file = fix_geo_out
             layer_details = context.LayerDetails(
-                "Propagation Scars",
+                self.tr("Propagation Scars"),
                 context.project(),
-                "Propagation Scars",
+                self.tr("Propagation Scars"),
                 QgsProcessingUtils.LayerHint.Vector,
             )
             layer_details.forceName = True
@@ -1200,8 +1213,8 @@ class ScarSIMPP(QgsProcessingAlgorithm):
     def groupId(self):
         return "simulatorpostprocessing"
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="ScarSIMPP"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return ScarSIMPP()
@@ -1238,7 +1251,7 @@ class BurnProbabilityMetric(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform"),
+                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -1246,7 +1259,7 @@ class BurnProbabilityMetric(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.IN_SCAR,
-                description=(
+                description=self.tr(
                     "Sample Fire Scar file (normally"
                     " firesim_yymmdd_HHMMSS/results/Grids/Grids[0-9]*/ForestGrid[0-9]*.csv)"
                 ),
@@ -1259,7 +1272,7 @@ class BurnProbabilityMetric(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterDestination(
                 name=self.OUT_BP,
-                description=self.tr("Output burn probability raster"),
+                description=self.tr("Output raster", "BaseContext") + ": " + self.tr("burn probability"),
                 optional=True,
                 createByDefault=True,
             )
@@ -1287,12 +1300,12 @@ class BurnProbabilityMetric(QgsProcessingAlgorithm):
         if bplayer := scar_out.get("BurnProbability"):
             # layer_details = context.layerToLoadOnCompletionDetails(bplayer)
             layer_details = context.LayerDetails(
-                "BurnProbability",
+                self.tr("BurnProbability"),
                 context.project(),
-                "BurnProbability",
+                self.tr("BurnProbability"),
                 QgsProcessingUtils.LayerHint.Raster,
             )
-            layer_details.setPostProcessor(run_alg_styler("Burn Probability"))
+            layer_details.setPostProcessor(run_alg_styler(self.tr("Burn Probability")))
             layer_details.forceName = True
             layer_details.groupName = NAME["layer_group"]
             layer_details.layerSortKey = 3
@@ -1301,9 +1314,6 @@ class BurnProbabilityMetric(QgsProcessingAlgorithm):
 
         write_log(feedback, name=self.name())
         return output_dict
-
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
 
     def group(self):
         return self.tr(NAME["simm"])
@@ -1316,6 +1326,9 @@ class BurnProbabilityMetric(QgsProcessingAlgorithm):
 
     def displayName(self):
         return self.tr(NAME["bp"])
+
+    def tr(self, string, context="BurnProbabilityMetric"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return BurnProbabilityMetric()
@@ -1493,7 +1506,7 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
-                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform"),
+                description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=False,
             )
@@ -1501,7 +1514,7 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.IN,
-                description=(
+                description=self.tr(
                     "Pickled messages (normally generated by the Propagation Digraph Algorithm"
                     " results/Messages/messages.pickle)"
                 ),
@@ -1513,7 +1526,7 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
         )
         qppb = QgsProcessingParameterBoolean(
             name=self.IN_def_k,
-            description=self.tr("Use default sampling ratio K = sqrt(number_of_nodes)/5"),
+            description=self.tr("Use default sampling ratio") + " K = sqrt(number_of_nodes)/5",
             defaultValue=True,
             optional=False,
         )
@@ -1557,7 +1570,7 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterDestination(
                 name=self.OUT_R,
-                description=self.tr("Output BC raster"),
+                description=self.tr("Output raster", "BaseContext") + " BC",
                 # defaultValue=None,
                 # optional=False,
                 # createByDefault=True,
@@ -1644,8 +1657,8 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
         write_log(feedback, name=self.name())
         return {self.OUT_R: output_raster_filename}
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="BetweennessCentralityMetric"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return BetweennessCentralityMetric()
@@ -1719,7 +1732,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 name=self.IN,
-                description=(
+                description=self.tr(
                     "Pickled messages (normally generated by the Propagation Digraph Algorithm"
                     " results/Messages/messages.pickle)"
                 ),
@@ -1732,7 +1745,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterDestination(
                 name=self.OUT_R,
-                description=self.tr("Output raster"),
+                description=self.tr("Output raster", "BaseContext"),
                 # defaultValue=None,
                 optional=False,
                 createByDefault=True,
@@ -1752,7 +1765,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         self.addParameter(qppn)
         qppb = QgsProcessingParameterBoolean(
             name=self.IN_FILL,
-            description=("Include original protection values where no fire was seen (default true)"),
+            description=self.tr("Include original protection values where no fire was seen (default true)"),
             defaultValue=True,
             optional=True,
         )
@@ -1760,7 +1773,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         self.addParameter(qppb)
         qppb1 = QgsProcessingParameterBoolean(
             name=self.IN_SCALE,
-            description=(
+            description=self.tr(
                 "Scale every pixel by burn count (default true); or all pixels by number of simulations (false)"
             ),
             defaultValue=True,
@@ -1905,8 +1918,8 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         write_log(feedback, name=self.name())
         return {self.OUT_R: output_raster_filename}
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="DownStreamProtectionValueMetric"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return DownStreamProtectionValueMetric()

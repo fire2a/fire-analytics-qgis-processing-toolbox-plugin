@@ -304,8 +304,8 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
     def groupId(self):
         return "do"
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="PolygonKnapsackAlgorithm"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return PolygonKnapsackAlgorithm()
@@ -560,8 +560,8 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
     def groupId(self):
         return "do"
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="RasterKnapsackAlgorithm"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return RasterKnapsackAlgorithm()
@@ -678,7 +678,9 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         )
         qppb = QgsProcessingParameterBoolean(
             name=self.PLOTS,
-            description="Write debugging plots to the same directory as the output layer, includes: observations, scaled values, capacity violin plots & solution stats",
+            description=self.tr(
+                "Write debugging plots to the same directory as the output layer, includes: observations, scaled values, capacity violin plots & solution stats"
+            ),
             defaultValue="True",
             optional=True,
         )
@@ -686,7 +688,9 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(qppb)
         qppb2 = QgsProcessingParameterBoolean(
             name=self.RELAXEXCLUDENODATA,
-            description="Relax excluding nodata values from any to all (layers containing nodata will exclude its pixel from the model)",
+            description=self.tr(
+                "Relax excluding nodata values from any to all (layers containing nodata will exclude its pixel from the model)"
+            ),
             defaultValue="False",
             optional=True,
         )
@@ -850,8 +854,8 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
     def groupId(self):
         return "do"
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="MultiObjectiveRasterKnapsackAlgorithm"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return MultiObjectiveRasterKnapsackAlgorithm()
@@ -930,7 +934,10 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterEnum(
                 name=self.IN_STRAT,
                 description=self.tr("Strategy for the protected pixels"),
-                options=["Make protected pixels unselectable", "Reselection prioritizing pixels neighboring the protected area"],
+                options=[
+                    self.tr("Make protected pixels unselectable"),
+                    self.tr("Reselection prioritizing pixels neighboring the protected area"),
+                ],
                 allowMultiple=False,
                 defaultValue=0,
             )
@@ -991,7 +998,7 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         pa_layer = self.parameterAsRasterLayer(parameters, self.IN_PA, context)
         pa_data = get_raster_data(pa_layer)
         pa_nodata = get_raster_nodata(pa_layer, feedback)
-        pa_map_info = get_raster_info(pa_layer )
+        pa_map_info = get_raster_info(pa_layer)
 
         value_layer = self.parameterAsRasterLayer(parameters, self.IN_VALUE, context)
         value_data = get_raster_data(value_layer)
@@ -1087,7 +1094,7 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         pa_indexes = np.where((pa_data == 1))[0]
         pa_mask = pa_data == 1
         if strategy == 0:
-            mask[pa_indexes] = False ###AQUÍ HAY UN CAMBIO
+            mask[pa_indexes] = False  ###AQUÍ HAY UN CAMBIO
 
         # cplex hack
         # TODO : make pull request to pyomo to fix this
@@ -1121,7 +1128,7 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
                 used_capacity = pyo.value(pyo.sum_product(model.X, model.We, index=model.N))
                 new_capacity = capacity - used_capacity + (weight_data[mask][pa_firebreak_mask]).sum()
 
-                kernel =      np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
+                kernel = np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
                 boundary_pa = convolve(pa_data.reshape([height, width]), kernel)
                 boundary_pa = np.where(boundary_pa > 0, 1, 0)
                 boundary_pa = boundary_pa - pa_data.reshape([height, width])
@@ -1159,7 +1166,7 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         outFormat = get_output_raster_format(output_layer_filename, feedback)
 
         array2rasterInt16(
-            response,  
+            response,
             "knapsack",
             output_layer_filename,
             extent,
@@ -1215,8 +1222,8 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
     def groupId(self):
         return "do"
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="PARasterKnapsackAlgorithm"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return PARasterKnapsackAlgorithm()
@@ -1225,7 +1232,9 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         return "https://fire2a.github.io/docs/qgis-toolbox"
 
     def shortDescription(self):
-        return self.tr("""Optimizes the knapsack problem by incorporating protected area (pixels) that the algorithm cannot select.""")
+        return self.tr(
+            """Optimizes the knapsack problem by incorporating protected area (pixels) that the algorithm cannot select."""
+        )
 
     def helpString(self):
         return self.shortHelpString()

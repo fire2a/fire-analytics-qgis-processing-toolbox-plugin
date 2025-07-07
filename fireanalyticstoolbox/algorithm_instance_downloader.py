@@ -26,8 +26,8 @@ from tempfile import NamedTemporaryFile
 from zipfile import ZipFile
 
 import processing
-from qgis.core import (QgsProcessingAlgorithm, QgsProcessingException, QgsProcessingParameterEnum,
-                       QgsProcessingParameterFileDestination, QgsProject)
+from qgis.core import (QgsProcessingAlgorithm, QgsProcessingException, QgsProcessingParameterBoolean,
+                       QgsProcessingParameterEnum, QgsProcessingParameterFileDestination, QgsProject)
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 
@@ -37,49 +37,75 @@ from .algorithm_utils import write_log
 class InstanceDownloader(QgsProcessingAlgorithm):
     INSTANCE = "INSTANCE"
     FILEDEST = "FileDestination"
+    OPEN = "Open"
+    UNZIP = "Unzip"
     owner, repo = "fire2a", "C2F-W"
     url = f"https://api.github.com/repos/{owner}/{repo}/releases/latest"
     yson = None
 
     def initAlgorithm(self, config):
-        with NamedTemporaryFile(delete=False) as tmpfile:
-            try:
-                output = processing.run(
-                    "native:filedownloader",
-                    {
-                        "URL": self.url,
-                        "METHOD": "0",
-                        "OUTPUT": tmpfile.name,
-                    },
-                )
-                self.yson = json_load(open(output["OUTPUT"], "r"))
-            except QgsProcessingException as e:
-                self.yson = {"assets": [{"name": "No internet, try again later!"}]}
+        try:
+            output = processing.run(
+                "native:filedownloader",
+                {
+                    "URL": self.url,
+                    "METHOD": "0",
+                    "OUTPUT": "TEMPORARY_OUTPUT",
+                },
+            )
+            if "OUTPUT" not in output:
+                raise QgsProcessingException("QGIS native:filedownloader did not return correctly")
+            if not Path(output["OUTPUT"]).is_file() or Path(output["OUTPUT"]).stat().st_size == 0:
+                raise QgsProcessingException("QGIS native:filedownloader did not return a valid file")
+            with open(output["OUTPUT"], "r") as f:
+                self.yson = json_load(f)
+        except QgsProcessingException:
+            self.yson = {"assets": [{"name": "No internet, try again later! check Processing logs for more info"}]}
 
         self.addParameter(
             QgsProcessingParameterEnum(
                 name=self.INSTANCE,
                 description=self.tr("Select the instances to download"),
-                options=[item["name"] for item in self.yson["assets"]],
-                defaultValue=0,
+                options=[item["name"] for item in self.yson["assets"] if not item["name"].startswith("Cell2FireW")],
+                defaultValue=1,
             )
         )
+        qppb = QgsProcessingParameterBoolean(
+            name=self.UNZIP,
+            description=self.tr("Unzip the downloaded file"),
+            defaultValue=False,
+            optional=True,
+        )
+        qppb.setGuiDefaultValueOverride(True)
+        self.addParameter(qppb)
+        qppb2 = QgsProcessingParameterBoolean(
+            name=self.OPEN,
+            description=self.tr("Show in file browser"),
+            defaultValue=False,
+            optional=True,
+        )
+        qppb2.setGuiDefaultValueOverride(True)
+        self.addParameter(qppb2)
         self.addParameter(
             QgsProcessingParameterFileDestination(
                 name=self.FILEDEST,
-                description=self.tr(
-                    "Output file\n"
+                description=self.tr("Output file")
+                + " ["
+                + self.tr("optional")
+                + "]\n"
+                + self.tr(
                     "- leave empty for using selected filename and temporary path\n"
                     "- if current project is saved its path will be used\n"
-                    "- else use absolute filename\n"
-                    "- or relative filenaming for users home directory"
+                    "- else use absolute filenaming (.zip extension is suggested)\n"
+                    "- or relative filenaming for users home directory (or default qgis launch path)\n\n"
+                    "After downloading, the file will be unzipped and opened in the file browser\n"
                 ),
                 optional=True,
             )
         )
 
     def processAlgorithm(self, parameters, context, feedback):
-        instance = [item["name"] for item in self.yson["assets"]][
+        instance = [item["name"] for item in self.yson["assets"] if not item["name"].startswith("Cell2FireW")][
             self.parameterAsInt(parameters, self.INSTANCE, context)
         ]
         # feedback.pushDebugInfo(f"instance: {instance}")
@@ -109,14 +135,17 @@ class InstanceDownloader(QgsProcessingAlgorithm):
                 },
             )
         except QgsProcessingException as e:
+            feedback.reportError(f"Exception downloading {instance}: {e}")
             return {"no internet": "try again later"}
         # feedback.pushInfo(f"{output}")
         feedback.pushInfo(f"Download complete to {outfiledest}, unzipping...")
-        # unzip
-        with ZipFile(outfiledest, "r") as zip_ref:
-            zip_ref.extractall(outfiledest.parent)
-        feedback.pushInfo("Unzipping complete, opening directory...")
-        qgis_action_open_filebrowser(outfiledest.parent)
+        if self.parameterAsBool(parameters, self.UNZIP, context):
+            with ZipFile(outfiledest, "r") as zip_ref:
+                zip_ref.extractall(outfiledest.parent)
+            feedback.pushInfo("Unzipping complete..., showing in file browser...")
+        if self.parameterAsBool(parameters, self.OPEN, context):
+            qgis_action_open_filebrowser(outfiledest.parent)
+            feedback.pushInfo("File browser launched...")
         write_log(feedback, name=self.name())
         return output
 
@@ -126,14 +155,28 @@ class InstanceDownloader(QgsProcessingAlgorithm):
     def displayName(self):
         return self.tr("Instance Downloader")
 
-    def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+    def tr(self, string, context="InstanceDownloader"):
+        return QCoreApplication.translate(context, string)
 
     def createInstance(self):
         return InstanceDownloader()
 
     def icon(self):
         return QIcon(":/plugins/fireanalyticstoolbox/assets/downloader.svg")
+
+    def helpString(self):
+        return self.shortHelpString()
+
+    def shortHelpString(self):
+        return self.tr(
+            "This convenience algorithm provides ready-to-simulate instances.\n"
+            "It replaces the following manual steps:\n"
+            "1. Browse to our GitHub releases page: <a href=https://github.com/fire2a/C2F-W/releases/latest>https://github.com/fire2a/C2F-W/releases/latest</a>\n"
+            "2. Select an Asset to download the prepared instances for a fuel model as a zip file\n"
+            "3. Unzip and show in your file browser\n\n"
+            "<i><b>If the process fails, it is likely due to internet access issues.<br>"
+            "Please favor Ascii Grid format (.asc) over Geotiff (.tif)</b></i>"
+        )
 
 
 def qgis_action_open_filebrowser(directory):
