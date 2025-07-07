@@ -3,7 +3,7 @@ from re import findall as re_findall
 from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt.QtCore import QProcess
 
-match_this = "----------------------------- Results -----------------------------"
+match_this = r"Simulation \d+ Results:"
 
 # exitCode()
 ExitStatus = {
