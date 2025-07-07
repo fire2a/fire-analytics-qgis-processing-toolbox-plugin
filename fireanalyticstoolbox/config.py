@@ -185,7 +185,7 @@ class aConfig:
                 "0. Scott & Burgan",
                 "1. Kitral",
                 "2. Canadian Forest Fire Behavior Prediction System",
-                "3. Portugal Alpha",
+                "3. Portugal",
             ],
             "fuel_tables": [
                 "spain_lookup_table.csv",
