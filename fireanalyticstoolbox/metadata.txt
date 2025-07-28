@@ -24,6 +24,7 @@ repository=https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plug
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
 changelog=
+        v0.10.1: Cell2FireW v0.5.2: renamed the confusing input py.asc to probabilityMap.asc + windows parallel runs fix
 	v0.10.0: Portugal fuel model using Cell2FireW v0.5.0
 	v0.9.0: spanish traslation. C2F-W v0.4.1
 	v0.8.1: Cell2FireW update to v0.4.0. Instance downloader and other minor fixes.
