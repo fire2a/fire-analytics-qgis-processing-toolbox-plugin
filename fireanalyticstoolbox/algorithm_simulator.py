@@ -338,7 +338,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 name=self.IGNIPROBMAP,
-                description=SIM_INPUTS["py"]["description"] + f' [{SIM_INPUTS["py"]["units"]}]',
+                description=SIM_INPUTS["probabilityMap"]["description"] + f' [{SIM_INPUTS["probabilityMap"]["units"]}]',
                 defaultValue=[QgsProcessing.TypeRaster],
                 optional=True,
             )
@@ -685,7 +685,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             if (
                 (k in ["fuels", "elevation"])
                 or (k in ["cbh", "cbd", "ccf", "hm"] and is_crown)
-                or (k == "py" and ignition_mode == 1)
+                or (k == "probabilityMap" and ignition_mode == 1)
             ):
                 feedback.pushDebugInfo(f"copy: {k}:{v}")
                 driver = get_gdal_driver_shortname(v)
@@ -1003,7 +1003,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
 def get_rasters(self, parameters, context):
     raster = dict(
         zip(
-            SIM_INPUTS.keys(),  # ["fuels", "elevation", "cbh", "cbd", "ccf", "hm", "py"],
+            SIM_INPUTS.keys(),  # ["fuels", "elevation", "cbh", "cbd", "ccf", "hm", "probabilityMap"],
             map(
                 lambda x: self.parameterAsRasterLayer(parameters, x, context),
                 [
