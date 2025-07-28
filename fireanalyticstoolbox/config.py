@@ -34,7 +34,7 @@ class aConfig:
             "cbd": {"units": "kg/m3", "description": "cbd: " + self.tr("Canopy Bulk Density")},
             "ccf": {"units": "0,1", "description": "ccf: " + self.tr("Canopy Cover Fraction")},
             "hm": {"units": "m", "description": "hm: " + self.tr("Canopy Height")},
-            "py": {
+            "probabilityMap": {
                 "units": "0,1",
                 "description": self.tr("Probability map") + self.tr(" (requires generation mode 1)"),
             },
