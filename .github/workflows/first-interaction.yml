@@ -13,7 +13,7 @@ jobs:
       issues: write
       # pull-requests: write
     steps:
-    - uses: actions/first-interaction@v2
+    - uses: actions/first-interaction@v3
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
         issue-message: "Thanks for submitting! Gentle reminder to follow the [guideline](https://fire2a.github.io/docs/getting-help) to getting effective help"
