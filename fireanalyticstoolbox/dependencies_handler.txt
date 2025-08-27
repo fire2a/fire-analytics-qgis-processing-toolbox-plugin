@@ -1,4 +1,4 @@
 [general]
-plugin_dependencies = fire2a-lib==0.3.10
+plugin_dependencies = fire2a-lib==0.3.11
 enabled = True
 

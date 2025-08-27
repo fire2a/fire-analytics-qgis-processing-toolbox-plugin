@@ -16,36 +16,39 @@ bump to beta, tag to release a beta, test in windows, remove beta, merge pull, t
         - make sure the release is not draft
 
     vim fireanalyticstoolbox/metadata.txt fireanalyticstoolbox/dependencies_handler.txt qgis-plugin-server/plugins.xml
-    :bufdo % s/0.7.0/0.8.0/gc
+    :bufdo % s/0.10.1/1.0.0/gc
     :bufdo % s/0.3.10/0.3.11/gc
 
 2. tag
 
-    git tag -n2 | tail # show last tags
-    git tag -a v0.9.0-beta -m "spanish + C2FWv0.4.1"  && git push origin v0.9.0-beta
-    git tag --delete v0.9.0-beta && git push --delete origin v0.9.0-beta
+    # show last tags
+    git for-each-ref --sort=creatordate --format='%(refname:short) %(creatordate)' refs/tags | tail | column -t
+    # create
+    git tag -a v1.0.0 -m "meteorological convention: wind incoming from the north is zero angle, then clockwise"  && git push origin v1.0.0
+    # delete if needed
+    git tag --delete v1.0.0 && git push --delete origin v1.0.0
 
 ## templates
 
 metadata.txt
 
     changelog
-      v0.10.1: Cell2FireW v0.5.2: renamed the confusing input py.asc to probabilityMap.asc + windows parallel runs fix
+        v1.0.0: Wind angle follows meteorological convention, updated Cell2FireW v1.0.0 and fire2a-lib v0.3.11
 
-	SAVE BEFORE INSTALL/UPDATE: A dialog asking permission to (pip) install python dependencies (fire2a-lib==0.3.10) will appear
+	SAVE BEFORE INSTALL/UPDATE: A dialog asking permission to (pip) install python dependencies (fire2a-lib==0.3.11) will appear
 
 dependencies_handler.txt
 
-	plugin_dependencies = fire2a-lib==0.3.10
+	plugin_dependencies = fire2a-lib==0.3.11
     enabled = True
 
 plugins.xml
-	<pyqgis_plugin name="Fire Analytics Processing-Toolbox" version="0.10.1" plugin_id="1029384756">
+	<pyqgis_plugin name="Fire Analytics Processing-Toolbox" version="1.0.0" plugin_id="1029384756">
 
-			SAVE BEFORE INSTALL/UPDATE: A dialog asking permission to (pip) install python dependencies (fire2a-lib==0.3.10) will appear]]></about>
+			SAVE BEFORE INSTALL/UPDATE: A dialog asking permission to (pip) install python dependencies (fire2a-lib==0.3.11) will appear]]></about>
 
-		<version>0.10.1</version>
+		<version>1.0.0</version>
 
-		<update_date>2024-07-07T12:00:00.066666+06:00</update_date>
+		<update_date>2025-08-27T17:25:00.000000-03:00</update_date>
 
-		<download_url>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases/download/v0.10.1/fireanalyticstoolbox_v0.10.1.zip</download_url>
+		<download_url>https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plugin/releases/download/v1.0.0/fireanalyticstoolbox_v1.0.0.zip</download_url>
