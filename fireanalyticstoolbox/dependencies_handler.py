@@ -4,7 +4,6 @@ see https://github.com/fdobad/qgis-easy-dependencies-plugin/blob/main/README.md
 """
 from sys import prefix as sys_prefix
 from configparser import ConfigParser
-from distutils.version import LooseVersion
 from importlib import import_module, reload
 from importlib.metadata import PackageNotFoundError, distribution
 from pathlib import Path
@@ -20,11 +19,11 @@ def run():
     # get the plugin name from metadata.txt
     cp = ConfigParser()
     cp.read(Path(__file__).parent / "metadata.txt")
+    # cp.read(Path.cwd() / "metadata.txt")
     plugin_name = cp.get("general", "name")
 
-    # SWITCH COMENT IN PRODUCTION
-    # config_file = Path().cwd() / "dependencies_handler.txt"
     config_file = Path(__file__).parent / "dependencies_handler.txt"
+    # config_file = Path().cwd() / "dependencies_handler.txt"
     if not config_file.is_file():
         QgsMessageLog().logMessage(
             f"Plugin {plugin_name}: dependencies_handler.txt not found! (create this file to enable checking)",
@@ -52,7 +51,7 @@ def run():
 
     try:
         found_version = distribution(req_pkg_name).version
-        if LooseVersion(req_version) != LooseVersion(found_version):
+        if req_version != found_version:
             msg = "version mismatch, found: " + found_version
         else:
             QgsMessageLog().logMessage(
