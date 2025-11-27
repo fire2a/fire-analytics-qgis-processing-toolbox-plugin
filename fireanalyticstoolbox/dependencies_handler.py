@@ -4,7 +4,7 @@ see https://github.com/fdobad/qgis-easy-dependencies-plugin/blob/main/README.md
 """
 from sys import prefix as sys_prefix
 from configparser import ConfigParser
-from distutils.version import LooseVersion
+from packaging.version import Version
 from importlib import import_module, reload
 from importlib.metadata import PackageNotFoundError, distribution
 from pathlib import Path
@@ -52,7 +52,7 @@ def run():
 
     try:
         found_version = distribution(req_pkg_name).version
-        if LooseVersion(req_version) != LooseVersion(found_version):
+        if Version(req_version) != Version(found_version):
             msg = "version mismatch, found: " + found_version
         else:
             QgsMessageLog().logMessage(
