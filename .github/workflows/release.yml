@@ -41,8 +41,8 @@ jobs:
       uses: robinraju/release-downloader@v1.12
       with:
         repository: "fire2a/C2F-W" 
-        latest: true
-        fileName: " Cell2FireW_v*.*.*.zip"
+        tag: 'v1.0.1-test1'
+        fileName: "Cell2FireW_v*.*.*.zip"
         out-file-path: "fireanalyticstoolbox/simulator"
         extract: true
         tarBall: false
