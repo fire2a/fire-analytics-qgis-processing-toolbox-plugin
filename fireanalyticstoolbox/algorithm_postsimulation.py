@@ -650,11 +650,12 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
         data = []
         for count, afile in enumerate(files):
             sim_id = search("\\d+", afile.stem).group(0)
-            data += [
-                loadtxt(
-                    afile, delimiter=",", dtype=[("i", int32), ("j", int32), ("t", int32)], usecols=(0, 1, 2), ndmin=1
-                )
-            ]
+            try:
+                pre_data = loadtxt(afile, delimiter=",", dtype=[("i", int32), ("j", int32), ("t", int32)], usecols=(0, 1, 2), ndmin=1)
+            except Exception as e:
+                feedback.reportError(f"Error reading {afile}: {e}")
+                raise QgsProcessingException(f"Error reading {afile}: {e}")
+            data += [pre_data]
             # 1 based to 0 based
             data[-1]["i"] -= 1
             data[-1]["j"] -= 1
