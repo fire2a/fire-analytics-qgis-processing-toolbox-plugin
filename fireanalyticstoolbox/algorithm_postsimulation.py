@@ -104,9 +104,12 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         log_file = Path(self.parameterAsString(parameters, self.IN_LOG, context))
         if not log_file.stat().st_size > 0:
             return False, f"{log_file} file is empty!"
-        ip_log = loadtxt(log_file, delimiter=",", skiprows=1, usecols=[0, 1], dtype=[("sim", int32), ("cellid", int32)])
-        if len(ip_log) == 0:
-            return False, f"{log_file} file contains only headers but no ignition points"
+        try:
+            ip_log = loadtxt(log_file, delimiter=",", skiprows=1, usecols=[0, 1], dtype=[("sim", int32), ("cellid", int32)])
+        except Exception as e:
+            return False, f"{log_file} file caused an exception:{e}"
+        if ip_log.size == 0: 
+            return False, f"{log_file} file has no data!"
         return True, ""
 
     def initAlgorithm(self, config):
