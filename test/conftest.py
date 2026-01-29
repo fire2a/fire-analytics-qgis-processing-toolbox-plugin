@@ -1,10 +1,7 @@
-#!python3
+#!python
 """Pytest configuration and fixtures for Fire Analytics Toolbox tests."""
 
-# from IPython.terminal.embed import InteractiveShellEmbed
-
-# InteractiveShellEmbed()()
-
+import logging
 import sys
 from pathlib import Path
 
@@ -25,8 +22,10 @@ def fire2a_provider(qgis_app, qgis_processing):
     """
     toolbox_dir = str(Path(__file__).parent.parent)
     # print(f"{toolbox_dir=}")
-    assert toolbox_dir not in sys.path, "Toolbox path:{toolbox_dir} already in sys.path"
-    sys.path.insert(0, toolbox_dir)
+    if toolbox_dir in sys.path:
+        logging.warning(f"Toolbox path:{toolbox_dir} already in sys.path")
+    else:
+        sys.path.insert(0, toolbox_dir)
 
     from fireanalyticstoolbox.fireanalyticstoolbox_provider import FireToolboxProvider
 
@@ -45,3 +44,24 @@ def fire2a_provider(qgis_app, qgis_processing):
 
     # Cleanup: remove provider after tests
     registry.removeProvider(provider)
+
+
+def DISABLED_pytest_collection_modifyitems(items):
+    """specify order of test execution
+    https://medium.com/@thananjayan1988/pytest-control-order-of-test-class-and-module-execution-d1f93656ce8a
+
+    Using pytest-dependency instead https://pytest-dependency.readthedocs.io/
+    """
+    # print(items)
+    # items_bak = items.copy()
+    order = {
+        "test_01_download_instance": 1,
+        "test_02_simulate[1]": 2,
+        "test_03_loadresults[1]": 3,
+        "test_04_propagationdigraph[1]": 4,
+        "test_02_simulate[3]": 5,
+        "test_04_propagationdigraph[1]": 6,
+        "test_03_loadresults[3]": 7,
+    }
+    items.sort(key=lambda item: order.get(item.name, 9999))
+    # pytest --collect-only

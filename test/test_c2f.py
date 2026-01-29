@@ -1,12 +1,13 @@
 #!python
+# from IPython.terminal.embed import InteractiveShellEmbed
+# InteractiveShellEmbed()()
 import contextlib
-import sys
 from io import StringIO
 from pathlib import Path
-from pprint import pprint
-from shutil import move
+from shutil import copy, move
 
 import pytest
+from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsRasterLayer, QgsVectorLayer
 
 
 def get_algo_help(algo_id: str, processing_module) -> str:
@@ -17,8 +18,20 @@ def get_algo_help(algo_id: str, processing_module) -> str:
     return stdout_capture.getvalue()
 
 
-def test_01_download_instance(qgis_app, fire2a_provider, sandbox):
-    import processing  # type: ignore
+# LOCAL OVERRIDE FOR TESTING WITHOUT DOWNLOADING
+# @pytest.mark.dependency()
+# def test_download_instance(qgis_app, fire2a_provider, sandbox):
+#     download_dir = Path("~/source/fire/C2F-W/data/Kitral/Portezuelo-asc").expanduser()
+#     data_dir = sandbox / "data"
+#     data_dir.mkdir()
+#     copy(download_dir / "fuels.asc", data_dir)
+#     copy(download_dir / "elevation.asc", data_dir)
+#     copy(download_dir / "Weather.csv", data_dir)
+
+
+@pytest.mark.dependency()
+def test_download_instance(qgis_app, fire2a_provider, sandbox):
+    import processing
 
     download_dir = sandbox / "Kitral/Portezuelo-asc"
     data_dir = sandbox / "data"
@@ -46,15 +59,25 @@ def test_01_download_instance(qgis_app, fire2a_provider, sandbox):
     move(download_dir, data_dir)
 
 
-def test_02_simulate(qgis_app, fire2a_provider, sandbox):
-    import processing  # type: ignore
-    from qgis.core import QgsCoordinateReferenceSystem, QgsRasterLayer
+# A implicit
+# @pytest.mark.parametrize("number_of_simulations", [1, 3])
+# @pytest.mark.dependency(depends=["test_download_instance"])
+# B explicit
+@pytest.mark.parametrize(
+    "number_of_simulations",
+    [
+        pytest.param(1, marks=pytest.mark.dependency(depends=["test_download_instance"], name="test_simulate[1]")),
+        pytest.param(3, marks=pytest.mark.dependency(depends=["test_download_instance"], name="test_simulate[3]")),
+    ],
+)
+def test_simulate(qgis_app, fire2a_provider, sandbox, number_of_simulations):
+    import processing
 
     data_dir = sandbox / "data"
     if not data_dir.is_dir():
         pytest.skip("Data directory not found, skipping simulation test")
-    instance_dir = sandbox / "instance"
-    results_dir = sandbox / "results"
+    instance_dir = sandbox / f"instance_{number_of_simulations}"
+    results_dir = sandbox / f"results_{number_of_simulations}"
 
     c2f = next(algo for algo in fire2a_provider.algorithms() if algo.id() == "fire2a:cell2firesimulator")
     rc, msg = c2f.canExecute()
@@ -94,7 +117,7 @@ def test_02_simulate(qgis_app, fire2a_provider, sandbox):
             "InstanceDirectory": str(instance_dir),
             "InstanceInProject": False,
             "LiveAndDeadFuelMoistureContentScenario": 2,
-            "NumberOfSimulations": 3,
+            "NumberOfSimulations": number_of_simulations,
             "OtherCliArgs": "",
             "OutputOptions": [1, 2, 3, 4, 0, 5, 6, 7, 8, 9, 10, 11, 12],
             "RandomNumberGeneratorSeed": 123,
@@ -107,18 +130,27 @@ def test_02_simulate(qgis_app, fire2a_provider, sandbox):
             "WeatherMode": 0,
         },
     )
-    print("ipython from test_cell2firesimulator")
-    for k, v in output.items():
+    for k, v in output02.items():
         if isinstance(v, str) and Path(v).is_file():
             print(f"Checking output file for key {k}: {v}")
             assert Path(v).stat().st_size > 0, f"Output file {k} is empty: {v}"
 
-    print(Path(output["LogFile"]).read_text())
+    print(Path(output02["LogFile"]).read_text())
 
 
-def nottest_03_loadresults(qgis_app, fire2a_provider, sandbox):
-    instance_dir = sandbox / "instance"
-    results_dir = sandbox / "results"
+@pytest.mark.parametrize(
+    "number_of_simulations",
+    [
+        pytest.param(1, marks=pytest.mark.dependency(depends=["test_simulate[1]"])),
+        pytest.param(3, marks=pytest.mark.dependency(depends=["test_simulate[3]"])),
+    ],
+)
+def test_loadresults(qgis_app, fire2a_provider, sandbox, number_of_simulations):
+    import processing
+
+    data_dir = sandbox / "data"
+    instance_dir = sandbox / f"instance_{number_of_simulations}"
+    results_dir = sandbox / f"results_{number_of_simulations}"
     if not instance_dir.is_dir() or not results_dir.is_dir():
         pytest.skip("Instance or results directory not found, skipping load results test")
     loaded_dir = sandbox / "loaded"
@@ -141,20 +173,24 @@ def nottest_03_loadresults(qgis_app, fire2a_provider, sandbox):
             "OutputDirectory": str(loaded_dir),
         },
     )
-    # from IPython.terminal.embed import InteractiveShellEmbed
-
-    # InteractiveShellEmbed()()
-    # TODO make output files move into loaded dir
+    print(output03)
+    # TODO make bundle algo output files into loaded dir
 
 
-@pytest.mark.qgis_show_map(timeout=30, zoom_to_common_extent=True)
-def test_04_propagationdigraph(qgis_app, fire2a_provider, sandbox):
-    import processing  # type: ignore
-    from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsRasterLayer, QgsVectorLayer
+@pytest.mark.parametrize(
+    "number_of_simulations",
+    [
+        pytest.param(1, marks=pytest.mark.dependency(depends=["test_simulate[1]"])),
+        pytest.param(3, marks=pytest.mark.dependency(depends=["test_simulate[3]"])),
+    ],
+)
+@pytest.mark.qgis_show_map(timeout=5, zoom_to_common_extent=True)
+def test_04_propagationdigraph(qgis_app, fire2a_provider, sandbox, number_of_simulations):
+    import processing
 
     data_dir = sandbox / "data"
-    instance_dir = sandbox / "instance"
-    results_dir = sandbox / "results"
+    instance_dir = sandbox / f"instance_{number_of_simulations}"
+    results_dir = sandbox / f"results_{number_of_simulations}"
     if not instance_dir.is_dir() or not results_dir.is_dir():
         pytest.skip("Instance or results directory not found, skipping load propagation digraph test")
 
@@ -181,6 +217,7 @@ def test_04_propagationdigraph(qgis_app, fire2a_provider, sandbox):
             "PickledMessages": str(sandbox / "messages.pickle"),
         },
     )
+    print(output04)
 
     # Load the geopackage into QGIS
     if digraph_path.exists():

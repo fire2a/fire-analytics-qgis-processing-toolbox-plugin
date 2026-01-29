@@ -1,14 +1,14 @@
 [tool.pytest]
 # pytest --log-cli-level=INFO
 # log_cli = true
-# log_cli_level = "DEBUG"
+# log_cli_level = "INFO"
 minversion = "9.0"
 addopts = [
 	"-v",
 	"-ra",
 	"--import-mode=importlib",
-	"--cache-clear",
 ]
+# "--cache-clear",
 # "--strict-markers"
 # "-p", "no:qgis",  # Disable pytest-qgis plugin - conflicts with our custom fixtures
 # "--tb=short", "
@@ -30,18 +30,19 @@ preview = true
 line_length = 120
 
 [tool.pylint.BASIC]
-good-names = ["i",
-              "j",
-              "k",
-              "e",
-              "H",
-              "W",
-              "df",
-              "dt",
-              "dx",
-              "dy",
-              "ok",
-              "_",
+good-names = [
+    "i",
+    "j",
+    "k",
+    "e",
+    "H",
+    "W",
+    "df",
+    "dt",
+    "dx",
+    "dy",
+    "ok",
+    "_",
 ]
 
 [tool.pylint.FORMAT]
@@ -51,8 +52,13 @@ max-line-length = 120
 enabled = true
 
 [[tool.mypy.overrides]]
-module = ["fire2a.*"]
+module = [
+    "fire2a",
+    "fire2a.*",
+    "processing",
+]
 follow_untyped_imports = true
+ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 120
