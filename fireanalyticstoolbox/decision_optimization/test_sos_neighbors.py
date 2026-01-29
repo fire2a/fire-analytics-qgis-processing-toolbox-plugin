@@ -94,7 +94,7 @@ def do_2d_knapsack_nb(nb=1, wx=1, wy=1, wnb=1):
 
     m.objective = pyo.Objective(
         sense=pyo.maximize,
-        expr=lambda m: sum((wx * m.X[i] + wy * m.Y[i] - wnb * m.NB[i] / max(1,m.num_nb)) * m.Va[i] for i in m.Map),
+        expr=lambda m: sum((wx * m.X[i] + wy * m.Y[i] - wnb * m.NB[i] / max(1, m.num_nb)) * m.Va[i] for i in m.Map),
     )
 
     m.sos_at_most_one = pyo.SOSConstraint(m.Map, sos=1, rule=lambda m, h, w: [m.X[h, w], m.Y[h, w]])
@@ -142,8 +142,8 @@ def simplest_pyomo_solve(model, print_model=True, tee=True):
         print(model.pprint())
 
     # Solve
-    solver = "gurobi"
-    # solver = "cbc"
+    # solver = "gurobi"
+    solver = "cbc"
     executable = None
     if executable:
         opt = SolverFactory(solver, executable=executable)
@@ -253,10 +253,10 @@ graph_results2d(m, 1, 1, 1)
 # nb [1, 8]
 for nb, wx, wy, wnb in product(range(1, 9), [1, 10, 100], [1, 10, 100], [0.01, 1, 100]):
     if wx == wy == wnb == 1:
-        print('skip 1,1,1')
+        print("skip 1,1,1")
         continue
     if wx == wy == wnb == 100:
-        print('skip 100,100,100')
+        print("skip 100,100,100")
         continue
     m = do_2d_knapsack_nb(nb, wx, wy, wnb)
     m = simplest_pyomo_solve(m, print_model=False, tee=False)
