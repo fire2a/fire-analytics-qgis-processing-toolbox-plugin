@@ -148,7 +148,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         # ignition points csv log file
         log_csv = Path(self.parameterAsString(parameters, self.IN_LOG, context))
         feedback.pushDebugInfo(f"reading {log_csv=}")
-        ip_log = loadtxt(log_csv, delimiter=",", skiprows=1, usecols=[0, 1], dtype=[("sim", int32), ("cellid", int32)])
+        ip_log = loadtxt(log_csv, delimiter=",", skiprows=1, usecols=[0, 1], dtype=[("sim", int32), ("cellid", int32)], ndmin=1)
         # create layer
         # fields
         fields = QgsFields()
