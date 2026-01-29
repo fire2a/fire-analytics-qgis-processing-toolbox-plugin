@@ -15,12 +15,13 @@ pip install -r requirements-test.txt
 pip install fire2a-lib                            # or clone and pip install -e .
 ln -s ../path/to/C2F-W firetoolbox/simulator/C2F  # symlink or copy C2F-W code or release
 
-bash -c "source venv/bin/activate && pytest"
+pytest
 ```
 
-Some simulator children processes sometimes linger blocking the terminal.  
-Because `C2F > QProcess > QgsProcessingAlgorithm > QGIS > pytest` is a long way to go,  
-Hence encapsulating the test run in a separate bash shell to isolate the lingering -sometimes blocking- processes.  
+Don't close the QGIS raised windows during the tests! 
+Your terminal may get blocked for a while.
+
+`C2F > QProcess > QgsProcessingAlgorithm > QGIS > pytest` is a long way to go... 
 
 ## Microsoft Headache
 

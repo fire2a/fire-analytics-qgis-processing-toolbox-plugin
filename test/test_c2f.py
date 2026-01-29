@@ -4,7 +4,7 @@
 import contextlib
 from io import StringIO
 from pathlib import Path
-from shutil import copy, move
+from shutil import move
 
 import pytest
 from qgis.core import QgsCoordinateReferenceSystem, QgsProject, QgsRasterLayer, QgsVectorLayer
@@ -21,6 +21,7 @@ def get_algo_help(algo_id: str, processing_module) -> str:
 # LOCAL OVERRIDE FOR TESTING WITHOUT DOWNLOADING
 # @pytest.mark.dependency()
 # def test_download_instance(qgis_app, fire2a_provider, sandbox):
+#     from shutil import copy
 #     download_dir = Path("~/source/fire/C2F-W/data/Kitral/Portezuelo-asc").expanduser()
 #     data_dir = sandbox / "data"
 #     data_dir.mkdir()
@@ -207,14 +208,15 @@ def test_04_propagationdigraph(qgis_app, fire2a_provider, sandbox, number_of_sim
     print(algo_name, algo_help)
     assert len(algo_help) > 0, f"Algorithm {algo_name} help is empty"
 
-    digraph_path = sandbox / "propagation_digraph.gpkg"
+    digraph_path = sandbox / f"propagation_digraph_{number_of_simulations}.gpkg"
+    messages_path = sandbox / f"messages_{number_of_simulations}.pickle"
     output04 = processing.run(
         algo_name,
         {
             "BaseLayer": fuels,
             "SampleMessagesFile": str(any_message_file),
             "PropagationDirectedGraph": str(digraph_path),
-            "PickledMessages": str(sandbox / "messages.pickle"),
+            "PickledMessages": str(messages_path),
         },
     )
     print(output04)
