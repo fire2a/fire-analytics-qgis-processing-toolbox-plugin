@@ -1,3 +1,25 @@
+[tool.pytest]
+# pytest --log-cli-level=INFO
+# log_cli = true
+# log_cli_level = "DEBUG"
+minversion = "9.0"
+addopts = [
+	"-v",
+	"-ra",
+	"--import-mode=importlib",
+	"--cache-clear",
+]
+# "--strict-markers"
+# "-p", "no:qgis",  # Disable pytest-qgis plugin - conflicts with our custom fixtures
+# "--tb=short", "
+testpaths = [
+    "test",
+]
+# there's no package
+# pythonpath = [
+#   "src"
+# ]
+
 # https://black.readthedocs.io/en/stable/usage_and_configuration/the_basics.html
 [tool.black]
 enabled = true
@@ -27,6 +49,10 @@ max-line-length = 120
 
 [tool.pylsp-mypy]
 enabled = true
+
+[[tool.mypy.overrides]]
+module = ["fire2a.*"]
+follow_untyped_imports = true
 
 [tool.ruff]
 line-length = 120
