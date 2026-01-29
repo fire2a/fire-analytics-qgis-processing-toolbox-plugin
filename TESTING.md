@@ -1,15 +1,36 @@
 # TESTING
 
 ## TL;DR
+
+Install QGIS, in a system-aware python virtual environment testing dependencies and fire2a-lib.  
+Place the C2F-W binary and run pytest.  
+
 ```bash
+sudo apt install qgis qgis-plugin-grass python3-venv python3-pip
+
 python3 -m venv venv --system-site-packages
 source venv/bin/activate
 pip install -r requirements-test.txt
+
+pip install fire2a-lib                            # or clone and pip install -e .
+ln -s ../path/to/C2F-W firetoolbox/simulator/C2F  # symlink or copy C2F-W code or release
+
 bash -c "source venv/bin/activate && pytest"
 ```
-Some simulator children processes sometimes linger blocking the terminal.
-Because `C2F > QProcess > QgsProcessingAlgorithm > QGIS > pytest` is a long way to go,
-Encapsulating the test run in a separate bash shell helps to isolate the lingering processes.
+
+Some simulator children processes sometimes linger blocking the terminal.  
+Because `C2F > QProcess > QgsProcessingAlgorithm > QGIS > pytest` is a long way to go,  
+Hence encapsulating the test run in a separate bash shell to isolate the lingering -sometimes blocking- processes.  
+
+## Microsoft Headache
+
+1. Install QGIS
+2. Open OSGeo4W Shell
+
+    python-qgis.bat -c exit()
+    pip install fire2a-lib                            
+    pip install -r requirements-test.txt
+    pytest
 
 ## some options
 
@@ -18,7 +39,7 @@ Encapsulating the test run in a separate bash shell helps to isolate the lingeri
 3. just collecting `pytest --collect-only` when adding new tests
 4. there's a mock test for replacing download when needed
 
-## files
+## check this files
 
 1. `requirements-test.txt`
 2. `pyproject.toml::[tool.pytest]`

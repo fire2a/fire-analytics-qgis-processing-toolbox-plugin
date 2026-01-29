@@ -11,8 +11,8 @@ Tutoriales para usuarios español en: [fire2a/documentacion](https://fire2a.gith
 [comprehensive tutorial here](https://fire2a.github.io/docs/qgis-toolbox)  
 1. Install [QGIS](https://qgis.org/download/)
 1. Install fire2a's custom [plugin repo source](https://fire2a.github.io/fire-analytics-qgis-processing-toolbox-plugin/plugins.xml) (QGIS>Plugins>ManageAnd...>Settings>Add>URL)
-1. Install python requirements typing `pip install fire2a-lib` into QGIS python console (restart QGIS)
-1. Install "Fire Analytics Toolbox" plugin  
+1. Install "Fire Analytics Toolbox" plugin (usually needs QGIS restart)
+1. (If you canceled the installation prompt on the last step) Install python requirements typing `pip install fire2a-lib` into QGIS python console (restart QGIS)
 
 ### Usage options
 1. As a window dialog on the [processing toolbox](https://docs.qgis.org/latest/en/docs/user_manual/processing/toolbox.html) interface  
@@ -51,12 +51,27 @@ Tutoriales para usuarios español en: [fire2a/documentacion](https://fire2a.gith
 
 Also checkout our [algorithms library](https://fire2a.github.io/docs/algo-lib)
 
-## Structure
-- Plugin files at `fireanalyticstoolbox` directory  
-  - includes python requirements.txt  
-- `script_samples` contains standalone and qgis-console python scripts  
-- `pyproject.toml` defines black coding style  
--  `requirements.dev.txt` lists dev tools  
+## Project structure summary
+```
+ 
+├──  fireanalyticstoolbox         # QGIS plugin directory
+│   ├──  __init__.py
+│   ├──  algorithms_*.py
+│   ├──  _provider.py
+│   ├──  decision_optimization    # MIP integration
+│   ├──  i18n                     # translation
+│   └──  simulator                # wildfire integration
+│       ├──  C2F ⇒  symlink or copy C2F-W HERE!
+│       └──  fuel model tables.csv
+├──  graphical_models             # QGIS models samples
+│   └──  *.model3
+├──  script_samples               # alternative usage samples
+│   ├──  qgis_console.py
+│   ├──  qgis_process.sh
+│   └──  standalone.py
+├──  test                         # pytest[-qgis][-dependency]
+└──  pyproject.toml
+```
 
 ## Code of Conduct
 Everyone interacting in the project's codebases, issue trackers, etc. is expected to follow the [PSF Code of Conduct](https://www.python.org/psf/conduct/).
