@@ -1,0 +1,13 @@
+qgis-stubs @ git+https://github.com/leonhard-s/qgis-stubs.git
+fire2a-lib
+
+pylsp-mypy
+pylsp-rope
+python-lsp-black
+python-lsp-isort
+python-lsp-ruff
+python-lsp-server[pylint,rope]
+yamlfix
+yamllint
+
+# ipython               

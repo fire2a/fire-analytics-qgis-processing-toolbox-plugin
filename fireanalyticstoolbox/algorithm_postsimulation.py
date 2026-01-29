@@ -104,9 +104,12 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         log_file = Path(self.parameterAsString(parameters, self.IN_LOG, context))
         if not log_file.stat().st_size > 0:
             return False, f"{log_file} file is empty!"
-        ip_log = loadtxt(log_file, delimiter=",", skiprows=1, usecols=[0, 1], dtype=[("sim", int32), ("cellid", int32)])
-        if len(ip_log) == 0:
-            return False, f"{log_file} file contains only headers but no ignition points"
+        try:
+            ip_log = loadtxt(log_file, delimiter=",", skiprows=1, usecols=[0, 1], dtype=[("sim", int32), ("cellid", int32)])
+        except Exception as e:
+            return False, f"{log_file} file caused an exception:{e}"
+        if ip_log.size == 0: 
+            return False, f"{log_file} file has no data!"
         return True, ""
 
     def initAlgorithm(self, config):
@@ -145,7 +148,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
         # ignition points csv log file
         log_csv = Path(self.parameterAsString(parameters, self.IN_LOG, context))
         feedback.pushDebugInfo(f"reading {log_csv=}")
-        ip_log = loadtxt(log_csv, delimiter=",", skiprows=1, usecols=[0, 1], dtype=[("sim", int32), ("cellid", int32)])
+        ip_log = loadtxt(log_csv, delimiter=",", skiprows=1, usecols=[0, 1], dtype=[("sim", int32), ("cellid", int32)], ndmin=1)
         # create layer
         # fields
         fields = QgsFields()
@@ -647,11 +650,12 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
         data = []
         for count, afile in enumerate(files):
             sim_id = search("\\d+", afile.stem).group(0)
-            data += [
-                loadtxt(
-                    afile, delimiter=",", dtype=[("i", int32), ("j", int32), ("t", int32)], usecols=(0, 1, 2), ndmin=1
-                )
-            ]
+            try:
+                pre_data = loadtxt(afile, delimiter=",", dtype=[("i", int32), ("j", int32), ("t", int32)], usecols=(0, 1, 2), ndmin=1)
+            except Exception as e:
+                feedback.reportError(f"Error reading {afile}: {e}")
+                raise QgsProcessingException(f"Error reading {afile}: {e}")
+            data += [pre_data]
             # 1 based to 0 based
             data[-1]["i"] -= 1
             data[-1]["j"] -= 1

@@ -989,15 +989,13 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         return self.shortHelpString()
 
     def shortHelpString(self):
-        return self.tr(
-            """
+        return self.tr("""
             See documentation:
             <a href=https://fire2a.github.io/docs/qgis-toolbox/algo_simulator.html>This dialog</a>
             <a href=https://fire2a.github.io/docs/Cell2FireW>Cell2FireW</a>
             <font color="red">Warning: GeoTiff(.tif) support (in development) limited to only reading the fuels layer!</font> If planning to use more layers, transform them to AIIGrid(.asc) format!
             <font color="orange">Warning: Kitral cbh and cbd rasters must use nodata -9999</font>
-            """
-        )
+            """)
 
 
 def get_rasters(self, parameters, context):
