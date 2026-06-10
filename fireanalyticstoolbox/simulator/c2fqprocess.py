@@ -7,28 +7,28 @@ match_this = r"Simulation \d+ Results:"
 
 # exitCode()
 ExitStatus = {
-    QProcess.NormalExit: "NormalExit",  # 0
-    QProcess.CrashExit: "CrashExit",  # 1
+    QProcess.ExitStatus.NormalExit: "NormalExit",  # 0
+    QProcess.ExitStatus.CrashExit: "CrashExit",  # 1
 }
 # state()
 ProcessState = {
-    QProcess.NotRunning: "NotRunning",  # 0
-    QProcess.Starting: "Running",  # 1
-    QProcess.Running: "Starting",  # 2
+    QProcess.ProcessState.NotRunning: "NotRunning",  # 0
+    QProcess.ProcessState.Starting: "Running",  # 1
+    QProcess.ProcessState.Running: "Starting",  # 2
 }
 # error()
 ProcessError = {
-    QProcess.FailedToStart: "FailedToStart",  # 0
-    QProcess.Crashed: "Crashed",  # 1
-    QProcess.Timedout: "Timedout",  # 2
-    QProcess.ReadError: "ReadError",  # 3
-    QProcess.WriteError: "WriteError",  # 4
-    QProcess.UnknownError: "UnknownError",  # 5
+    QProcess.ProcessError.FailedToStart: "FailedToStart",  # 0
+    QProcess.ProcessError.Crashed: "Crashed",  # 1
+    QProcess.ProcessError.Timedout: "Timedout",  # 2
+    QProcess.ProcessError.ReadError: "ReadError",  # 3
+    QProcess.ProcessError.WriteError: "WriteError",  # 4
+    QProcess.ProcessError.UnknownError: "UnknownError",  # 5
 }
 
 
 def nlog(*args, **kwargs):
-    QgsMessageLog.logMessage(f"{args} {kwargs}", "Cell2FireQProcess", Qgis.Info)
+    QgsMessageLog.logMessage(f"{args} {kwargs}", "Cell2FireQProcess", Qgis.MessageLevel.Info)
 
 
 class C2F(QProcess):
@@ -38,8 +38,8 @@ class C2F(QProcess):
         super().__init__(parent)
         self.current_sim = 0
         self.total_sims = total_sims
-        self.setInputChannelMode(QProcess.ForwardedInputChannel)
-        self.setProcessChannelMode(QProcess.SeparateChannels)
+        self.setInputChannelMode(QProcess.InputChannelMode.ForwardedInputChannel)
+        self.setProcessChannelMode(QProcess.ProcessChannelMode.SeparateChannels)
         self.readyReadStandardOutput.connect(self.read_standard_output)
         self.readyReadStandardError.connect(self.read_standard_error)
         self.stateChanged.connect(self.on_state_changed)
@@ -100,7 +100,7 @@ class C2F(QProcess):
                     "Can't start simulation, process already running",
                     title="simulation",
                     text="start",
-                    level=Qgis.Warning,
+                    level=Qgis.MessageLevel.Warning,
                 )
                 return
         if proc_dir:
@@ -121,7 +121,7 @@ class C2F(QProcess):
                 "Terminate signal sent!",
                 title="simulation",
                 text="terminate",
-                level=Qgis.Success,
+                level=Qgis.MessageLevel.Success,
             )
         else:
             nlog(
@@ -130,7 +130,7 @@ class C2F(QProcess):
                 text="terminate",
                 current_state=ProcessState.get(self.state_code, "!Unknown"),
                 ended=self.ended,
-                level=Qgis.Warning,
+                level=Qgis.MessageLevel.Warning,
             )
 
     def kill(self):
@@ -141,7 +141,7 @@ class C2F(QProcess):
                 "Kill signal sent!",
                 title="simulation",
                 text="kill",
-                level=Qgis.Success,
+                level=Qgis.MessageLevel.Success,
             )
         else:
             nlog(
@@ -150,7 +150,7 @@ class C2F(QProcess):
                 text="kill",
                 current_state=ProcessState.get(self.state_code, "!Unknown"),
                 ended=self.ended,
-                level=Qgis.Warning,
+                level=Qgis.MessageLevel.Warning,
             )
 
     def on_finished(self):
@@ -158,15 +158,15 @@ class C2F(QProcess):
         self.log_stat("on_finished")
         self.log_file.close()
         ok = False
-        if self.exit_code == QProcess.NormalExit:
-            level = Qgis.Success
+        if self.exit_code == QProcess.ExitStatus.NormalExit:
+            level = Qgis.MessageLevel.Success
             msg = ""
             ok = True
-        elif self.exit_code == QProcess.CrashExit:
-            level = Qgis.Warning
+        elif self.exit_code == QProcess.ExitStatus.CrashExit:
+            level = Qgis.MessageLevel.Warning
             msg = f', error:{ProcessError.get(self.error_code, "!Unknown")}'
         else:
-            level = Qgis.Critical
+            level = Qgis.MessageLevel.Critical
             msg = f", code:{self.exit_code}"
             msg += f', error:{ProcessError.get(self.error_code, "!Unknown")}'
         nlog(

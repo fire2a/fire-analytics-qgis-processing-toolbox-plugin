@@ -35,13 +35,13 @@ import numpy as np
 import processing
 from osgeo import gdal
 from pyomo import environ as pyo
-from qgis.core import (QgsFeature, QgsFeatureRequest, QgsFeatureSink, QgsField, QgsFields, QgsProcessing,
+from qgis.core import (NULL, Qgis, QgsFeature, QgsFeatureRequest, QgsFeatureSink, QgsField, QgsFields, QgsProcessing,
                        QgsProcessingAlgorithm, QgsProcessingException, QgsProcessingParameterBoolean,
                        QgsProcessingParameterDefinition, QgsProcessingParameterEnum, QgsProcessingParameterFeatureSink,
                        QgsProcessingParameterFeatureSource, QgsProcessingParameterField, QgsProcessingParameterMatrix,
                        QgsProcessingParameterMultipleLayers, QgsProcessingParameterNumber,
                        QgsProcessingParameterRasterLayer)
-from qgis.PyQt.QtCore import QCoreApplication, QVariant
+from qgis.PyQt.QtCore import QCoreApplication, QMetaType
 from qgis.PyQt.QtGui import QIcon
 from scipy import stats
 from scipy.ndimage import convolve  # ## LÍNEA NUEVA
@@ -72,7 +72,7 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterFeatureSource(
                 name=self.IN_LAYER,
                 description=self.tr("Input Polygons Layer"),
-                types=[QgsProcessing.TypeVectorPolygon],
+                types=[Qgis.ProcessingSourceType.VectorPolygon],
             )
         )
         # value field
@@ -82,7 +82,7 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
                 description=self.tr("Attribute table field name for VALUE (if blank 1's will be used)"),
                 defaultValue="VALUE",
                 parentLayerParameterName=self.IN_LAYER,
-                type=QgsProcessingParameterField.Numeric,
+                type=Qgis.ProcessingFieldParameterDataType.Numeric,
                 allowMultiple=False,
                 optional=True,
                 defaultToAllFields=False,
@@ -95,7 +95,7 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
                 description=self.tr("Attribute table field name for WEIGHT (if blank polygon's area will be used)"),
                 defaultValue="WEIGHT",
                 parentLayerParameterName=self.IN_LAYER,
-                type=QgsProcessingParameterField.Numeric,
+                type=Qgis.ProcessingFieldParameterDataType.Numeric,
                 allowMultiple=False,
                 optional=True,
                 defaultToAllFields=False,
@@ -105,7 +105,7 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
         qppn = QgsProcessingParameterNumber(
             name=self.IN_RATIO,
             description=self.tr("Capacity ratio (1 = weight.sum)"),
-            type=QgsProcessingParameterNumber.Double,
+            type=Qgis.ProcessingNumberParameterType.Double,
             defaultValue=0.069,
             optional=False,
             minValue=0.0,
@@ -125,14 +125,14 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
             defaultValue=True,
             optional=True,
         )
-        qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        qppb.setFlags(qppb.flags() | Qgis.ProcessingParameterFlag.Advanced)
         self.addParameter(qppb)
         pyomo_init_algorithm(self, config)
 
     def processAlgorithm(self, parameters, context, feedback):
         # setup ignore
         if self.parameterAsBool(parameters, self.GEOMETRY_CHECK_SKIP_INVALID, context):
-            context.setInvalidGeometryCheck(QgsFeatureRequest.GeometrySkipInvalid)
+            context.setInvalidGeometryCheck(Qgis.InvalidGeometryCheck.SkipInvalid)
             feedback.pushWarning("setInvalidGeometryCheck set to GeometrySkipInvalid")
 
         # report solver unavailability
@@ -234,8 +234,8 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
         )
 
         fields = QgsFields()
-        fields.append(QgsField(name="fid", type=QVariant.Int))  # , len=10))
-        fields.append(QgsField(name="knapsack", type=QVariant.Int))  # , len=10))
+        fields.append(QgsField(name="fid", type=QMetaType.Type.Int))  # , len=10))
+        fields.append(QgsField(name="knapsack", type=QMetaType.Type.Int))  # , len=10))
 
         (sink, dest_id) = self.parameterAsSink(
             parameters,
@@ -261,7 +261,7 @@ class PolygonKnapsackAlgorithm(QgsProcessingAlgorithm):
             new_feature.setGeometry(feature.geometry())
             # feedback.pushDebugInfo(f"{new_feature.id()=}, {current=}, {response[current]=}")
             # Add a feature in the sink
-            sink.addFeature(new_feature, QgsFeatureSink.FastInsert)
+            sink.addFeature(new_feature, QgsFeatureSink.Flag.FastInsert)
             # Update the progress bar
             feedback.setProgress(int(current * total))
 
@@ -341,7 +341,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.IN_VALUE,
                 description=self.tr("Values layer (if blank 1's will be used)"),
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=True,
             )
         )
@@ -350,7 +350,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.IN_WEIGHT,
                 description=self.tr("Weights layer (if blank 1's will be used)"),
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=True,
             )
         )
@@ -358,7 +358,7 @@ class RasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         qppn = QgsProcessingParameterNumber(
             name=self.IN_RATIO,
             description=self.tr("Capacity ratio (1 = weight.sum)"),
-            type=QgsProcessingParameterNumber.Double,
+            type=Qgis.ProcessingNumberParameterType.Double,
             defaultValue=0.068,
             optional=False,
             minValue=0.0,
@@ -656,8 +656,8 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterMultipleLayers(
                 name=self.INPUT_RASTERS,
                 description=self.tr("Input rasters"),
-                layerType=QgsProcessing.TypeRaster,
-                defaultValue=[QgsProcessing.TypeRaster],
+                layerType=Qgis.ProcessingSourceType.Raster,
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=False,
             )
         )
@@ -684,7 +684,7 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             defaultValue="True",
             optional=True,
         )
-        qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        qppb.setFlags(qppb.flags() | Qgis.ProcessingParameterFlag.Advanced)
         self.addParameter(qppb)
         qppb2 = QgsProcessingParameterBoolean(
             name=self.RELAXEXCLUDENODATA,
@@ -694,7 +694,7 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             defaultValue="False",
             optional=True,
         )
-        qppb2.setFlags(qppb2.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        qppb2.setFlags(qppb2.flags() | Qgis.ProcessingParameterFlag.Advanced)
         self.addParameter(qppb2)
         pyomo_init_algorithm(self, config)
 
@@ -746,7 +746,7 @@ class MultiObjectiveRasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         for i, fname in zip(range(num_rows), config_toml):
             row = matrix[i * row_len : (i + 1) * row_len]
             for j, (header, atype) in enumerate(zip(self.matrix_headers, self.matrix_headers_types)):
-                if row[j] != QVariant() and row[j] != "":
+                if row[j] != NULL and row[j] != "":
                     try:
                         config_toml[fname][header] = atype(row[j])
                     except Exception as e:
@@ -925,7 +925,7 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.IN_PA,
                 description=self.tr("Protected area layer"),
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=True,
             )
         )
@@ -947,7 +947,7 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.IN_VALUE,
                 description=self.tr("Values layer (if blank 1's will be used)"),
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=True,
             )
         )
@@ -956,7 +956,7 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.IN_WEIGHT,
                 description=self.tr("Weights layer (if blank 1's will be used)"),
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=True,
             )
         )
@@ -964,7 +964,7 @@ class PARasterKnapsackAlgorithm(QgsProcessingAlgorithm):
         qppn = QgsProcessingParameterNumber(
             name=self.IN_RATIO,
             description=self.tr("Capacity ratio (1 = weight.sum)"),
-            type=QgsProcessingParameterNumber.Double,
+            type=Qgis.ProcessingNumberParameterType.Double,
             defaultValue=0.068,
             optional=False,
             minValue=0.0,

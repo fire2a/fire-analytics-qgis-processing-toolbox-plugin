@@ -217,8 +217,8 @@ def pyomo_init_algorithm(self, config):
     CUSTOM_OPTIONS_STRING: custom options to pass to the solver
     DISPLAY_MODEL: display the model in the console
     """
-    from qgis.core import (QgsProcessingParameterBoolean, QgsProcessingParameterDefinition, QgsProcessingParameterFile,
-                           QgsProcessingParameterString)
+    from qgis.core import (Qgis, QgsProcessingParameterBoolean, QgsProcessingParameterDefinition,
+                           QgsProcessingParameterFile, QgsProcessingParameterString)
 
     # boolean parameter to display the model
     qppb = QgsProcessingParameterBoolean(
@@ -229,7 +229,7 @@ def pyomo_init_algorithm(self, config):
         defaultValue="False",
         optional=False,
     )
-    qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+    qppb.setFlags(qppb.flags() | Qgis.ProcessingParameterFlag.Advanced)
     self.addParameter(qppb)
 
     # SOLVERS
@@ -251,7 +251,7 @@ def pyomo_init_algorithm(self, config):
             }
         }
     )
-    qpps.setFlags(qpps.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+    qpps.setFlags(qpps.flags() | Qgis.ProcessingParameterFlag.Advanced)
     self.addParameter(qpps)
     # options_string
     qpps2 = QgsProcessingParameterString(
@@ -260,17 +260,17 @@ def pyomo_init_algorithm(self, config):
         defaultValue="",
         optional=True,
     )
-    qpps2.setFlags(qpps2.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+    qpps2.setFlags(qpps2.flags() | Qgis.ProcessingParameterFlag.Advanced)
     self.addParameter(qpps2)
     # executable file
     qppf = QgsProcessingParameterFile(
         name="EXECUTABLE",
         description=self.tr("Set solver executable file [required if status is 'MUST SET EXECUTABLE']"),
-        behavior=QgsProcessingParameterFile.File,
+        behavior=Qgis.ProcessingFileParameterBehavior.File,
         optional=True,
     )
     qppf.setExtension("exe" if platform_system() == "Windows" else "")
-    qppf.setFlags(qppf.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+    qppf.setFlags(qppf.flags() | Qgis.ProcessingParameterFlag.Advanced)
     self.addParameter(qppf)
     # NEOS
     qpps = QgsProcessingParameterString(
@@ -284,7 +284,7 @@ def pyomo_init_algorithm(self, config):
         defaultValue="",
         optional=True,
     )
-    qpps.setFlags(qpps.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+    qpps.setFlags(qpps.flags() | Qgis.ProcessingParameterFlag.Advanced)
     self.addParameter(qpps)
     qpps = QgsProcessingParameterString(
         name="NEOS_SOLVER",
@@ -299,7 +299,7 @@ def pyomo_init_algorithm(self, config):
             }
         }
     )
-    qpps.setFlags(qpps.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+    qpps.setFlags(qpps.flags() | Qgis.ProcessingParameterFlag.Advanced)
     self.addParameter(qpps)
     # options_string
     qpps2 = QgsProcessingParameterString(
@@ -308,7 +308,7 @@ def pyomo_init_algorithm(self, config):
         defaultValue="",
         optional=True,
     )
-    qpps2.setFlags(qpps2.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+    qpps2.setFlags(qpps2.flags() | Qgis.ProcessingParameterFlag.Advanced)
     self.addParameter(qpps2)
 
 

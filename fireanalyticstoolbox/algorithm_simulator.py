@@ -67,10 +67,10 @@ SIM_INPUTS = aconfig.SIM_INPUTS
 NAME = aconfig.NAME
 SIM_OUTPUTS = aconfig.SIM_OUTPUTS
 STATS = aconfig.STATS
-# QgsMessageLog.logMessage(f"{SIM_INPUTS=}", tag=TAG, level=Qgis.Info)
-# QgsMessageLog.logMessage(f"{NAME=}", tag=TAG, level=Qgis.Info)
-# QgsMessageLog.logMessage(f"{SIM_OUTPUTS=}", tag=TAG, level=Qgis.Info)
-# QgsMessageLog.logMessage(f"{STATS=}", tag=TAG, level=Qgis.Info)
+# QgsMessageLog.logMessage(f"{SIM_INPUTS=}", tag=TAG, level=Qgis.MessageLevel.Info)
+# QgsMessageLog.logMessage(f"{NAME=}", tag=TAG, level=Qgis.MessageLevel.Info)
+# QgsMessageLog.logMessage(f"{SIM_OUTPUTS=}", tag=TAG, level=Qgis.MessageLevel.Info)
+# QgsMessageLog.logMessage(f"{STATS=}", tag=TAG, level=Qgis.MessageLevel.Info)
 output_args = [item["arg"] for item in SIM_OUTPUTS.values()]
 output_names = [item["name"] for item in SIM_OUTPUTS.values()]
 
@@ -142,18 +142,18 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 QgsMessageLog.logMessage(
                     f"{self.name()}, Cell2Fire binary not available for {distribution=} {codename=} {machine=}",
                     tag=TAG,
-                    level=Qgis.Warning,
+                    level=Qgis.MessageLevel.Warning,
                 )
-                QgsMessageLog.logMessage(f"{self.name()}, Not a file! {c2f_bin}", tag=TAG, level=Qgis.Warning)
-                QgsMessageLog.logMessage(f"{self.name()}, Falling back to manylinux", tag=TAG, level=Qgis.Critical)
+                QgsMessageLog.logMessage(f"{self.name()}, Not a file! {c2f_bin}", tag=TAG, level=Qgis.MessageLevel.Warning)
+                QgsMessageLog.logMessage(f"{self.name()}, Falling back to manylinux", tag=TAG, level=Qgis.MessageLevel.Critical)
                 suffix = ""
                 c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
             if which("ldd"):
                 ldd = popen("ldd " + str(c2f_bin)).read()
-                QgsMessageLog.logMessage(f"{self.name()}, Binary dependencies:\n{ldd}", tag=TAG, level=Qgis.Info)
+                QgsMessageLog.logMessage(f"{self.name()}, Binary dependencies:\n{ldd}", tag=TAG, level=Qgis.MessageLevel.Info)
                 if "not found" in ldd:
                     QgsMessageLog.logMessage(
-                        f"{self.name()}, Missing dependencies! Falling back to manylinux", tag=TAG, level=Qgis.Critical
+                        f"{self.name()}, Missing dependencies! Falling back to manylinux", tag=TAG, level=Qgis.MessageLevel.Critical
                     )
                     suffix = ""
 
@@ -165,17 +165,17 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             arch = popen("arch 2>/dev/null").read().strip()
             if arch == "arm64" and pmayorvers != 14:
                 QgsMessageLog.logMessage(
-                    f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 14", tag=TAG, level=Qgis.Critical
+                    f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 14", tag=TAG, level=Qgis.MessageLevel.Critical
                 )
                 pmayorvers = 14
             if arch == "i386" and pmayorvers > 13:
                 QgsMessageLog.logMessage(
-                    f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 13", tag=TAG, level=Qgis.Critical
+                    f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 13", tag=TAG, level=Qgis.MessageLevel.Critical
                 )
                 pmayorvers = 13
             if arch == "i386" and pmayorvers < 12:
                 QgsMessageLog.logMessage(
-                    f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 12", tag=TAG, level=Qgis.Critical
+                    f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 12", tag=TAG, level=Qgis.MessageLevel.Critical
                 )
                 pmayorvers = 12
             suffix = f"_{os}.{pname}-{pmayorvers}.{arch}-static"
@@ -184,7 +184,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 if c2f_bin.is_file():
                     ldd = popen("otool -L " + str(c2f_bin) + " 2>&1 ").read()
                     QgsMessageLog.logMessage(
-                        f"{self.name()}, Dependencies of {c2f_bin.name}:\n{ldd}", tag=TAG, level=Qgis.Info
+                        f"{self.name()}, Dependencies of {c2f_bin.name}:\n{ldd}", tag=TAG, level=Qgis.MessageLevel.Info
                     )
                 else:
                     suffix = suffix.replace("-static", "")
@@ -192,7 +192,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                     if c2f_bin.is_file():
                         ldd = popen("otool -L " + str(c2f_bin) + " 2>&1 ").read()
                         QgsMessageLog.logMessage(
-                            f"{self.name()}, Dependencies of {c2f_bin.name}:\n{ldd}", tag=TAG, level=Qgis.Info
+                            f"{self.name()}, Dependencies of {c2f_bin.name}:\n{ldd}", tag=TAG, level=Qgis.MessageLevel.Info
                         )
             #     if "not found" in ldd:
             #         return False, "Missing dependencies! (brew install libomp?)"
@@ -205,7 +205,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         st = c2f_bin.stat()
         # TODO check if chmod is needed or failed!
         chmod(c2f_bin, st.st_mode | S_IXUSR | S_IXGRP | S_IXOTH)
-        QgsMessageLog.logMessage(f"{self.name()}, Using Binary {c2f_bin}", tag=TAG, level=Qgis.Success)
+        QgsMessageLog.logMessage(f"{self.name()}, Using Binary {c2f_bin}", tag=TAG, level=Qgis.MessageLevel.Success)
         return True, ""
 
     def initAlgorithm(self, config):
@@ -231,7 +231,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.FUEL,
                 description=SIM_INPUTS["fuels"]["description"],
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=False,
             )
         )
@@ -249,7 +249,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.ELEVATION,
                 description=SIM_INPUTS["elevation"]["description"] + f' [{SIM_INPUTS["elevation"]["units"]}]',
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=True,
             )
         )
@@ -257,7 +257,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         #     QgsProcessingParameterRasterLayer(
         #         name=self.PV,
         #         description=self.tr("pv: Landscape Protection Value"),
-        #         defaultValue=[QgsProcessing.TypeRaster],
+        #         defaultValue=[Qgis.ProcessingSourceType.Raster],
         #         optional=True,
         #     )
         # )
@@ -265,7 +265,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.CBH,
                 description=self.tr(SIM_INPUTS["cbh"]["description"] + f' [{SIM_INPUTS["cbh"]["units"]}]'),
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=True,
             )
         )
@@ -273,7 +273,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.CBD,
                 description=self.tr(SIM_INPUTS["cbd"]["description"] + f' [{SIM_INPUTS["cbd"]["units"]}]'),
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=True,
             )
         )
@@ -281,7 +281,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.CCF,
                 description=self.tr(SIM_INPUTS["ccf"]["description"] + f' [{SIM_INPUTS["ccf"]["units"]}]'),
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=True,
             )
         )
@@ -291,7 +291,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 description=self.tr(
                     SIM_INPUTS["hm"]["description"] + f' [{SIM_INPUTS["hm"]["units"]}] (only Scott & Burgan)'
                 ),
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=True,
             )
         )
@@ -307,7 +307,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.FIREBREAKS,
                 description=self.tr("\nFirebreaks raster (1=firebreak)"),
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=True,
             )
         )
@@ -319,7 +319,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 + self.tr("IGNITION SECTION")
                 + "\n\n"
                 + self.tr("Number of simulations"),
-                type=QgsProcessingParameterNumber.Integer,
+                type=Qgis.ProcessingNumberParameterType.Integer,
                 defaultValue=3,
                 optional=False,
                 minValue=1,
@@ -339,7 +339,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.IGNIPROBMAP,
                 description=SIM_INPUTS["probabilityMap"]["description"] + f' [{SIM_INPUTS["probabilityMap"]["units"]}]',
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=True,
             )
         )
@@ -351,7 +351,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterVectorLayer(
                 name=self.IGNIPOINT,
                 description=self.tr("Single point vector layer (requires generation mode 2)"),
-                types=[QgsProcessing.TypeVectorPoint],
+                types=[Qgis.ProcessingSourceType.VectorPoint],
                 defaultValue=None,
                 optional=True,
             )
@@ -360,7 +360,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterNumber(
                 name=self.IGNIRADIUS,
                 description=self.tr("Radius around single point layer (requires generation mode 2)"),
-                type=QgsProcessingParameterNumber.Integer,
+                type=Qgis.ProcessingNumberParameterType.Integer,
                 defaultValue=0,
                 optional=True,
                 minValue=0,
@@ -382,7 +382,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterFile(
                 name=self.WEAFILE,
                 description=self.tr("Single weather file scenario (requires source 0)"),
-                behavior=QgsProcessingParameterFile.File,
+                behavior=Qgis.ProcessingFileParameterBehavior.File,
                 extension="csv",
                 defaultValue=str(weafile) if weafile.is_file() else None,
                 optional=True,
@@ -393,7 +393,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterFile(
                 name=self.WEADIR,
                 description=self.tr("From multiple weathers in a directory (requires source 1)"),
-                behavior=QgsProcessingParameterFile.Folder,
+                behavior=Qgis.ProcessingFileParameterBehavior.Folder,
                 extension="",
                 defaultValue=None,
                 optional=True,
@@ -406,7 +406,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 description=self.tr(
                     "Foliar Moisture Content [40%...200%] (requires Crown fire; Scott & Burgan or Kitral Fuel Model)"
                 ),
-                type=QgsProcessingParameterNumber.Integer,
+                type=Qgis.ProcessingNumberParameterType.Integer,
                 defaultValue=66,
                 optional=False,
                 minValue=40,
@@ -419,7 +419,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                 description=self.tr(
                     "Live & Dead Fuel Moisture Content Scenario [1=dry..4=moist] (requires Scott & Burgan Fuel Model)"
                 ),
-                type=QgsProcessingParameterNumber.Integer,
+                type=Qgis.ProcessingNumberParameterType.Integer,
                 defaultValue=2,
                 optional=True,
                 minValue=1,
@@ -440,7 +440,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                     )
                     # "[check Advanced>Algorithm Settings alternative settings])"
                 ),
-                type=QgsProcessingParameterNumber.Integer,
+                type=Qgis.ProcessingNumberParameterType.Integer,
                 defaultValue=cpu_count() - 1,
                 optional=False,
                 minValue=1,
@@ -451,7 +451,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterNumber(
                 name=self.RNG_SEED,
                 description=self.tr("Seed for the random number generator"),
-                type=QgsProcessingParameterNumber.Integer,
+                type=Qgis.ProcessingNumberParameterType.Integer,
                 defaultValue=123,
                 optional=False,
                 minValue=1,
@@ -521,7 +521,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             description=self.tr("Append additional command-line parameters (i.e., '--verbose', use with caution!)"),
             optional=True,
         )
-        qpps.setFlags(qpps.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        qpps.setFlags(qpps.flags() | Qgis.ProcessingParameterFlag.Advanced)
         self.addParameter(qpps)
         qppb = QgsProcessingParameterBoolean(
             name=self.DRYRUN,
@@ -529,7 +529,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             defaultValue=False,
             optional=True,
         )
-        qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        qppb.setFlags(qppb.flags() | Qgis.ProcessingParameterFlag.Advanced)
         self.addParameter(qppb)
 
     def checkParameterValues(self, parameters: dict[str, Any], context: QgsProcessingContext) -> tuple[bool, str]:
@@ -559,7 +559,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             if driver not in ["AAIGrid", "GTiff"]:
                 return False, f'{k} is not AAIGrid nor GTiff, "{v.name()}" is {driver}'
             raster_props = get_qgs_raster_properties(v)
-            if raster_props["units"] != QgsUnitTypes.DistanceMeters:
+            if raster_props["units"] != Qgis.DistanceUnit.Meters:
                 unit_name = Qgis.DistanceUnit(raster_props["units"]).name
                 return (
                     False,
@@ -593,7 +593,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         Here is where the processing itself takes place.
         """
         # feedback.pushDebugInfo("processAlgorithm start")
-        # QgsMessageLog.logMessage(f"{self.name()}, INPUT: {parameters}", tag=TAG, level=Qgis.Info)
+        # QgsMessageLog.logMessage(f"{self.name()}, INPUT: {parameters}", tag=TAG, level=Qgis.MessageLevel.Info)
         # feedback.pushDebugInfo(f"parameters {parameters}")
         # feedback.pushDebugInfo(f"context args: {context.asQgisProcessArguments()}")
         # GET USER INPUT
@@ -936,7 +936,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         # output_dict["files"] = files
         # with open(Path(self.results_dir, "qgis_log.html"), "w") as f:
         #     f.write(feedback.htmlLog())
-        # QgsMessageLog.logMessage(f"{self.name()}, OUTPUT: {self.output_dict}", tag=TAG, level=Qgis.Info)
+        # QgsMessageLog.logMessage(f"{self.name()}, OUTPUT: {self.output_dict}", tag=TAG, level=Qgis.MessageLevel.Info)
         feedback.pushInfo(f"output dictionary: {output_dict}")
         write_log(feedback, name=self.name(), file_name=Path(results_dir, "qgis_log.html"))
         return self.output_dict

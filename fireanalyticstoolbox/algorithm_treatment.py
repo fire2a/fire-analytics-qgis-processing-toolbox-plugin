@@ -39,13 +39,13 @@ from osgeo.gdal import GDT_Int16, GetDriverByName
 from pandas import DataFrame, read_csv
 # from processing.tools.system import getTempFilename
 from pyomo import environ as pyo
-from qgis.core import (QgsFeature, QgsFeatureRequest, QgsFeatureSink, QgsField, QgsFields, QgsProcessing,
+from qgis.core import (Qgis, QgsFeature, QgsFeatureRequest, QgsFeatureSink, QgsField, QgsFields, QgsProcessing,
                        QgsProcessingAlgorithm, QgsProcessingException, QgsProcessingParameterBoolean,
                        QgsProcessingParameterDefinition, QgsProcessingParameterFeatureSink,
                        QgsProcessingParameterFeatureSource, QgsProcessingParameterField, QgsProcessingParameterFile,
                        QgsProcessingParameterNumber, QgsProcessingParameterRasterDestination,
                        QgsProcessingParameterRasterLayer)
-from qgis.PyQt.QtCore import QCoreApplication, QVariant
+from qgis.PyQt.QtCore import QCoreApplication, QMetaType
 from qgis.PyQt.QtGui import QIcon
 
 from .algorithm_utils import (QgsProcessingParameterRasterDestinationGpkg, get_output_raster_format,
@@ -83,7 +83,7 @@ class RasterTreatmentTeamAlgorithm(QgsProcessingAlgorithm):
                     name=raster,
                     description=self.tr(f"Raster layer for {raster}"),
                     defaultValue=raster,
-                    # defaultValue=[QgsProcessing.TypeRaster],
+                    # defaultValue=[Qgis.ProcessingSourceType.Raster],
                     # optional=True,
                 )
             )
@@ -92,7 +92,7 @@ class RasterTreatmentTeamAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterFile(
                 name=self.IN_TREATS_C,
                 description=self.tr("Treatments transformation costs (csv)"),
-                behavior=QgsProcessingParameterFile.File,
+                behavior=Qgis.ProcessingFileParameterBehavior.File,
                 extension="csv",
             )
         )
@@ -100,7 +100,7 @@ class RasterTreatmentTeamAlgorithm(QgsProcessingAlgorithm):
         qppn = QgsProcessingParameterNumber(
             name=self.IN_AREA,
             description=self.tr("Total Area"),
-            type=QgsProcessingParameterNumber.Double,
+            type=Qgis.ProcessingNumberParameterType.Double,
             defaultValue=2024.03,
             optional=False,
             minValue=0.01,
@@ -111,7 +111,7 @@ class RasterTreatmentTeamAlgorithm(QgsProcessingAlgorithm):
         qppn = QgsProcessingParameterNumber(
             name=self.IN_BUDGET,
             description=self.tr("Total Budget"),
-            type=QgsProcessingParameterNumber.Double,
+            type=Qgis.ProcessingNumberParameterType.Double,
             defaultValue=1312.01,
             optional=False,
             minValue=0.01,
@@ -124,7 +124,7 @@ class RasterTreatmentTeamAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterFile(
                 name=self.IN_TREATS_AB,
                 description=self.tr("Treatment areas & budget (csv)"),
-                behavior=QgsProcessingParameterFile.File,
+                behavior=Qgis.ProcessingFileParameterBehavior.File,
                 extension="csv",
                 optional=True,
             )
@@ -135,7 +135,7 @@ class RasterTreatmentTeamAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterFile(
                 name=self.IN_TEAM,
                 description=self.tr("Teams on_cost, area, budget and abilities (csv)"),
-                behavior=QgsProcessingParameterFile.File,
+                behavior=Qgis.ProcessingFileParameterBehavior.File,
                 extension="csv",
                 optional=True,
             )
@@ -490,7 +490,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
                     name=raster,
                     description=self.tr(f"Raster layer for {raster}"),
                     defaultValue=raster,
-                    # defaultValue=[QgsProcessing.TypeRaster],
+                    # defaultValue=[Qgis.ProcessingSourceType.Raster],
                     # optional=True,
                 )
             )
@@ -499,7 +499,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterFile(
                 name=self.IN_TREATS,
                 description=self.tr("Treatments Matrix (csv)"),
-                behavior=QgsProcessingParameterFile.File,
+                behavior=Qgis.ProcessingFileParameterBehavior.File,
                 extension="csv",
             )
         )
@@ -507,7 +507,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         qppn = QgsProcessingParameterNumber(
             name=self.IN_AREA,
             description=self.tr("Total Area"),
-            type=QgsProcessingParameterNumber.Double,
+            type=Qgis.ProcessingNumberParameterType.Double,
             defaultValue=2024.03,
             optional=False,
             minValue=0.01,
@@ -518,7 +518,7 @@ class RasterTreatmentAlgorithm(QgsProcessingAlgorithm):
         qppn = QgsProcessingParameterNumber(
             name=self.IN_BUDGET,
             description=self.tr("Total Budget"),
-            type=QgsProcessingParameterNumber.Double,
+            type=Qgis.ProcessingNumberParameterType.Double,
             defaultValue=1312.01,
             optional=False,
             minValue=0.01,
@@ -758,7 +758,7 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterFeatureSource(
                 name=self.IN_LAYER,
                 description=self.tr("Input Polygons Layer"),
-                types=[QgsProcessing.TypeVectorPolygon],
+                types=[Qgis.ProcessingSourceType.VectorPolygon],
             )
         )
         # current treatment field
@@ -768,7 +768,7 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
                 description=self.tr(f"Attribute table field name for {self.IN_TRT}"),
                 defaultValue=self.IN_TRT,
                 parentLayerParameterName=self.IN_LAYER,
-                type=QgsProcessingParameterField.String,
+                type=Qgis.ProcessingFieldParameterDataType.String,
                 allowMultiple=False,
                 optional=False,
                 defaultToAllFields=False,
@@ -782,7 +782,7 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
                     description=self.tr(f"Attribute table field name for {field_value} [0s if not provided]"),
                     defaultValue=field_value,
                     parentLayerParameterName=self.IN_LAYER,
-                    type=QgsProcessingParameterField.Numeric,
+                    type=Qgis.ProcessingFieldParameterDataType.Numeric,
                     allowMultiple=False,
                     optional=True,
                     defaultToAllFields=False,
@@ -793,7 +793,7 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterFile(
                 name=self.IN_TREATS,
                 description=self.tr("Treatments table (fid,treatment,value,value/m2,cost,cost/m2)"),
-                behavior=QgsProcessingParameterFile.File,
+                behavior=Qgis.ProcessingFileParameterBehavior.File,
                 extension="csv",
             )
         )
@@ -801,7 +801,7 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
         qppn = QgsProcessingParameterNumber(
             name=self.IN_AREA,
             description=self.tr("Total Area"),
-            type=QgsProcessingParameterNumber.Double,
+            type=Qgis.ProcessingNumberParameterType.Double,
             defaultValue=2024.03,
             optional=False,
             minValue=0.01,
@@ -813,7 +813,7 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
         qppn = QgsProcessingParameterNumber(
             name=self.IN_BUDGET,
             description=self.tr("Total Budget"),
-            type=QgsProcessingParameterNumber.Double,
+            type=Qgis.ProcessingNumberParameterType.Double,
             defaultValue=1312.01,
             optional=False,
             minValue=0.01,
@@ -835,7 +835,7 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
             defaultValue=True,
             optional=True,
         )
-        qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        qppb.setFlags(qppb.flags() | Qgis.ProcessingParameterFlag.Advanced)
         self.addParameter(qppb)
 
         pyomo_init_algorithm(self, config)
@@ -846,7 +846,7 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
         feedback.pushWarning(f"Solver unavailability:\n{self.solver_exception_msg}\n")
         # invalid geometry skip
         if self.parameterAsBool(parameters, self.GEOMETRY_CHECK_SKIP_INVALID, context):
-            context.setInvalidGeometryCheck(QgsFeatureRequest.GeometrySkipInvalid)
+            context.setInvalidGeometryCheck(Qgis.InvalidGeometryCheck.SkipInvalid)
             feedback.pushWarning("setInvalidGeometryCheck set to GeometrySkipInvalid")
         # poly layer
         layer = self.parameterAsSource(parameters, self.IN_LAYER, context)
@@ -947,10 +947,10 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo(msg)
 
         fields = QgsFields()
-        fields.append(QgsField(name="fid", type=QVariant.Int))  # , len=10))
-        fields.append(QgsField(name="current", type=QVariant.String))  # , len=10))
-        fields.append(QgsField(name="treatment", type=QVariant.String))  # , len=10))
-        fields.append(QgsField(name="changed", type=QVariant.Bool))  # , len=10))
+        fields.append(QgsField(name="fid", type=QMetaType.Type.Int))  # , len=10))
+        fields.append(QgsField(name="current", type=QMetaType.Type.QString))  # , len=10))
+        fields.append(QgsField(name="treatment", type=QMetaType.Type.QString))  # , len=10))
+        fields.append(QgsField(name="changed", type=QMetaType.Type.Bool))  # , len=10))
 
         (sink, dest_id) = self.parameterAsSink(
             parameters,
@@ -992,7 +992,7 @@ class PolyTreatmentAlgorithm(QgsProcessingAlgorithm):
             #     f"{current=}, {new_feat.id()=}, {[treats_dic.get((ifid, tn)) for tn in treat_names]}"
             # )
             # Add a feature in the sink
-            sink.addFeature(new_feat, QgsFeatureSink.FastInsert)
+            sink.addFeature(new_feat, QgsFeatureSink.Flag.FastInsert)
             # Update the progress bar
             feedback.setProgress(int(current * total))
 

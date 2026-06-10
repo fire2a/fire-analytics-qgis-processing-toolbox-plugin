@@ -36,8 +36,8 @@ from tempfile import NamedTemporaryFile
 
 import processing
 from osgeo import gdal
-from PyQt5.QtGui import QColor
-from qgis.core import (QgsCategorizedSymbolRenderer, QgsFeatureSink, QgsMessageLog, QgsProcessing,
+from qgis.PyQt.QtGui import QColor
+from qgis.core import (NULL, Qgis, QgsCategorizedSymbolRenderer, QgsFeatureSink, QgsMessageLog, QgsProcessing,
                        QgsProcessingAlgorithm, QgsProcessingContext, QgsProcessingException, QgsProcessingFeedback,
                        QgsProcessingLayerPostProcessorInterface, QgsProcessingParameterBoolean,
                        QgsProcessingParameterDefinition, QgsProcessingParameterEnum, QgsProcessingParameterFeatureSink,
@@ -45,7 +45,7 @@ from qgis.core import (QgsCategorizedSymbolRenderer, QgsFeatureSink, QgsMessageL
                        QgsProcessingParameterRasterDestination, QgsProcessingParameterRasterLayer,
                        QgsProcessingParameterVectorDestination, QgsProcessingUtils, QgsRendererCategory, QgsSymbol,
                        QgsVectorLayer)
-from qgis.PyQt.QtCore import QCoreApplication, QVariant
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from toml import dump as toml_dump
 
@@ -89,8 +89,8 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterMultipleLayers(
                 name=self.INPUT_RASTERS,
                 description=self.tr("Input rasters") + " " + self.tr("to clusterize"),
-                layerType=QgsProcessing.TypeRaster,
-                defaultValue=[QgsProcessing.TypeRaster],
+                layerType=Qgis.ProcessingSourceType.Raster,
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=False,
             )
         )
@@ -108,33 +108,33 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
         thr_qppn = QgsProcessingParameterNumber(
             name=self.DST_TRSHLD,
             description=self.tr("Distance threshold [adjusted observations]"),
-            type=QgsProcessingParameterNumber.Double,  # ,Integer
+            type=Qgis.ProcessingNumberParameterType.Double,  # ,Integer
             defaultValue=50.0,
             optional=True,
             minValue=0.0,
             # maxValue=420.666,
         )
         thr_qppn.setMetadata({"widget_wrapper": {"decimals": 2}})
-        # thr_qppn.setFlags(thr_qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        # thr_qppn.setFlags(thr_qppn.flags() | Qgis.ProcessingParameterFlag.Advanced)
         self.addParameter(thr_qppn)
 
         # integer
         tcl_qppn = QgsProcessingParameterNumber(
             name=self.TTL_CLSTRS,
             description=self.tr("Total clusters"),
-            type=QgsProcessingParameterNumber.Integer,
+            type=Qgis.ProcessingNumberParameterType.Integer,
             # defaultValue = 0,
             optional=True,
             minValue=2,
             # maxValue=13,
         )
-        # tcl_qppn.setFlags(tcl_qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        # tcl_qppn.setFlags(tcl_qppn.flags() | Qgis.ProcessingParameterFlag.Advanced)
         self.addParameter(tcl_qppn)
 
         min_qppn = QgsProcessingParameterNumber(
             name=self.MIN_SRFCE,
             description=self.tr("Minimum surface [pixels]"),  # [ha]
-            type=QgsProcessingParameterNumber.Integer,
+            type=Qgis.ProcessingNumberParameterType.Integer,
             # defaultValue=1,
             optional=True,
             # minValue=0.0001,
@@ -142,13 +142,13 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
             # maxValue=420.666,
         )
         # min_qppn.setMetadata({"widget_wrapper": {"decimals": 1}})
-        min_qppn.setFlags(min_qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        min_qppn.setFlags(min_qppn.flags() | Qgis.ProcessingParameterFlag.Advanced)
         self.addParameter(min_qppn)
 
         # max_qppn = QgsProcessingParameterNumber(
         #     name=self.MAX_SRFCE,
         #     description=self.tr("Maximum surface [ha]"),
-        #     type=QgsProcessingParameterNumber.Double,
+        #     type=Qgis.ProcessingNumberParameterType.Double,
         #     defaultValue=11,
         #     optional=False,
         #     minValue=-1.2345,
@@ -177,7 +177,7 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
         #         }
         #     }
         # )
-        # nbc_qppe.setFlags(nbc_qppe.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        # nbc_qppe.setFlags(nbc_qppe.flags() | Qgis.ProcessingParameterFlag.Advanced)
         # self.addParameter(nbc_qppe)
 
         self.addParameter(
@@ -222,7 +222,7 @@ class ClusterizeAlgorithm(QgsProcessingAlgorithm):
         for i, fname in zip(range(num_rows), config_toml):
             row = matrix[i * row_len : (i + 1) * row_len]
             for j, (header, atype) in enumerate(zip(self.matrix_headers, self.matrix_headers_types)):
-                if row[j] != QVariant() and row[j] != "":
+                if row[j] != NULL and row[j] != "":
                     try:
                         config_toml[fname][header] = atype(row[j])
                     except Exception as e:

@@ -36,10 +36,10 @@ from typing import Any
 import processing
 from fire2a.raster import id2xy, read_raster, transform_coords_to_georef
 from numpy import dtype, fromiter, int32
-from qgis.core import (QgsFeature, QgsFeatureSink, QgsField, QgsFields, QgsGeometry, QgsPoint, QgsProcessing,
+from qgis.core import (Qgis, QgsFeature, QgsFeatureSink, QgsField, QgsFields, QgsGeometry, QgsPoint, QgsProcessing,
                        QgsProcessingAlgorithm, QgsProcessingContext, QgsProcessingParameterFeatureSink,
                        QgsProcessingParameterFile, QgsProcessingParameterRasterLayer, QgsProcessingUtils, QgsWkbTypes)
-from qgis.PyQt.QtCore import QCoreApplication, QVariant
+from qgis.PyQt.QtCore import QCoreApplication, QMetaType
 from qgis.PyQt.QtGui import QIcon
 
 from .algorithm_utils import write_log
@@ -83,7 +83,7 @@ class IgnitionPointsFromLogFileSIMPP(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
                 description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=False,
             )
         )
@@ -91,7 +91,7 @@ class IgnitionPointsFromLogFileSIMPP(QgsProcessingAlgorithm):
             QgsProcessingParameterFile(
                 name=self.IN_LOG,
                 description=self.tr("Simulator log file (normally firesim_yymmdd_HHMMSS/results/LogFile.txt)"),
-                behavior=QgsProcessingParameterFile.File,
+                behavior=Qgis.ProcessingFileParameterBehavior.File,
                 extension="txt",
                 defaultValue=None,
                 optional=False,
@@ -101,7 +101,7 @@ class IgnitionPointsFromLogFileSIMPP(QgsProcessingAlgorithm):
             QgsProcessingParameterFeatureSink(
                 name=self.OUT_LAYER,
                 description=self.tr("Output ignition point(s) layer"),
-                type=QgsProcessing.TypeVectorPoint,
+                type=Qgis.ProcessingSourceType.VectorPoint,
             )
         )
 
@@ -122,16 +122,16 @@ class IgnitionPointsFromLogFileSIMPP(QgsProcessingAlgorithm):
         feedback.pushDebugInfo(f"preview of simulation log:\n{log_text[preview_from: preview_to]}\n")
         # create layer
         fields = QgsFields()
-        fields.append(QgsField(name="simulation", type=QVariant.Int, len=10))
-        fields.append(QgsField(name="cell", type=QVariant.Int, len=10))
-        fields.append(QgsField(name="x_pixel", type=QVariant.Int, len=10))
-        fields.append(QgsField(name="y_line", type=QVariant.Int, len=10))
+        fields.append(QgsField(name="simulation", type=QMetaType.Type.Int, len=10))
+        fields.append(QgsField(name="cell", type=QMetaType.Type.Int, len=10))
+        fields.append(QgsField(name="x_pixel", type=QMetaType.Type.Int, len=10))
+        fields.append(QgsField(name="y_line", type=QMetaType.Type.Int, len=10))
         (sink, dest_id) = self.parameterAsSink(
             parameters,
             self.OUT_LAYER,
             context,
             fields,
-            QgsWkbTypes.Point,  # >v3.3 ? Qgis.WkbType.Point
+            Qgis.WkbType.Point,  # >v3.3 ? Qgis.WkbType.Point
             base_raster.crs(),
         )
         # feedback.pushDebugInfo(f"dest_id: {dest_id}, type: {type(dest_id)}")
@@ -150,7 +150,7 @@ class IgnitionPointsFromLogFileSIMPP(QgsProcessingAlgorithm):
             feature.setId(int(sim_id))
             feature.setAttributes([int(sim_id), int(cell + 1), int(i), int(j)])
             feature.setGeometry(QgsGeometry(QgsPoint(x, y)))
-            sink.addFeature(feature, QgsFeatureSink.FastInsert)
+            sink.addFeature(feature, QgsFeatureSink.Flag.FastInsert)
             feedback.pushDebugInfo(f"simulation id: {sim_id}, ignition cell: {cell}, x: {x}, y: {y}, i: {i}, j: {j}")
             if feedback.isCanceled():
                 break

@@ -4,7 +4,8 @@
 
 [general]
 name=Fire Analytics Processing-Toolbox
-qgisMinimumVersion=3.34
+qgisMinimumVersion=3.40
+qgisMaximumVersion=4.99
 description=Wild & Forest fires simulation, prevention and insights related algorithms. Including a fire simulator, user valued risk metrics and prescriptive analytics via mathematical programming optimization to generate management recommendations
 version=0.0.1
 author=Fernando Badilla Veliz - Fire2a.com
@@ -24,6 +25,7 @@ repository=https://github.com/fire2a/fire-analytics-qgis-processing-toolbox-plug
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
 changelog=
+        v1.1.0: QGIS 4.0 (Qt6/PyQt6) compatibility: qgis.PyQt imports, fully scoped enums, QMetaType field types; minimum QGIS version raised to 3.40
         v1.0.2: bugfix loading a single simulation; pandas<v3 on fire2a-lib v0.3.12; added testing framework
         v1.0.1: upstream fixes to Cell2FireW v1.0.1: neighbour angle and fire2a-lib v0.3.12: deprecation fix
         v1.0.0: Wind angle follows meteorological convention, updated Cell2FireW v1.0.0 and fire2a-lib v0.3.11

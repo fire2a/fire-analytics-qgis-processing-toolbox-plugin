@@ -126,13 +126,13 @@ class RasterTutorial(QgsProcessingAlgorithm):
             # file_writer.setCreateOptions(["RASTER_TABLE=hola", "APPEND_SUBDATASET=YES"])
             src_data = np.float32(src_data)
             bites = QByteArray(src_data.tobytes())
-            # block = QgsRasterBlock(src_provider.dataType(1), src_raster.width(), src_raster.height()) # Qgis.Float32
-            block = QgsRasterBlock(Qgis.Float32, src_raster.width(), src_raster.height())  # Qgis.Float32
+            # block = QgsRasterBlock(src_provider.dataType(1), src_raster.width(), src_raster.height()) # Qgis.DataType.Float32
+            block = QgsRasterBlock(Qgis.DataType.Float32, src_raster.width(), src_raster.height())  # Qgis.DataType.Float32
             block.setData(bites)
             feedback.pushDebugInfo(f"block: {block}{block.isValid()}")
             # provider = file_writer.createOneBandRaster(src_provider.dataType(1), src_raster.width(), src_raster.height(), src_raster.extent(), src_raster.crs())
             provider = file_writer.createOneBandRaster(
-                Qgis.Float32, src_raster.width(), src_raster.height(), src_raster.extent(), src_raster.crs()
+                Qgis.DataType.Float32, src_raster.width(), src_raster.height(), src_raster.extent(), src_raster.crs()
             )
             if not provider.isEditable():
                 if not provider.setEditable(True):
@@ -175,8 +175,8 @@ def qgis2numpy_dtype(qgis_dtype: Qgis.DataType) -> np.dtype:
     * ``CInt32``: Complex Int32
     * ``CFloat32``: Complex Float32
     * ``CFloat64``: Complex Float64
-    * ``ARGB32``: Color, alpha, red, green, blue, 4 bytes the same as QImage.Format_ARGB32
-    * ``ARGB32_Premultiplied``: Color, alpha, red, green, blue, 4 bytes  the same as QImage.Format_ARGB32_Premultiplied
+    * ``ARGB32``: Color, alpha, red, green, blue, 4 bytes the same as QImage.Format.Format_ARGB32
+    * ``ARGB32_Premultiplied``: Color, alpha, red, green, blue, 4 bytes  the same as QImage.Format.Format_ARGB32_Premultiplied
     """
     if qgis_dtype == Qgis.DataType.Byte:
         return np.uint8

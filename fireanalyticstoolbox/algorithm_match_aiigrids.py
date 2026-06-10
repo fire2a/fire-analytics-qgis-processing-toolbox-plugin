@@ -32,7 +32,7 @@ from pathlib import Path
 
 import processing
 from fire2a.raster import get_geotransform
-from qgis.core import (QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterFileDestination,
+from qgis.core import (Qgis, QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterFileDestination,
                        QgsProcessingParameterRasterDestination, QgsProcessingParameterRasterLayer,
                        QgsProcessingParameterString, QgsProcessingUtils)
 from qgis.PyQt.QtCore import QCoreApplication
@@ -53,7 +53,7 @@ class MatchAIIGrid(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.IN_MODIFY,
                 description=self.tr("Raster to modify"),
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=False,
             )
         )
@@ -61,7 +61,7 @@ class MatchAIIGrid(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.IN_MATCHTO,
                 description=self.tr("Raster to match to"),
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=False,
             )
         )

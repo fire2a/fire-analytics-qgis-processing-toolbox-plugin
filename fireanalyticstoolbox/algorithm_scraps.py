@@ -37,7 +37,7 @@ class RasterPostProcessor(QgsProcessingLayerPostProcessorInterface):
             layer.setName(self.name)
 
             prov = layer.dataProvider()
-            stats = prov.bandStatistics(1, QgsRasterBandStats.All, layer.extent(), 0)
+            stats = prov.bandStatistics(1, Qgis.RasterBandStatistic.All, layer.extent(), 0)
             min = stats.minimumValue
             max = stats.maximumValue
             renderer = QgsSingleBandPseudoColorRenderer(layer.dataProvider(), band=1)
@@ -77,7 +77,7 @@ def run_alg_styler(display_name, layer_color1, layer_color2):
                 layer.setName(self.name)
 
                 prov = layer.dataProvider()
-                stats = prov.bandStatistics(1, QgsRasterBandStats.All, layer.extent(), 0)
+                stats = prov.bandStatistics(1, Qgis.RasterBandStatistic.All, layer.extent(), 0)
                 min = stats.minimumValue
                 max = stats.maximumValue
                 renderer = QgsSingleBandPseudoColorRenderer(layer.dataProvider(), band=1)
@@ -140,7 +140,7 @@ class WeatherBuilder(QgsProcessingAlgorithm):
                 description=self.tr(
                     "Two column csv file describing the number of times each scenario should be repeated"
                 ),
-                behavior=QgsProcessingParameterFile.File,
+                behavior=Qgis.ProcessingFileParameterBehavior.File,
                 extension="csv",
                 defaultValue=str(weadistfile) if weadistfile.is_file() else None,
                 optional=True,
@@ -152,7 +152,7 @@ class WeatherBuilder(QgsProcessingAlgorithm):
             QgsProcessingParameterFile(
                 name=self.WEAFILE,
                 description=self.tr("Weather Scenarios files"),
-                behavior=QgsProcessingParameterFile.File,
+                behavior=Qgis.ProcessingFileParameterBehavior.File,
                 extension="csv",
                 defaultValue=str(weascenfile) if weascenfile.is_file() else None,
                 optional=True,

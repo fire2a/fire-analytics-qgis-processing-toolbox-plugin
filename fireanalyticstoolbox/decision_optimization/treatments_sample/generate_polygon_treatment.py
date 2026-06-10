@@ -46,9 +46,9 @@ attr_names = ["treatment", "value", "value/m2", "area"]
 layer = iface.activeLayer()
 # create fields
 fields = QgsFields()
-fields.append(QgsField("treatment", QVariant.String))
+fields.append(QgsField("treatment", QMetaType.Type.QString))
 for atna in attr_names[1:]:
-    fields.append(QgsField(atna, QVariant.Double))
+    fields.append(QgsField(atna, QMetaType.Type.Double))
 
 layer.startEditing()
 layer.dataProvider().addAttributes(fields)

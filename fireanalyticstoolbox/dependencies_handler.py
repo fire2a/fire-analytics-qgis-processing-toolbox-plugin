@@ -28,7 +28,7 @@ def run():
         QgsMessageLog().logMessage(
             f"Plugin {plugin_name}: dependencies_handler.txt not found! (create this file to enable checking)",
             tag="Plugins",
-            level=Qgis.Critical,
+            level=Qgis.MessageLevel.Critical,
         )
         return
     config = ConfigParser()
@@ -38,7 +38,7 @@ def run():
         QgsMessageLog().logMessage(
             f"Plugin {plugin_name}: checking & installing dependencies is disabled (to enable edit {config_file})",
             tag="Plugins",
-            level=Qgis.Warning,
+            level=Qgis.MessageLevel.Warning,
         )
         return
     requirement = config.get("general", "plugin_dependencies", fallback="")
@@ -55,7 +55,7 @@ def run():
             msg = "version mismatch, found: " + found_version
         else:
             QgsMessageLog().logMessage(
-                f"Plugin {plugin_name}: {requirement} satisfied!", tag="Plugins", level=Qgis.Success
+                f"Plugin {plugin_name}: {requirement} satisfied!", tag="Plugins", level=Qgis.MessageLevel.Success
             )
             return
 
@@ -68,23 +68,23 @@ def run():
         f"Allow automatic pip install of {requirement}?\n\n"
         f"Because: {msg}\n\n"
         + "Probably need to restart QGIS afterwards (if the plugin gets hidden or toggling the checkbox from plugin manager's installed list doesn't make it available)",
-        QMessageBox.Yes | QMessageBox.No,
-        QMessageBox.No,
+        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        QMessageBox.StandardButton.No,
     )
-    if response == QMessageBox.Yes:
+    if response == QMessageBox.StandardButton.Yes:
         if platform_system() == "Darwin":
             cwd = sys_prefix
             right_here = "./bin/"
-            QgsMessageLog().logMessage(f"Plugin {plugin_name}: Using Python in {cwd}", tag="Plugins", level=Qgis.Success)
+            QgsMessageLog().logMessage(f"Plugin {plugin_name}: Using Python in {cwd}", tag="Plugins", level=Qgis.MessageLevel.Success)
         else:
             cwd = None
             right_here = ""
         result = subprocess_run([right_here+"python3", "-m", "pip", "install", requirement], capture_output=True, text=True, cwd=cwd)
         if result.returncode == 0:
             msg = [f"pip install {requirement} success!"]
-            QgsMessageLog().logMessage(f"Plugin {plugin_name}: {msg[-1]}", tag="Plugins", level=Qgis.Success)
+            QgsMessageLog().logMessage(f"Plugin {plugin_name}: {msg[-1]}", tag="Plugins", level=Qgis.MessageLevel.Success)
             QgsMessageLog().logMessage(
-                f"Plugin {plugin_name}: pip log\n" + result.stdout, tag="Plugins", level=Qgis.Warning
+                f"Plugin {plugin_name}: pip log\n" + result.stdout, tag="Plugins", level=Qgis.MessageLevel.Warning
             )
             ok = False
             try:
@@ -92,11 +92,11 @@ def run():
                     module = import_module(module_name)
                     reload(module)
                     msg += [f"reload {module_name} success!"]
-                    QgsMessageLog().logMessage(f"Plugin {plugin_name}: {msg[-1]}", tag="Plugins", level=Qgis.Success)
+                    QgsMessageLog().logMessage(f"Plugin {plugin_name}: {msg[-1]}", tag="Plugins", level=Qgis.MessageLevel.Success)
                     ok = True
             except Exception:
                 msg += [f"reloading {req_pkg_name} packages failed!"]
-                QgsMessageLog().logMessage(f"Plugin {plugin_name}: {msg[-1]}", tag="Plugins", level=Qgis.Critical)
+                QgsMessageLog().logMessage(f"Plugin {plugin_name}: {msg[-1]}", tag="Plugins", level=Qgis.MessageLevel.Critical)
                 ok = False
             msg = "\n".join(msg)
             if ok:
@@ -105,29 +105,29 @@ def run():
                 QMessageBox.warning(None, f"Plugin '{plugin_name}'", f"{plugin_name}:\n{msg}")
             return
         msg = f"pip install {requirement} failed!\nerror: " + result.stderr
-        QgsMessageLog().logMessage(f"Plugin {plugin_name}: {msg}", tag="Plugins", level=Qgis.Critical)
+        QgsMessageLog().logMessage(f"Plugin {plugin_name}: {msg}", tag="Plugins", level=Qgis.MessageLevel.Critical)
         QMessageBox.critical(None, f"Plugin '{plugin_name}'", f"{plugin_name}:\n{msg}")
-    elif response == QMessageBox.No:
-        QgsMessageLog().logMessage(f"{plugin_name}: User declined installation!", tag="Plugins", level=Qgis.Warning)
+    elif response == QMessageBox.StandardButton.No:
+        QgsMessageLog().logMessage(f"{plugin_name}: User declined installation!", tag="Plugins", level=Qgis.MessageLevel.Warning)
 
         qmb = QMessageBox(
-            QMessageBox.Warning,
+            QMessageBox.Icon.Warning,
             f"Plugin '{plugin_name}'",
             f"{plugin_name}: User declined installation! YOU'LL GET AN IMPORT ERROR! Please resolve manually in QGIS Python Console, typing:\n\n\t!pip install {requirement}\n",
         )
         qcb = QCheckBox("Do not attempt to check and install dependencies again!")
         qmb.setCheckBox(qcb)
-        qmb.exec_()
+        qmb.exec()
         if qcb.isChecked():
             config.set("general", "enabled", "False")
             with open(config_file, "w") as f:
                 config.write(f)
             QgsMessageLog().logMessage(
-                f"Plugin {plugin_name}: User disabled installation!", tag="Plugins", level=Qgis.Warning
+                f"Plugin {plugin_name}: User disabled installation!", tag="Plugins", level=Qgis.MessageLevel.Warning
             )
         else:
             QgsMessageLog().logMessage(
-                f"{plugin_name}: checking & installing dependencies normal exit", tag="Plugins", level=Qgis.Info
+                f"{plugin_name}: checking & installing dependencies normal exit", tag="Plugins", level=Qgis.MessageLevel.Info
             )
 
 
@@ -146,6 +146,6 @@ def get_module_names(distribution_name="your-package-name"):
 
     except PackageNotFoundError as e:
         QgsMessageLog().logMessage(
-            f"Plugin:{plugin_name}: {e} attempting to get module names", tag="Plugins", level=Qgis.Critical
+            f"Plugin:{plugin_name}: {e} attempting to get module names", tag="Plugins", level=Qgis.MessageLevel.Critical
         )
         return []

@@ -99,7 +99,7 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         #     QgsProcessingParameterFeatureSink(
         #         name=self.o_rasterb,
         #         description=self.tr(self.o_rasterb),
-        #         type=QgsProcessing.TypeRaster,
+        #         type=Qgis.ProcessingSourceType.Raster,
         #         # defaultValue: Any = None,
         #         optional=True,  #: bool = False,
         #         # createByDefault: bool = True,
@@ -109,7 +109,7 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         # devuelve obj con fields?
         # self.addParameter(
         #    QgsProcessingParameterFeatureSink(
-        #        self.OUTPUT_csv, self.tr("CSV Output"), QgsProcessing.TypeFile
+        #        self.OUTPUT_csv, self.tr("CSV Output"), Qgis.ProcessingSourceType.File
         #    )
         # )
 
@@ -119,14 +119,14 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         #     QgsProcessingParameterFeatureSource(
         #         self.IN_LAYER,
         #         self.tr("Input TypeVectorAnyGeometry"),
-        #         [QgsProcessing.TypeVectorAnyGeometry],
+        #         [Qgis.ProcessingSourceType.VectorAnyGeometry],
         #     )
         # )
         # self.addParameter(
         #     QgsProcessingParameterRasterLayer(
         #         name=self.INPUT,
         #         description=self.tr("Input Raster"),
-        #         defaultValue=[QgsProcessing.TypeRaster],
+        #         defaultValue=[Qgis.ProcessingSourceType.Raster],
         #         optional=False,
         #     )
         # )
@@ -183,7 +183,7 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         #     QgsProcessingParameterNumber(
         #         name=self.INPUT_integer,
         #         description=self.tr("Input Integer"),
-        #         type=QgsProcessingParameterNumber.Integer,
+        #         type=Qgis.ProcessingNumberParameterType.Integer,
         #         # defaultValue = 0,
         #         optional=False,
         #         minValue=-7,
@@ -195,7 +195,7 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         # qppn = QgsProcessingParameterNumber(
         #     name=self.INPUT_double,
         #     description=self.tr("Input Double"),
-        #     type=QgsProcessingParameterNumber.Double,
+        #     type=Qgis.ProcessingNumberParameterType.Double,
         #     defaultValue=0.69,
         #     optional=True,
         #     minValue=-1.2345,
@@ -209,7 +209,7 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterFile(
                 name=self.INPUT_file,
                 description=self.tr("Input File"),
-                behavior=QgsProcessingParameterFile.File,
+                behavior=Qgis.ProcessingFileParameterBehavior.File,
                 extension="csv",  # only 1
                 # >1 ?? fileFilter="csv(*.csv), text(*.txt)",
                 optional=True,
@@ -223,7 +223,7 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         #     QgsProcessingParameterFile(
         #         name=self.INPUT_folder,
         #         description=self.tr("Input Folder"),
-        #         behavior=QgsProcessingParameterFile.Folder,
+        #         behavior=Qgis.ProcessingFileParameterBehavior.Folder,
         #         optional=True,
         #     )
         # )
@@ -343,7 +343,7 @@ class SandboxAlgorithm(QgsProcessingAlgorithm):
         #     if feedback.isCanceled():
         #         break
         #     # Add a feature in the sink
-        #     sink.addFeature(feature, QgsFeatureSink.FastInsert)
+        #     sink.addFeature(feature, QgsFeatureSink.Flag.FastInsert)
         #     # Update the progress bar
         #     feedback.setProgress(int(current * total))
         #     # wait
@@ -477,9 +477,9 @@ class QPLPPI(QgsProcessingLayerPostProcessorInterface):
 
 
 task_status = {
-    QgsTask.Queued: "Task is queued and has not begun.",  # 0
-    QgsTask.OnHold: "Task is queued but on hold and will not be started.",  # 1
-    QgsTask.Running: "Task is currently running.",  # 2
-    QgsTask.Complete: "Task successfully completed.",  # 3
-    QgsTask.Terminated: "Task was terminated or errored.",  # 4
+    QgsTask.TaskStatus.Queued: "Task is queued and has not begun.",  # 0
+    QgsTask.TaskStatus.OnHold: "Task is queued but on hold and will not be started.",  # 1
+    QgsTask.TaskStatus.Running: "Task is currently running.",  # 2
+    QgsTask.TaskStatus.Complete: "Task successfully completed.",  # 3
+    QgsTask.TaskStatus.Terminated: "Task was terminated or errored.",  # 4
 }

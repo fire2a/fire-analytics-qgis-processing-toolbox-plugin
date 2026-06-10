@@ -117,7 +117,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
                 description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=False,
             )
         )
@@ -125,7 +125,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
             QgsProcessingParameterFile(
                 name=self.IN_LOG,
                 description=self.tr(f"Simulator log file (normally firesim_yymmdd_HHMMSS/results/{igni_wea_path})"),
-                behavior=QgsProcessingParameterFile.File,
+                behavior=Qgis.ProcessingFileParameterBehavior.File,
                 extension="csv",
                 defaultValue=None,
                 optional=False,
@@ -135,7 +135,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
             QgsProcessingParameterFeatureSink(
                 name=self.OUT_LAYER,
                 description=self.tr("Output ignition point(s) layer"),
-                type=QgsProcessing.TypeVectorPoint,
+                type=Qgis.ProcessingSourceType.VectorPoint,
             )
         )
 
@@ -162,7 +162,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
             self.OUT_LAYER,
             context,
             fields,
-            QgsWkbTypes.Point,  # >v3.3 ? Qgis.WkbType.Point
+            Qgis.WkbType.Point,  # >v3.3 ? Qgis.WkbType.Point
             base_raster.crs(),
         )
         simulation_id, ignition_cell = ip_log["sim"], ip_log["cellid"]
@@ -175,7 +175,7 @@ class IgnitionPointsSIMPP(QgsProcessingAlgorithm):
             feature.setId(int(sim_id))
             feature.setAttributes([int(sim_id), int(cell + 1), int(i), int(j)])
             feature.setGeometry(QgsGeometry(QgsPoint(x, y)))
-            sink.addFeature(feature, QgsFeatureSink.FastInsert)
+            sink.addFeature(feature, QgsFeatureSink.Flag.FastInsert)
             feedback.pushDebugInfo(f"simulation id: {sim_id}, ignition cell: {cell}, x: {x}, y: {y}, i: {i}, j: {j}")
             if feedback.isCanceled():
                 break
@@ -237,7 +237,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
                 description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=False,
             )
         )
@@ -263,7 +263,7 @@ class PostSimulationAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterFile(
                 name=self.RESULTS_DIR,
                 description=self.tr("Simulation Results directory (normally firesim_yymmdd_HHMMSS/results)"),
-                behavior=QgsProcessingParameterFile.Folder,
+                behavior=Qgis.ProcessingFileParameterBehavior.Folder,
                 defaultValue=project_path,
                 optional=False,
             )
@@ -575,7 +575,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
                 description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=False,
             )
         )
@@ -586,7 +586,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
                     "Sample Messages file (normally firesim_yymmdd_HHMMSS/results/Messages/MessagesFile01.csv)\nAll"
                     " ChosenName[0-9]*.csv files will be loaded"
                 ),
-                behavior=QgsProcessingParameterFile.File,
+                behavior=Qgis.ProcessingFileParameterBehavior.File,
                 extension="csv",
                 defaultValue=None,
                 optional=False,
@@ -596,7 +596,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
             QgsProcessingParameterFeatureSink(
                 name=self.OUTPUT_LAYER,
                 description=self.tr("Output propagation digraph layer"),
-                type=QgsProcessing.TypeVectorLine,
+                type=Qgis.ProcessingSourceType.VectorLine,
                 optional=True,
             )
         )
@@ -633,7 +633,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
             self.OUTPUT_LAYER,
             context,
             fields,
-            QgsWkbTypes.MultiLineString,  # >v3.3 ? Qgis.WkbType.MultiLineString,
+            Qgis.WkbType.MultiLineString,  # >v3.3 ? Qgis.WkbType.MultiLineString,
             base_raster.crs(),
         )
         # feedback.pushDebugInfo(f"dest_id: {dest_id}, type: {type(dest_id)}")
@@ -674,7 +674,7 @@ class MessagesSIMPP(QgsProcessingAlgorithm):
                     # feature.setId(int(sim_id))
                     feature.setAttributes([int(sim_id), int(time)])
                     feature.setGeometry(QgsLineString([QgsPoint(i_x_geo, i_y_geo), QgsPoint(j_x_geo, j_y_geo)]))
-                    sink.addFeature(feature, QgsFeatureSink.FastInsert)
+                    sink.addFeature(feature, QgsFeatureSink.Flag.FastInsert)
                     # feedback.pushDebugInfo(f"j_x_geo, j_y_geo: {j_x_geo}, {j_y_geo}, time: {time}, sim_idx: {sim_idx}")
                     if feedback.isCanceled():
                         break
@@ -768,7 +768,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
                 description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=False,
             )
         )
@@ -782,7 +782,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
                     " loaded\nKnown: "
                 )
                 + ", ".join(known),
-                behavior=QgsProcessingParameterFile.File,
+                behavior=Qgis.ProcessingFileParameterBehavior.File,
                 extension="asc",
                 defaultValue=None,
                 optional=False,
@@ -801,7 +801,7 @@ class StatisticSIMPP(QgsProcessingAlgorithm):
         #     optional=False,
         #     usesStaticStrings=False,
         # )
-        # qppe.setFlags(qppe.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        # qppe.setFlags(qppe.flags() | Qgis.ProcessingParameterFlag.Advanced)
         # self.addParameter(qppe)
         self.addParameter(
             QgsProcessingParameterRasterDestination(
@@ -1027,7 +1027,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
                 description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=False,
             )
         )
@@ -1038,7 +1038,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
                     "Sample Fire Scar file (normally"
                     " firesim_yymmdd_HHMMSS/results/Grids/Grids[0-9]*/ForestGrid[0-9]*.csv)"
                 ),
-                behavior=QgsProcessingParameterFile.File,
+                behavior=Qgis.ProcessingFileParameterBehavior.File,
                 extension="csv",
                 defaultValue=None,
                 optional=False,
@@ -1056,7 +1056,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
             QgsProcessingParameterFeatureSink(
                 name=self.OUT_POLY,
                 description="Output propagation scars polygons",
-                type=QgsProcessing.TypeVectorPolygon,
+                type=Qgis.ProcessingSourceType.VectorPolygon,
                 optional=True,
                 createByDefault=True,
             )
@@ -1075,7 +1075,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
             defaultValue=True,
             optional=True,
         )
-        qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        qppb.setFlags(qppb.flags() | Qgis.ProcessingParameterFlag.Advanced)
         self.addParameter(qppb)
         qppn = QgsProcessingParameterNumber(
             name=self.IN_FIXGEOM_METHOD,
@@ -1085,7 +1085,7 @@ class ScarSIMPP(QgsProcessingAlgorithm):
             defaultValue=0 if platform_system() == "Darwin" else 1,
             optional=True,
         )
-        qppn.setFlags(qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        qppn.setFlags(qppn.flags() | Qgis.ProcessingParameterFlag.Advanced)
         self.addParameter(qppn)
 
     def processAlgorithm(self, parameters, context, feedback):
@@ -1256,7 +1256,7 @@ class BurnProbabilityMetric(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
                 description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=False,
             )
         )
@@ -1267,7 +1267,7 @@ class BurnProbabilityMetric(QgsProcessingAlgorithm):
                     "Sample Fire Scar file (normally"
                     " firesim_yymmdd_HHMMSS/results/Grids/Grids[0-9]*/ForestGrid[0-9]*.csv)"
                 ),
-                behavior=QgsProcessingParameterFile.File,
+                behavior=Qgis.ProcessingFileParameterBehavior.File,
                 extension="csv",
                 defaultValue=None,
                 optional=False,
@@ -1374,10 +1374,10 @@ def run_alg_styler_propagation():
                 # enum : EqualInterval , Quantile , Jenks , StdDev , Pretty , Custom
                 # layer.triggerRepaint()
                 layer.setSubsetString('"time"<=120  AND "simulation" = 1')
-                QgsMessageLog.logMessage(f"propagation styling done! {layer.name()}", TAG, Qgis.Info)
+                QgsMessageLog.logMessage(f"propagation styling done! {layer.name()}", TAG, Qgis.MessageLevel.Info)
             else:
                 QgsMessageLog.logMessage(
-                    f"propagation styling failed! layer not valid: {layer.name()}", TAG, Qgis.Critical
+                    f"propagation styling failed! layer not valid: {layer.name()}", TAG, Qgis.MessageLevel.Critical
                 )
 
         # Hack to work around sip bug!
@@ -1452,7 +1452,7 @@ def run_alg_styler(
             if layer.isValid():
                 prov = layer.dataProvider()
                 if self.min_val is None or self.max_val is None:
-                    stats = prov.bandStatistics(1, QgsRasterBandStats.All, layer.extent(), 0)
+                    stats = prov.bandStatistics(1, Qgis.RasterBandStatistic.All, layer.extent(), 0)
                     self.min_val = stats.minimumValue if self.min_val is None else self.min_val
                     self.max_val = stats.maximumValue if self.max_val is None else self.max_val
                 if self.bands is None:
@@ -1461,7 +1461,7 @@ def run_alg_styler(
                 layer.setName(self.name)
                 for band in range(1, self.bands + 1)[::-1]:
                     fcn = QgsColorRampShader()
-                    fcn.setColorRampType(QgsColorRampShader.Interpolated)
+                    fcn.setColorRampType(Qgis.ShaderInterpolationMethod.Linear)
                     lst = [
                         QgsColorRampShader.ColorRampItem(self.min_val, QColor(*self.color1)),
                         QgsColorRampShader.ColorRampItem(self.max_val, QColor(*self.color2)),
@@ -1511,7 +1511,7 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
                 description=self.tr("Base raster (normally fuel or elevation) to get the geotransform", "BaseContext"),
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=False,
             )
         )
@@ -1522,7 +1522,7 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
                     "Pickled messages (normally generated by the Propagation Digraph Algorithm"
                     " results/Messages/messages.pickle)"
                 ),
-                behavior=QgsProcessingParameterFile.File,
+                behavior=Qgis.ProcessingFileParameterBehavior.File,
                 extension="pickle",
                 defaultValue=None,
                 optional=False,
@@ -1534,7 +1534,7 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
             defaultValue=True,
             optional=False,
         )
-        qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        qppb.setFlags(qppb.flags() | Qgis.ProcessingParameterFlag.Advanced)
         self.addParameter(qppb)
         qppn = QgsProcessingParameterNumber(
             name=self.IN_k,
@@ -1543,30 +1543,30 @@ class BetweennessCentralityMetric(QgsProcessingAlgorithm):
                 "\n Not set and disabled default sampling checkbox means all nodes are used: very slow!"
                 "\n Trade-off between accuracy and running time."
             ),
-            type=QgsProcessingParameterNumber.Integer,
+            type=Qgis.ProcessingNumberParameterType.Integer,
             # defaultValue = 0, # <- no se puede quitar
             optional=True,
             minValue=1,
             # maxValue=13,
         )
-        qppn.setFlags(qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        qppn.setFlags(qppn.flags() | Qgis.ProcessingParameterFlag.Advanced)
         self.addParameter(qppn)
         qppn2 = QgsProcessingParameterNumber(
             name=self.IN_seed,
             description=self.tr("Random number generator seed for sampling. Used if K is not set."),
-            type=QgsProcessingParameterNumber.Integer,
+            type=Qgis.ProcessingNumberParameterType.Integer,
             defaultValue=42,
             optional=False,
             # minValue=1,
             # maxValue=13,
         )
-        qppn2.setFlags(qppn2.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        qppn2.setFlags(qppn2.flags() | Qgis.ProcessingParameterFlag.Advanced)
         self.addParameter(qppn2)
         # self.addParameter(
         #     QgsProcessingParameterFeatureSink(
         #         name=self.OUT_L,
         #         description=self.tr("Output BC layer"),
-        #         type=QgsProcessing.TypeVectorLine,
+        #         type=Qgis.ProcessingSourceType.VectorLine,
         #         optional=True,
         #         createByDefault=True,
         #     )
@@ -1729,7 +1729,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 name=self.BASE_LAYER,
                 description=self.tr("Protection Value Raster (get values & geotransform)"),
-                defaultValue=[QgsProcessing.TypeRaster],
+                defaultValue=[Qgis.ProcessingSourceType.Raster],
                 optional=False,
             )
         )
@@ -1740,7 +1740,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
                     "Pickled messages (normally generated by the Propagation Digraph Algorithm"
                     " results/Messages/messages.pickle)"
                 ),
-                behavior=QgsProcessingParameterFile.File,
+                behavior=Qgis.ProcessingFileParameterBehavior.File,
                 extension="pickle",
                 defaultValue=None,
                 optional=False,
@@ -1759,13 +1759,13 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
         qppn = QgsProcessingParameterNumber(
             name=self.IN_THREADS,
             description=self.tr("Maximum number of threads to use simultaneously"),
-            type=QgsProcessingParameterNumber.Integer,
+            type=Qgis.ProcessingNumberParameterType.Integer,
             defaultValue=cpu_count() - 1,
             optional=True,
             minValue=1,
             maxValue=cpu_count(),
         )
-        qppn.setFlags(qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        qppn.setFlags(qppn.flags() | Qgis.ProcessingParameterFlag.Advanced)
         self.addParameter(qppn)
         qppb = QgsProcessingParameterBoolean(
             name=self.IN_FILL,
@@ -1773,7 +1773,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
             defaultValue=True,
             optional=True,
         )
-        qppb.setFlags(qppb.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        qppb.setFlags(qppb.flags() | Qgis.ProcessingParameterFlag.Advanced)
         self.addParameter(qppb)
         qppb1 = QgsProcessingParameterBoolean(
             name=self.IN_SCALE,
@@ -1783,7 +1783,7 @@ class DownStreamProtectionValueMetric(QgsProcessingAlgorithm):
             defaultValue=True,
             optional=True,
         )
-        qppb1.setFlags(qppb1.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        qppb1.setFlags(qppb1.flags() | Qgis.ProcessingParameterFlag.Advanced)
         self.addParameter(qppb1)
 
     def processAlgorithm(self, parameters, context, feedback):

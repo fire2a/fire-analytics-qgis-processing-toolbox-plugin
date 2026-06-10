@@ -32,10 +32,10 @@ __revision__ = "$Format:%H$"
 from datetime import datetime
 from pathlib import Path
 
-from qgis.core import (QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsProcessing, QgsProcessingAlgorithm,
-                       QgsProcessingException, QgsProcessingParameterDateTime, QgsProcessingParameterDefinition,
-                       QgsProcessingParameterFolderDestination, QgsProcessingParameterNumber,
-                       QgsProcessingParameterVectorLayer, QgsProject)
+from qgis.core import (Qgis, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsProcessing,
+                       QgsProcessingAlgorithm, QgsProcessingException, QgsProcessingParameterDateTime,
+                       QgsProcessingParameterDefinition, QgsProcessingParameterFolderDestination,
+                       QgsProcessingParameterNumber, QgsProcessingParameterVectorLayer, QgsProject)
 from qgis.PyQt.QtCore import QCoreApplication, QDateTime
 from qgis.PyQt.QtGui import QIcon
 from qgis.utils import iface
@@ -60,7 +60,7 @@ class MeteoAlgo(QgsProcessingAlgorithm):
                 description=self.tr(
                     "Where? Single point vector layer, else the center of the current map will be used."
                 ),
-                types=[QgsProcessing.TypeVectorPoint],
+                types=[Qgis.ProcessingSourceType.VectorPoint],
                 defaultValue=None,
                 optional=True,
             )
@@ -69,7 +69,7 @@ class MeteoAlgo(QgsProcessingAlgorithm):
             QgsProcessingParameterNumber(
                 self.IN_PERCENTILE,
                 self.tr("Quantile of daily maximum temperature"),
-                type=QgsProcessingParameterNumber.Double,
+                type=Qgis.ProcessingNumberParameterType.Double,
                 defaultValue=0.5,
                 minValue=0,
                 maxValue=1,
@@ -79,27 +79,27 @@ class MeteoAlgo(QgsProcessingAlgorithm):
         qppdt = QgsProcessingParameterDateTime(
             self.IN_DATE,
             self.tr("Start Hour"),
-            type=QgsProcessingParameterDateTime.Time,
+            type=Qgis.ProcessingDateTimeParameterDataType.Time,
             defaultValue=QDateTime(datetime.now().replace(hour=12, minute=0, second=0, microsecond=0)),
             optional=False,
         )
-        # qppdt.setFlags(qppdt.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        # qppdt.setFlags(qppdt.flags() | Qgis.ProcessingParameterFlag.Advanced)
         self.addParameter(qppdt)
         qppn = QgsProcessingParameterNumber(
             self.IN_ROWRES,
             self.tr("Step resolution in minutes (time between rows) - Not implemented yet"),
-            type=QgsProcessingParameterNumber.Integer,
+            type=Qgis.ProcessingNumberParameterType.Integer,
             defaultValue=60,
             minValue=1,
             optional=False,
         )
-        qppn.setFlags(qppn.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        qppn.setFlags(qppn.flags() | Qgis.ProcessingParameterFlag.Advanced)
         self.addParameter(qppn)
         self.addParameter(
             QgsProcessingParameterNumber(
                 self.IN_NUMROWS,
                 self.tr("Lenght of each scenario (number of rows) - Implementing hourly weather scenarios only."),
-                type=QgsProcessingParameterNumber.Integer,
+                type=Qgis.ProcessingNumberParameterType.Integer,
                 defaultValue=12,
                 minValue=1,
                 optional=False,
@@ -109,7 +109,7 @@ class MeteoAlgo(QgsProcessingAlgorithm):
             QgsProcessingParameterNumber(
                 self.IN_NUMSIMS,
                 self.tr("Number of scenarios to generate"),
-                type=QgsProcessingParameterNumber.Integer,
+                type=Qgis.ProcessingNumberParameterType.Integer,
                 defaultValue=1,
                 minValue=1,
                 maxValue=100000,

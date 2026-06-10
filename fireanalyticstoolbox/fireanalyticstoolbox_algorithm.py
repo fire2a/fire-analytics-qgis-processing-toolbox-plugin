@@ -30,7 +30,7 @@ __copyright__ = "(C) 2023 by Fernando Badilla Veliz - Fire2a.com"
 
 __revision__ = "$Format:%H$"
 
-from qgis.core import (QgsFeatureSink, QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterFeatureSink,
+from qgis.core import (Qgis, QgsFeatureSink, QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterFeatureSink,
                        QgsProcessingParameterFeatureSource)
 from qgis.PyQt.QtCore import QCoreApplication
 
@@ -66,7 +66,7 @@ class FireToolboxAlgorithm(QgsProcessingAlgorithm):
         # geometry.
         self.addParameter(
             QgsProcessingParameterFeatureSource(
-                self.INPUT, self.tr("Input layer"), [QgsProcessing.TypeVectorAnyGeometry]
+                self.INPUT, self.tr("Input layer"), [Qgis.ProcessingSourceType.VectorAnyGeometry]
             )
         )
 
@@ -99,7 +99,7 @@ class FireToolboxAlgorithm(QgsProcessingAlgorithm):
                 break
 
             # Add a feature in the sink
-            sink.addFeature(feature, QgsFeatureSink.FastInsert)
+            sink.addFeature(feature, QgsFeatureSink.Flag.FastInsert)
 
             # Update the progress bar
             feedback.setProgress(int(current * total))

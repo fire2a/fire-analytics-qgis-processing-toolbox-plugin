@@ -66,12 +66,12 @@ def array2rasterInt16(data, name, geopackage, extent, crs, nodata=None):
     data = np.int16(data)
     h, w = data.shape
     bites = QByteArray(data.tobytes())
-    block = QgsRasterBlock(Qgis.CInt16, w, h)
+    block = QgsRasterBlock(Qgis.DataType.CInt16, w, h)
     block.setData(bites)
     fw = QgsRasterFileWriter(str(geopackage))
     fw.setOutputFormat("gpkg")
     fw.setCreateOptions(["RASTER_TABLE=" + name, "APPEND_SUBDATASET=YES"])
-    provider = fw.createOneBandRaster(Qgis.Int16, w, h, extent, crs)
+    provider = fw.createOneBandRaster(Qgis.DataType.Int16, w, h, extent, crs)
     provider.setEditable(True)
     if nodata != None:
         provider.setNoDataValue(1, nodata)
@@ -135,8 +135,8 @@ def qgis2numpy_dtype(qgis_dtype: Qgis.DataType) -> np.dtype:
     * ``CInt32``: Complex Int32
     * ``CFloat32``: Complex Float32
     * ``CFloat64``: Complex Float64
-    * ``ARGB32``: Color, alpha, red, green, blue, 4 bytes the same as QImage.Format_ARGB32
-    * ``ARGB32_Premultiplied``: Color, alpha, red, green, blue, 4 bytes  the same as QImage.Format_ARGB32_Premultiplied
+    * ``ARGB32``: Color, alpha, red, green, blue, 4 bytes the same as QImage.Format.Format_ARGB32
+    * ``ARGB32_Premultiplied``: Color, alpha, red, green, blue, 4 bytes  the same as QImage.Format.Format_ARGB32_Premultiplied
     """
     if qgis_dtype == Qgis.DataType.Byte:
         return np.uint8
@@ -199,7 +199,7 @@ def write_log(feedback, name="", file_name=None):
     text_file_name = file_name.with_suffix(".txt")
     with open(text_file_name, "w") as f:
         f.write(feedback.textLog())
-    QgsMessageLog.logMessage(name + " " + file_name.as_uri(), tag=TAG, level=Qgis.Info)
+    QgsMessageLog.logMessage(name + " " + file_name.as_uri(), tag=TAG, level=Qgis.MessageLevel.Info)
 
 
 class QgsProcessingParameterRasterDestinationAIIGrid(QgsProcessingParameterRasterDestination):
