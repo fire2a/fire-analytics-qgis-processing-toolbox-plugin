@@ -144,16 +144,24 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                     tag=TAG,
                     level=Qgis.MessageLevel.Warning,
                 )
-                QgsMessageLog.logMessage(f"{self.name()}, Not a file! {c2f_bin}", tag=TAG, level=Qgis.MessageLevel.Warning)
-                QgsMessageLog.logMessage(f"{self.name()}, Falling back to manylinux", tag=TAG, level=Qgis.MessageLevel.Critical)
+                QgsMessageLog.logMessage(
+                    f"{self.name()}, Not a file! {c2f_bin}", tag=TAG, level=Qgis.MessageLevel.Warning
+                )
+                QgsMessageLog.logMessage(
+                    f"{self.name()}, Falling back to manylinux", tag=TAG, level=Qgis.MessageLevel.Critical
+                )
                 suffix = ""
                 c2f_bin = Path(c2f_path, f"Cell2Fire{suffix}")
             if which("ldd"):
                 ldd = popen("ldd " + str(c2f_bin)).read()
-                QgsMessageLog.logMessage(f"{self.name()}, Binary dependencies:\n{ldd}", tag=TAG, level=Qgis.MessageLevel.Info)
+                QgsMessageLog.logMessage(
+                    f"{self.name()}, Binary dependencies:\n{ldd}", tag=TAG, level=Qgis.MessageLevel.Info
+                )
                 if "not found" in ldd:
                     QgsMessageLog.logMessage(
-                        f"{self.name()}, Missing dependencies! Falling back to manylinux", tag=TAG, level=Qgis.MessageLevel.Critical
+                        f"{self.name()}, Missing dependencies! Falling back to manylinux",
+                        tag=TAG,
+                        level=Qgis.MessageLevel.Critical,
                     )
                     suffix = ""
 
@@ -165,17 +173,23 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
             arch = popen("arch 2>/dev/null").read().strip()
             if arch == "arm64" and pmayorvers != 14:
                 QgsMessageLog.logMessage(
-                    f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 14", tag=TAG, level=Qgis.MessageLevel.Critical
+                    f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 14",
+                    tag=TAG,
+                    level=Qgis.MessageLevel.Critical,
                 )
                 pmayorvers = 14
             if arch == "i386" and pmayorvers > 13:
                 QgsMessageLog.logMessage(
-                    f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 13", tag=TAG, level=Qgis.MessageLevel.Critical
+                    f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 13",
+                    tag=TAG,
+                    level=Qgis.MessageLevel.Critical,
                 )
                 pmayorvers = 13
             if arch == "i386" and pmayorvers < 12:
                 QgsMessageLog.logMessage(
-                    f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 12", tag=TAG, level=Qgis.MessageLevel.Critical
+                    f"{self.name()}, Apple machine: ${arch}, OSX:{pmayorvers}! Forcing 12",
+                    tag=TAG,
+                    level=Qgis.MessageLevel.Critical,
                 )
                 pmayorvers = 12
             suffix = f"_{os}.{pname}-{pmayorvers}.{arch}-static"
@@ -192,7 +206,9 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
                     if c2f_bin.is_file():
                         ldd = popen("otool -L " + str(c2f_bin) + " 2>&1 ").read()
                         QgsMessageLog.logMessage(
-                            f"{self.name()}, Dependencies of {c2f_bin.name}:\n{ldd}", tag=TAG, level=Qgis.MessageLevel.Info
+                            f"{self.name()}, Dependencies of {c2f_bin.name}:\n{ldd}",
+                            tag=TAG,
+                            level=Qgis.MessageLevel.Info,
                         )
             #     if "not found" in ldd:
             #         return False, "Missing dependencies! (brew install libomp?)"

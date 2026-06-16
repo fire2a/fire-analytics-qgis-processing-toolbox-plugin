@@ -127,7 +127,9 @@ class RasterTutorial(QgsProcessingAlgorithm):
             src_data = np.float32(src_data)
             bites = QByteArray(src_data.tobytes())
             # block = QgsRasterBlock(src_provider.dataType(1), src_raster.width(), src_raster.height()) # Qgis.DataType.Float32
-            block = QgsRasterBlock(Qgis.DataType.Float32, src_raster.width(), src_raster.height())  # Qgis.DataType.Float32
+            block = QgsRasterBlock(
+                Qgis.DataType.Float32, src_raster.width(), src_raster.height()
+            )  # Qgis.DataType.Float32
             block.setData(bites)
             feedback.pushDebugInfo(f"block: {block}{block.isValid()}")
             # provider = file_writer.createOneBandRaster(src_provider.dataType(1), src_raster.width(), src_raster.height(), src_raster.extent(), src_raster.crs())

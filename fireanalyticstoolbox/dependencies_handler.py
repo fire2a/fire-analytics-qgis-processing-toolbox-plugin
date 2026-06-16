@@ -75,14 +75,18 @@ def run():
         if platform_system() == "Darwin":
             cwd = sys_prefix
             right_here = "./bin/"
-            QgsMessageLog().logMessage(f"Plugin {plugin_name}: Using Python in {cwd}", tag="Plugins", level=Qgis.MessageLevel.Success)
+            QgsMessageLog().logMessage(
+                f"Plugin {plugin_name}: Using Python in {cwd}", tag="Plugins", level=Qgis.MessageLevel.Success
+            )
         else:
             cwd = None
             right_here = ""
         result = subprocess_run([right_here+"python3", "-m", "pip", "install", requirement], capture_output=True, text=True, cwd=cwd)
         if result.returncode == 0:
             msg = [f"pip install {requirement} success!"]
-            QgsMessageLog().logMessage(f"Plugin {plugin_name}: {msg[-1]}", tag="Plugins", level=Qgis.MessageLevel.Success)
+            QgsMessageLog().logMessage(
+                f"Plugin {plugin_name}: {msg[-1]}", tag="Plugins", level=Qgis.MessageLevel.Success
+            )
             QgsMessageLog().logMessage(
                 f"Plugin {plugin_name}: pip log\n" + result.stdout, tag="Plugins", level=Qgis.MessageLevel.Warning
             )
@@ -92,11 +96,15 @@ def run():
                     module = import_module(module_name)
                     reload(module)
                     msg += [f"reload {module_name} success!"]
-                    QgsMessageLog().logMessage(f"Plugin {plugin_name}: {msg[-1]}", tag="Plugins", level=Qgis.MessageLevel.Success)
+                    QgsMessageLog().logMessage(
+                        f"Plugin {plugin_name}: {msg[-1]}", tag="Plugins", level=Qgis.MessageLevel.Success
+                    )
                     ok = True
             except Exception:
                 msg += [f"reloading {req_pkg_name} packages failed!"]
-                QgsMessageLog().logMessage(f"Plugin {plugin_name}: {msg[-1]}", tag="Plugins", level=Qgis.MessageLevel.Critical)
+                QgsMessageLog().logMessage(
+                    f"Plugin {plugin_name}: {msg[-1]}", tag="Plugins", level=Qgis.MessageLevel.Critical
+                )
                 ok = False
             msg = "\n".join(msg)
             if ok:
@@ -108,7 +116,9 @@ def run():
         QgsMessageLog().logMessage(f"Plugin {plugin_name}: {msg}", tag="Plugins", level=Qgis.MessageLevel.Critical)
         QMessageBox.critical(None, f"Plugin '{plugin_name}'", f"{plugin_name}:\n{msg}")
     elif response == QMessageBox.StandardButton.No:
-        QgsMessageLog().logMessage(f"{plugin_name}: User declined installation!", tag="Plugins", level=Qgis.MessageLevel.Warning)
+        QgsMessageLog().logMessage(
+            f"{plugin_name}: User declined installation!", tag="Plugins", level=Qgis.MessageLevel.Warning
+        )
 
         qmb = QMessageBox(
             QMessageBox.Icon.Warning,
@@ -127,7 +137,9 @@ def run():
             )
         else:
             QgsMessageLog().logMessage(
-                f"{plugin_name}: checking & installing dependencies normal exit", tag="Plugins", level=Qgis.MessageLevel.Info
+                f"{plugin_name}: checking & installing dependencies normal exit",
+                tag="Plugins",
+                level=Qgis.MessageLevel.Info,
             )
 
 
