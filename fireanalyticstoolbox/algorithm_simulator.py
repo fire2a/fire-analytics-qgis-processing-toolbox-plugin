@@ -854,7 +854,7 @@ class FireSimulatorAlgorithm(QgsProcessingAlgorithm):
         if platform_system() == "Windows":
             cmd = 'C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -Command "& {' + cmd + '}"'
         c2f.start(cmd)
-        pid = c2f.pid()
+        pid = c2f.processId()
         while True:
             c2f.waitForFinished(1000)
             if feedback.isCanceled():
