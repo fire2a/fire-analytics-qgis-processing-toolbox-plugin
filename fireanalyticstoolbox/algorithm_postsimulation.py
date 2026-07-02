@@ -1105,6 +1105,11 @@ class ScarSIMPP(QgsProcessingAlgorithm):
         sample_file = Path(self.parameterAsString(parameters, self.IN_SCAR, context))
         output_raster_filename = self.parameterAsOutputLayer(parameters, self.OUT_RASTER, context)
         output_vector_file = self.parameterAsFileOutput(parameters, self.OUT_POLY, context)
+        if output_vector_file.startswith("memory:"):
+            # build_scars() writes the vector directly with OGR and can't handle QGIS
+            # "memory:" URIs (newer GDAL fails sqlite3_open on them). For a TEMPORARY_OUTPUT
+            # feature sink, resolve to a real temp GeoPackage instead.
+            output_vector_file = QgsProcessingUtils.generateTempFilename("propagation_scars.gpkg")
         burn_prob_fname = self.parameterAsOutputLayer(parameters, self.OUT_BP, context)
         feedback.pushDebugInfo(f"{sample_file=}, {output_raster_filename=}, {output_vector_file=}, {burn_prob_fname=}")
         # if output_vector_file[-5:] != ".gpkg":
